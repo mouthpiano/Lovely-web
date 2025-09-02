@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動鋼琴</title>
+    <style>
+        /* 頁面整體置中 */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #4a4a68; /* 深藍灰色背景 */
+            font-family: sans-serif;
+            color: #fff;
+            /* 防止在行動裝置上拖曳琴鍵時滾動頁面 */
+            touch-action: none;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            font-size: 1.1em;
+        }
+
+        .controls label {
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        
+        /* 鋼琴容器 */
+        .piano {
+            display: flex;
+            position: relative; /* 為了讓黑鍵能絕對定位 */
+            background-color: #222;
+            padding: 25px 25px 15px;
+            border-radius: 12px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3), 0 8px 10px rgba(0,0,0,0.25);
+        }
+
+        /* 琴鍵通用樣式 */
+        .key {
+            cursor: pointer;
+            user-select: none; /* 防止點擊時選取文字 */
+            position: relative; /* 為了簡譜的絕對定位 */
+        }
+
+        /* 白鍵樣式 */
+        .white {
+            width: 70px;
+            height: 280px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 0 0 6px 6px;
+            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.1);
+            transition: background-color 0.1s ease, box-shadow 0.1s ease;
+        }
+
+        .white:not(:last-child) {
+            margin-right: 2px;
+        }
+        
+        /* 當白鍵被按下時的樣式 */
+        .white.active {
+            background-color: #dcdcdc;
+            box-shadow: inset 0 -2px 5px rgba(0,0,0,0.2);
+        }
+        
+        /* 黑鍵樣式 */
+        .black {
+            width: 42px;
+            height: 170px;
+            background: linear-gradient(45deg, #333, #000);
+            border: 1px solid #000;
+            border-radius: 0 0 5px 5px;
+            position: absolute; /* 疊加在白鍵之上 */
+            z-index: 2; /* 確保在白鍵上方 */
+            box-shadow: 0 6px 10px rgba(0,0,0,0.5);
+            transition: background 0.1s ease, box-shadow 0.1s ease;
+        }
+        
+        /* 當黑鍵被按下時的樣式 */
+        .black.active {
+            background: linear-gradient(45deg, #222, #000);
+            box-shadow: 0 3px 5px rgba(0,0,0,0.5);
+        }
+
+        /* 使用 data-note 屬性來精確定位每一個黑鍵 */
+        [data-note="Gb3"] { left: 60px; }
+        [data-note="Ab3"] { left: 134px; }
+        [data-note="Bb3"] { left: 208px; }
+        [data-note="Db4"] { left: 354px; }
+        [data-note="Eb4"] { left: 428px; }
+        [data-note="Gb4"] { left: 574px; }
+        [data-note="Ab4"] { left: 648px; }
+        [data-note="Bb4"] { left: 722px; }
+
+        /* 簡譜標示 */
+        .jianpu {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            color: #555;
+            visibility: hidden; /* 預設隱藏 */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        /* 當 piano 容器有 'show-jianpu' class 時，顯示簡譜 */
+        .piano.show-jianpu .jianpu {
+            visibility: visible;
+            opacity: 1;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>互動鋼琴</h1>
+
+    <div class="controls">
+        <input type="checkbox" id="show-jianpu-toggle">
+        <label for="show-jianpu-toggle">在琴鍵上顯示簡譜</label>
+    </div>
+
+    <div class="piano" id="piano-container">
+        <!-- 白鍵 (White Keys) -->
+        <div class="key white" data-note="F3"><span class="jianpu">4&#x0323;</span></div>
+        <div class="key white" data-note="G3"><span class="jianpu">5&#x0323;</span></div>
+        <div class="key white" data-note="A3"><span class="jianpu">6&#x0323;</span></div>
+        <div class="key white" data-note="B3"><span class="jianpu">7&#x0323;</span></div>
+        <div class="key white" data-note="C4"><span class="jianpu">1</span></div>
+        <div class="key white" data-note="D4"><span class="jianpu">2</span></div>
+        <div class="key white" data-note="E4"><span class="jianpu">3</span></div>
+        <div class="key white" data-note="F4"><span class="jianpu">4</span></div>
+        <div class="key white" data-note="G4"><span class="jianpu">5</span></div>
+        <div class="key white" data-note="A4"><span class="jianpu">6</span></div>
+        <div class="key white" data-note="B4"><span class="jianpu">7</span></div>
+
+        <!-- 黑鍵 (Black Keys) -->
+        <div class="key black" data-note="Gb3"></div>
+        <div class="key black" data-note="Ab3"></div>
+        <div class="key black" data-note="Bb3"></div>
+        <div class="key black" data-note="Db4"></div>
+        <div class="key black" data-note="Eb4"></div>
+        <div class="key black" data-note="Gb4"></div>
+        <div class="key black" data-note="Ab4"></div>
+        <div class="key black" data-note="Bb4"></div>
+    </div>
+
+
+    <script>
+        let audioCtx;
+        // 這個物件將用來追蹤目前正在播放的音符
+        const activeNotes = {};
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        const noteFrequencies = {
+            'F3': 174.61, 'Gb3': 185.00, 'G3': 196.00, 'Ab3': 207.65, 'A3': 220.00, 'Bb3': 233.08, 'B3': 246.94,
+            'C4': 261.63, 'Db4': 277.18, 'D4': 293.66, 'Eb4': 311.13, 'E4': 329.63,
+            'F4': 349.23, 'Gb4': 369.99, 'G4': 392.00, 'Ab4': 415.30, 'A4': 440.00, 'Bb4': 466.16, 'B4': 493.88
+        };
+
+        // 按下琴鍵時，開始播放聲音
+        function startNote(note, keyElement) {
+            if (!audioCtx || activeNotes[note]) return;
+
+            const frequency = noteFrequencies[note];
+            if (!frequency) return;
+
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.type = 'triangle';
+            oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+
+            // 讓音量快速上升，避免爆音
+            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            gainNode.gain.linearRampToValueAtTime(1, audioCtx.currentTime + 0.05);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            oscillator.start();
+
+            // 將音源和音量控制器存起來，以便之後停止
+            activeNotes[note] = { oscillator, gainNode };
+            keyElement.classList.add('active');
+        }
+
+        // 放開琴鍵時，停止聲音
+        function stopNote(note, keyElement) {
+            if (!activeNotes[note]) return;
+
+            const { oscillator, gainNode } = activeNotes[note];
+            const releaseTime = 0.3; // 音符釋放時淡出的時間
+
+            // 讓音量平滑地降到零，製造自然的釋放效果
+            gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+            gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + releaseTime);
+
+            // 在淡出結束後，才真正停止音源
+            oscillator.stop(audioCtx.currentTime + releaseTime);
+
+            delete activeNotes[note];
+            keyElement.classList.remove('active');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const pianoContainer = document.getElementById('piano-container');
+            const keys = document.querySelectorAll('.key');
+            const jianpuToggle = document.getElementById('show-jianpu-toggle');
+
+            keys.forEach(key => {
+                const note = key.dataset.note;
+
+                // --- 桌面裝置事件 ---
+                key.addEventListener('mousedown', () => {
+                    initAudio();
+                    startNote(note, key);
+                });
+                key.addEventListener('mouseup', () => stopNote(note, key));
+                key.addEventListener('mouseleave', () => stopNote(note, key));
+
+                // --- 行動裝置觸控事件 ---
+                key.addEventListener('touchstart', (e) => {
+                    e.preventDefault(); // 防止同時觸發 mousedown
+                    initAudio();
+                    startNote(note, key);
+                });
+                key.addEventListener('touchend', () => stopNote(note, key));
+            });
+
+            jianpuToggle.addEventListener('change', (event) => {
+                pianoContainer.classList.toggle('show-jianpu', event.target.checked);
+            });
+        });
+    </script>
+
+</body>
+</html>
+
