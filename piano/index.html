@@ -1,0 +1,268 @@
+﻿<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動鋼琴</title>
+    <style>
+        /* 頁面整體置中 */
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #4a4a68; /* 深藍灰色背景 */
+            font-family: sans-serif;
+            color: #fff;
+        }
+
+
+        h1 {
+            margin-bottom: 20px;
+            font-weight: 300;
+            letter-spacing: 2px;
+        }
+
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            font-size: 1.1em;
+        }
+
+
+        .controls label {
+            cursor: pointer;
+            margin-left: 8px;
+        }
+        
+        /* 鋼琴容器 */
+        .piano {
+            display: flex;
+            position: relative; /* 為了讓黑鍵能絕對定位 */
+            background-color: #222;
+            padding: 25px 25px 15px;
+            border-radius: 12px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3), 0 8px 10px rgba(0,0,0,0.25);
+        }
+
+
+        /* 琴鍵通用樣式 */
+        .key {
+            cursor: pointer;
+            user-select: none; /* 防止點擊時選取文字 */
+            position: relative; /* 為了簡譜的絕對定位 */
+        }
+
+
+        /* 白鍵樣式 */
+        .white {
+            width: 70px;
+            height: 280px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 0 0 6px 6px;
+            box-shadow: inset 0 -5px 10px rgba(0,0,0,0.1);
+            transition: background-color 0.1s ease, box-shadow 0.1s ease;
+        }
+
+
+        .white:not(:last-child) {
+            margin-right: 2px;
+        }
+        
+        /* 當白鍵被按下時的樣式 */
+        .white:active {
+            background-color: #eee;
+            box-shadow: inset 0 -2px 5px rgba(0,0,0,0.2);
+        }
+        
+        /* 黑鍵樣式 */
+        .black {
+            width: 42px;
+            height: 170px;
+            background: linear-gradient(45deg, #333, #000);
+            border: 1px solid #000;
+            border-radius: 0 0 5px 5px;
+            position: absolute; /* 疊加在白鍵之上 */
+            z-index: 2; /* 確保在白鍵上方 */
+            box-shadow: 0 6px 10px rgba(0,0,0,0.5);
+            transition: background 0.1s ease, box-shadow 0.1s ease;
+        }
+        
+        /* 當黑鍵被按下時的樣式 */
+        .black:active {
+            background: linear-gradient(45deg, #222, #000);
+            box-shadow: 0 3px 5px rgba(0,0,0,0.5);
+        }
+
+
+        /* 使用 data-note 屬性來精確定位每一個黑鍵 */
+        [data-note="Gb3"] { left: 60px; }
+        [data-note="Ab3"] { left: 134px; }
+        [data-note="Bb3"] { left: 208px; }
+        [data-note="Db4"] { left: 354px; }
+        [data-note="Eb4"] { left: 428px; }
+        [data-note="Gb4"] { left: 574px; }
+        [data-note="Ab4"] { left: 648px; }
+        [data-note="Bb4"] { left: 722px; }
+
+
+        /* 簡譜標示 */
+        .jianpu {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 24px;
+            font-weight: bold;
+            color: #555;
+            visibility: hidden; /* 預設隱藏 */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+
+        /* 當 piano 容器有 'show-jianpu' class 時，顯示簡譜 */
+        .piano.show-jianpu .jianpu {
+            visibility: visible;
+            opacity: 1;
+        }
+
+
+    </style>
+</head>
+<body>
+
+
+    <h1>互動鋼琴</h1>
+
+
+    <div class="controls">
+        <input type="checkbox" id="show-jianpu-toggle">
+        <label for="show-jianpu-toggle">在琴鍵上顯示簡譜</label>
+    </div>
+
+
+    <div class="piano" id="piano-container">
+        <!-- 白鍵 (White Keys) -->
+        <div class="key white" data-note="F3"><span class="jianpu">4&#x0323;</span></div>
+        <div class="key white" data-note="G3"><span class="jianpu">5&#x0323;</span></div>
+        <div class="key white" data-note="A3"><span class="jianpu">6&#x0323;</span></div>
+        <div class="key white" data-note="B3"><span class="jianpu">7&#x0323;</span></div>
+        <div class="key white" data-note="C4"><span class="jianpu">1</span></div>
+        <div class="key white" data-note="D4"><span class="jianpu">2</span></div>
+        <div class="key white" data-note="E4"><span class="jianpu">3</span></div>
+        <div class="key white" data-note="F4"><span class="jianpu">4</span></div>
+        <div class="key white" data-note="G4"><span class="jianpu">5</span></div>
+        <div class="key white" data-note="A4"><span class="jianpu">6</span></div>
+        <div class="key white" data-note="B4"><span class="jianpu">7</span></div>
+
+
+        <!-- 黑鍵 (Black Keys) -->
+        <div class="key black" data-note="Gb3"></div>
+        <div class="key black" data-note="Ab3"></div>
+        <div class="key black" data-note="Bb3"></div>
+        <div class="key black" data-note="Db4"></div>
+        <div class="key black" data-note="Eb4"></div>
+        <div class="key black" data-note="Gb4"></div>
+        <div class="key black" data-note="Ab4"></div>
+        <div class="key black" data-note="Bb4"></div>
+    </div>
+
+
+
+
+    <script>
+        // 為了符合現代瀏覽器的政策，AudioContext 需要在用戶互動後才能啟動
+        let audioCtx;
+
+
+        // 初始化音訊環境
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+
+        // 音符與其對應頻率的資料庫
+        const noteFrequencies = {
+            'F3': 174.61, 'Gb3': 185.00, 'G3': 196.00, 'Ab3': 207.65, 'A3': 220.00, 'Bb3': 233.08, 'B3': 246.94,
+            'C4': 261.63, 'Db4': 277.18, 'D4': 293.66, 'Eb4': 311.13, 'E4': 329.63,
+            'F4': 349.23, 'Gb4': 369.99, 'G4': 392.00, 'Ab4': 415.30, 'A4': 440.00, 'Bb4': 466.16, 'B4': 493.88
+        };
+
+
+        // 播放聲音的核心函式
+        function playSound(note) {
+            // 如果音訊環境還沒準備好，就不執行
+            if (!audioCtx) return;
+
+
+            const frequency = noteFrequencies[note];
+            if (!frequency) return; // 如果找不到頻率，也不執行
+
+
+            // 建立一個音源 (Oscillator)
+            const oscillator = audioCtx.createOscillator();
+            // 建立一個音量控制器 (GainNode)
+            const gainNode = audioCtx.createGain();
+
+
+            // 設定音源屬性
+            oscillator.type = 'triangle'; // 'sine', 'square', 'sawtooth', 'triangle' 可選
+            oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+
+
+            // 模擬琴音的自然衰減效果
+            gainNode.gain.setValueAtTime(1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+
+
+            // 連接處理節點: 音源 -> 音量控制器 -> 輸出裝置 (喇叭)
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+
+            // 開始播放聲音，並在 1 秒後停止以釋放資源
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + 1);
+        }
+
+
+        // 頁面載入完成後，為所有琴鍵加上事件監聽器
+        document.addEventListener('DOMContentLoaded', () => {
+            const pianoContainer = document.getElementById('piano-container');
+            const keys = document.querySelectorAll('.key');
+            const jianpuToggle = document.getElementById('show-jianpu-toggle');
+
+
+            // 為每個琴鍵加上點擊事件
+            keys.forEach(key => {
+                // 使用 'mousedown' 事件來獲得最即時的反應
+                key.addEventListener('mousedown', () => {
+                    initAudio(); // 在第一次點擊時初始化音訊
+                    const note = key.dataset.note;
+                    playSound(note);
+                });
+            });
+
+
+            // 監聽簡譜切換的核取方塊
+            jianpuToggle.addEventListener('change', (event) => {
+                if (event.target.checked) {
+                    pianoContainer.classList.add('show-jianpu');
+                } else {
+                    pianoContainer.classList.remove('show-jianpu');
+                }
+            });
+        });
+    </script>
+
+
+</body>
+</html>
