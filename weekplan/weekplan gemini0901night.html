@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>作息規劃表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 整體樣式與動畫 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+        }
+        .dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+        .drag-over {
+            border-top: 3px solid #3b82f6;
+        }
+        .time-picker {
+            display: none;
+            position: absolute;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            z-index: 1000;
+            padding: 16px;
+        }
+        .time-picker.show {
+            display: block;
+        }
+        .row-item {
+            transition: all 0.3s ease;
+        }
+        .row-item:hover {
+            background-color: #f8fafc;
+            transform: translateY(-2px);
+        }
+        .item-dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+        }
+        .item-drag-over {
+            border-top: 2px solid #10b981;
+        }
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        .week-day-btn {
+            transition: all 0.3s ease;
+        }
+        .week-day-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .week-day-btn.active {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        .week-day-btn.has-data {
+            border: 2px solid #10b981;
+            background-color: #ecfdf5;
+        }
+        .week-day-btn.has-data.active {
+            border-color: #059669;
+        }
+        .template-item {
+            transition: all 0.3s ease;
+            cursor: grab;
+        }
+        .template-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        .template-item:active {
+            cursor: grabbing;
+        }
+        .template-dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+        }
+        .copy-dialog {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+        .copy-dialog.show {
+            display: flex;
+        }
+        .calendar-day {
+            transition: all 0.2s ease;
+        }
+        .calendar-day:hover:not(.disabled) {
+            background-color: #eff6ff;
+            transform: scale(1.05);
+        }
+        .calendar-day.selected {
+            background-color: #3b82f6;
+            color: white;
+            border-radius: 9999px;
+        }
+        .calendar-day.has-data {
+            font-weight: bold;
+            color: #10b981;
+        }
+        .calendar-day.is-today {
+            border: 1px solid #fb923c;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4 sm:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- 標題區域 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <!-- 一周快速選擇 -->
+            <div class="mb-6">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg font-semibold text-gray-700">📅 一周規劃</h2>
+                    <div class="flex gap-2">
+                        <button onclick="slideWeek(-1)" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                            ← 前7天
+                        </button>
+                        <button onclick="slideWeek(1)" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm transition-colors">
+                            後7天 →
+                        </button>
+                    </div>
+                </div>
+                <div class="relative overflow-hidden">
+                    <div class="grid grid-cols-7 gap-2" id="weekSelector">
+                        <!-- 一周日期按鈕會在這裡動態生成 -->
+                    </div>
+                </div>
+                <div class="text-center mt-2">
+                    <span class="text-xs text-gray-500" id="weekRangeDisplay">
+                        <!-- 顯示當前週的日期範圍 -->
+                    </span>
+                </div>
+            </div>
+            
+            <div class="flex flex-col md:flex-row gap-4 items-end">
+                <div class="flex-1 w-full">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">日期</label>
+                    <input type="date" id="dateInput" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex-grow w-full md:w-auto" style="flex-grow: 2;">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">標題</label>
+                    <input type="text" id="titleInput" placeholder="輸入今日計劃標題..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="saveCurrentSchedule()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                        💾 保存
+                    </button>
+                    <button onclick="clearCurrentSchedule()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                        🗑️ 清空
+                    </button>
+                    <button onclick="exportAllData()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                        📤 匯出
+                    </button>
+                    <button onclick="showImportDialog()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                        📥 匯入
+                    </button>
+                </div>
+            </div>
+            <h1 id="displayTitle" class="text-2xl font-bold text-center text-gray-800 mt-4 break-words">我的作息規劃</h1>
+        </div>
+
+        <!-- 固定作息模板區域 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-semibold text-orange-600">🔖 固定作息模板</h2>
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="toggleTemplatePanel()" id="templateToggleBtn" class="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                        📋 顯示模板
+                    </button>
+                     <button onclick="copyDaySchedule()" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                        📄 複製整天
+                    </button>
+                    <button onclick="clearDaySchedule()" class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                        🧹 清除整天
+                    </button>
+                    <button onclick="addRow()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-md text-sm transition-colors">+ 新增行</button>
+                </div>
+            </div>
+            
+            <!-- 模板面板 -->
+            <div id="templatePanel" class="hidden mt-4 border-t pt-4">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- 已保存的整天作息 -->
+                    <div>
+                        <h3 class="text-md font-medium text-blue-700 mb-3">📅 已保存的整天作息</h3>
+                        <div id="savedSchedulesList" class="space-y-2 max-h-60 overflow-y-auto p-2 bg-gray-50 rounded">
+                            <!-- 整天作息項目會在這裡動態生成 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 個別時間模板 -->
+                    <div>
+                        <h3 class="text-md font-medium text-orange-700 mb-3">⏰ 個別時間模板</h3>
+                        <div id="templateList" class="space-y-2 max-h-60 overflow-y-auto p-2 bg-gray-50 rounded">
+                            <!-- 模板項目會在這裡動態生成 -->
+                        </div>
+                    </div>
+                    
+                    <!-- 新增個別時間模板 -->
+                    <div>
+                        <h3 class="text-md font-medium text-green-700 mb-3">➕ 新增/編輯模板</h3>
+                        <div class="space-y-3 p-4 border rounded-lg bg-white">
+                            <input type="text" id="templateNameInput" placeholder="模板名稱 (例如：晨間運動)" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500">
+                            <input type="text" id="templateTimeInput" placeholder="點擊選擇時間" readonly onclick="showTimePicker(event, this)" class="w-full px-3 py-2 bg-blue-50 border border-blue-200 rounded-md font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <div id="templateActivities" class="space-y-2">
+                                <input type="text" placeholder="作息內容..." class="w-full px-3 py-2 bg-green-50 border border-green-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                            </div>
+                            <button onclick="addTemplateActivity()" class="text-green-600 hover:text-green-800 text-sm">+ 新增作息項目</button>
+                            <div id="templateNotes" class="space-y-2">
+                                <input type="text" placeholder="備註內容..." class="w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            </div>
+                            <button onclick="addTemplateNote()" class="text-purple-600 hover:text-purple-800 text-sm">+ 新增備註項目</button>
+                            <div class="flex gap-2">
+                                <button onclick="saveTemplate()" class="flex-1 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                                    💾 保存為模板
+                                </button>
+                                <button onclick="resetTemplateForm()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm transition-colors" style="display: none;" id="cancelEditBtn">
+                                    ❌ 取消
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 主要內容區域 -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <!-- 表格標題 -->
+            <div class="hidden md:grid grid-cols-12 gap-4 mb-4 pb-3 border-b-2 border-gray-200">
+                <div class="col-span-2 flex items-center">
+                    <h2 class="text-lg font-semibold text-blue-600">⏰ 時間</h2>
+                </div>
+                <div class="col-span-5 flex items-center">
+                    <h2 class="text-lg font-semibold text-green-600">📋 作息</h2>
+                </div>
+                <div class="col-span-4 flex items-center">
+                    <h2 class="text-lg font-semibold text-purple-600">📝 備註</h2>
+                </div>
+                <div class="col-span-1"></div> <!-- Placeholder for actions column -->
+            </div>
+            
+            <!-- 表格內容 -->
+            <div id="scheduleTable" class="space-y-3">
+                <!-- 行項目會在這裡動態生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 複製整天對話框 -->
+    <div id="copyDialog" class="copy-dialog">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">📄 複製整天作息</h3>
+            <p class="text-gray-600 mb-2">選擇要複製到哪些天（可多選）：</p>
+            <div id="copySelectedDatesDisplay" class="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg hidden">
+                <div class="text-sm text-purple-700 font-medium mb-1">已選擇的日期：</div>
+                <div id="copySelectedDatesList" class="text-sm text-purple-600"></div>
+            </div>
+            <div id="copyWeekSelector" class="mb-4">
+                <!-- 月份日曆會在這裡動態生成 -->
+            </div>
+            <div class="flex flex-col gap-3">
+                <!-- 快速選擇按鈕 -->
+                <div class="flex flex-wrap gap-2 justify-center border-t pt-3">
+                    <button onclick="selectWeekdays('copy')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-sm transition-colors">
+                        選擇工作日
+                    </button>
+                    <button onclick="selectWeekends('copy')" class="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1 rounded text-sm transition-colors">
+                        選擇週末
+                    </button>
+                    <button onclick="selectCurrentWeek('copy')" class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded text-sm transition-colors">
+                        選擇本週
+                    </button>
+                    <button onclick="clearAllSelections('copy')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm transition-colors">
+                        清除選擇
+                    </button>
+                </div>
+                
+                <!-- 確認按鈕 -->
+                <div class="flex gap-3 justify-end">
+                    <button onclick="closeCopyDialog()" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">取消</button>
+                    <button onclick="confirmCopy()" id="confirmCopyBtn" class="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>確認複製</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 清除整天對話框 -->
+    <div id="clearDialog" class="copy-dialog">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">🧹 清除整天作息</h3>
+            <p class="text-gray-600 mb-2">選擇要清除作息的日期（可多選）：</p>
+            <div id="clearSelectedDatesDisplay" class="mb-4 p-3 bg-orange-50 border border-orange-200 rounded-lg hidden">
+                <div class="text-sm text-orange-700 font-medium mb-1">已選擇的日期：</div>
+                <div id="clearSelectedDatesList" class="text-sm text-orange-600"></div>
+            </div>
+            <div id="clearWeekSelector" class="mb-4">
+                <!-- 月份日曆會在這裡動態生成 -->
+            </div>
+            <div class="flex flex-col gap-3">
+                 <!-- 快速選擇按鈕 -->
+                <div class="flex flex-wrap gap-2 justify-center border-t pt-3">
+                    <button onclick="selectWeekdays('clear')" class="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1 rounded text-sm transition-colors">
+                        選擇工作日
+                    </button>
+                    <button onclick="selectWeekends('clear')" class="bg-orange-100 hover:bg-orange-200 text-orange-700 px-3 py-1 rounded text-sm transition-colors">
+                        選擇週末
+                    </button>
+                    <button onclick="selectCurrentWeek('clear')" class="bg-green-100 hover:bg-green-200 text-green-700 px-3 py-1 rounded text-sm transition-colors">
+                        選擇本週
+                    </button>
+                    <button onclick="clearAllSelections('clear')" class="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm transition-colors">
+                        清除選擇
+                    </button>
+                </div>
+                
+                <!-- 確認按鈕 -->
+                <div class="flex gap-3 justify-end">
+                    <button onclick="closeClearDialog()" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">取消</button>
+                    <button onclick="confirmClear()" id="confirmClearBtn" class="bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed" disabled>確認清除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 匯入對話框 -->
+    <div id="importDialog" class="copy-dialog">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">📥 匯入作息規劃</h3>
+            
+            <!-- 匯入方式選擇 -->
+            <div class="mb-6">
+                <div class="flex gap-4 mb-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="importMethod" value="file" checked onchange="toggleImportMethod()">
+                        <span class="text-sm font-medium">📁 從檔案匯入</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="importMethod" value="text" onchange="toggleImportMethod()">
+                        <span class="text-sm font-medium">📝 從文字匯入</span>
+                    </label>
+                </div>
+                
+                <!-- 檔案匯入 -->
+                <div id="fileImportSection">
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                        <input type="file" id="importFileInput" accept=".json" class="hidden" onchange="handleFileSelect(event)">
+                        <div class="mb-3">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
+                        <button onclick="document.getElementById('importFileInput').click()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-md text-sm transition-colors">
+                            選擇檔案
+                        </button>
+                        <p class="text-xs text-gray-500 mt-2">支援 .json 格式檔案</p>
+                        <div id="selectedFileName" class="mt-2 text-sm text-green-600 hidden"></div>
+                    </div>
+                </div>
+                
+                <!-- 文字匯入 -->
+                <div id="textImportSection" class="hidden">
+                    <textarea id="importTextArea" placeholder="請貼上匯出的作息資料..." class="w-full h-32 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"></textarea>
+                    <p class="text-xs text-gray-500 mt-1">請貼上從「匯出」功能產生的文字內容</p>
+                </div>
+            </div>
+            
+            <!-- 匯入選項 -->
+            <div class="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <h4 class="text-sm font-medium text-yellow-800 mb-2">⚠️ 匯入選項</h4>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="importOption" value="merge" checked>
+                        <span class="text-sm text-yellow-700">合併匯入（保留現有資料，新增或覆蓋匯入的資料）</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="importOption" value="replace">
+                        <span class="text-sm text-yellow-700">取代匯入（清除所有現有資料，僅保留匯入的資料）</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- 按鈕區域 -->
+            <div class="flex gap-3 justify-end">
+                <button onclick="closeImportDialog()" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">取消</button>
+                <button onclick="confirmImport()" id="confirmImportBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-md transition-colors">確認匯入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 時間選擇器 -->
+    <div id="timePicker" class="time-picker">
+        <div class="flex gap-2 items-center mb-3">
+            <select id="hourSelect" class="px-2 py-1 border rounded">
+                <!-- 小時選項會動態生成 -->
+            </select>
+            <span>:</span>
+            <select id="minuteSelect" class="px-2 py-1 border rounded">
+                <!-- 分鐘選項會動態生成 -->
+            </select>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="confirmTime()" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">確認</button>
+            <button onclick="closeTimePicker()" class="bg-gray-300 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-400">取消</button>
+        </div>
+    </div>
+
+    <script>
+        let draggedElement = null;
+        let draggedItem = null;
+        let currentTimeInput = null;
+        let rowCounter = 0;
+        let weeklySchedules = {}; // 存儲所有日期的規劃
+        let currentSelectedDate = null;
+        let scheduleTemplates = {}; // 存儲固定作息模板
+        let editingTemplateId = null; // 正在編輯的模板ID
+        let currentWeekStartDate = null; // 當前顯示週的開始日期
+        
+        // 用於複製/清除功能的變數
+        let copyDialogSelectedDates = [];
+        let clearDialogSelectedDates = [];
+        let copyDialogCurrentDate = new Date();
+        let clearDialogCurrentDate = new Date();
+
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 設置今天的日期
+            const today = new Date();
+            const todayString = formatDate(new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())));
+            document.getElementById('dateInput').value = todayString;
+            currentSelectedDate = todayString;
+            
+            // 初始化時間選擇器
+            initTimePicker();
+            
+            // 初始化一周選擇器
+            initWeekSelector(today);
+            
+            // 載入本地存儲的規劃
+            loadDataFromLocalStorage();
+
+            // 根據載入的資料更新畫面
+            loadScheduleForDate(currentSelectedDate);
+            renderTemplates();
+            updateAllWeekButtonStyles();
+            
+            // 監聽標題輸入
+            document.getElementById('titleInput').addEventListener('input', updateTitle);
+            document.getElementById('dateInput').addEventListener('change', function() {
+                saveCurrentSchedule(); // 切換日期前先保存
+                selectDate(this.value);
+            });
+            
+            // 點擊外部關閉時間選擇器
+            document.addEventListener('click', function(e) {
+                const timePicker = document.getElementById('timePicker');
+                if (timePicker.classList.contains('show') && !timePicker.contains(e.target) && e.target !== currentTimeInput) {
+                    closeTimePicker();
+                }
+            });
+        });
+
+        function formatDate(date) {
+            // Always format based on UTC to avoid timezone shifts
+            const year = date.getUTCFullYear();
+            const month = (date.getUTCMonth() + 1).toString().padStart(2, '0');
+            const day = date.getUTCDate().toString().padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function parseDateString(dateString) {
+            // Parses a 'YYYY-MM-DD' string into a UTC Date object
+            const [year, month, day] = dateString.split('-').map(Number);
+            return new Date(Date.UTC(year, month - 1, day));
+        }
+
+        function initTimePicker() {
+            const hourSelect = document.getElementById('hourSelect');
+            const minuteSelect = document.getElementById('minuteSelect');
+            
+            // 生成小時選項 (00-23)
+            for (let i = 0; i < 24; i++) {
+                const option = document.createElement('option');
+                option.value = i.toString().padStart(2, '0');
+                option.textContent = i.toString().padStart(2, '0');
+                hourSelect.appendChild(option);
+            }
+            
+            // 生成分鐘選項 (每5分鐘間隔)
+            for (let i = 0; i < 60; i += 5) {
+                const option = document.createElement('option');
+                option.value = i.toString().padStart(2, '0');
+                option.textContent = i.toString().padStart(2, '0');
+                minuteSelect.appendChild(option);
+            }
+        }
+
+        function updateTitle() {
+            const date = document.getElementById('dateInput').value;
+            const title = document.getElementById('titleInput').value;
+            const displayTitle = document.getElementById('displayTitle');
+            
+            let newTitle = '';
+            if (date) {
+                const dateObj = parseDateString(date);
+                newTitle += dateObj.toLocaleDateString('zh-TW', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' });
+            }
+            if (title) {
+                newTitle += (newTitle ? ' - ' : '') + title;
+            }
+            if (!newTitle) {
+                newTitle = '我的作息規劃';
+            }
+            
+            displayTitle.textContent = newTitle;
+        }
+
+        function addRow(defaultTime = '', defaultActivities = [''], defaultNotes = ['']) {
+            rowCounter++;
+            const scheduleTable = document.getElementById('scheduleTable');
+            
+            const row = document.createElement('div');
+            row.className = 'row-item grid grid-cols-1 md:grid-cols-12 gap-4 p-4 border border-gray-200 rounded-lg';
+            row.draggable = true;
+            row.dataset.id = `row-${rowCounter}`;
+            
+            row.innerHTML = `
+                <!-- 時間欄 -->
+                <div class="md:col-span-2">
+                    <label class="block md:hidden text-sm font-medium text-blue-600 mb-1">⏰ 時間</label>
+                    <input type="text" value="${defaultTime}" placeholder="點擊選擇時間" 
+                           class="w-full px-3 py-2 bg-blue-50 border border-blue-200 rounded-md font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                           readonly onclick="showTimePicker(event, this)">
+                </div>
+                
+                <!-- 作息欄 -->
+                <div class="md:col-span-5">
+                     <label class="block md:hidden text-sm font-medium text-green-600 mb-1">📋 作息</label>
+                    <div class="activity-list space-y-2">
+                        ${defaultActivities.map(activity => createActivityItem(activity)).join('')}
+                    </div>
+                    <button onclick="addActivityItem(this)" class="mt-2 text-green-600 hover:text-green-800 text-sm">+ 新增作息</button>
+                </div>
+                
+                <!-- 備註欄 -->
+                <div class="md:col-span-4">
+                    <label class="block md:hidden text-sm font-medium text-purple-600 mb-1">📝 備註</label>
+                    <div class="note-list space-y-2">
+                        ${defaultNotes.map(note => createNoteItem(note)).join('')}
+                    </div>
+                    <button onclick="addNoteItem(this)" class="mt-2 text-purple-600 hover:text-purple-800 text-sm">+ 新增備註</button>
+                </div>
+                
+                <!-- 操作欄 -->
+                <div class="md:col-span-1 flex flex-row-reverse md:flex-col items-center justify-start md:justify-center gap-4 md:gap-2 mt-2 md:mt-0">
+                    <button onclick="removeRow(this)" class="text-red-500 hover:text-red-700 text-2xl leading-none">🗑️</button>
+                    <div class="drag-handle text-gray-400 cursor-grab text-2xl hidden md:block">⋮⋮</div>
+                    <div class="flex md:flex-col gap-2">
+                        <button onclick="moveRow(this, -1)" class="text-gray-500 hover:text-blue-500 text-xl leading-none">▲</button>
+                        <button onclick="moveRow(this, 1)" class="text-gray-500 hover:text-blue-500 text-xl leading-none">▼</button>
+                    </div>
+                </div>
+            `;
+            
+            // 添加整行拖拽事件
+            row.addEventListener('dragstart', handleRowDragStart);
+            row.addEventListener('dragend', handleRowDragEnd);
+            row.addEventListener('dragover', handleRowDragOver);
+            row.addEventListener('drop', handleRowDrop);
+            
+            scheduleTable.appendChild(row);
+            
+            // 為新添加的項目添加拖拽功能
+            setupItemDragEvents(row);
+        }
+
+        function createActivityItem(activity = '') {
+            return `
+                <div class="draggable-item flex items-center gap-2 p-2 bg-white rounded border" draggable="true">
+                    <span class="drag-handle text-gray-400 cursor-grab">⋮</span>
+                    <input type="text" value="${activity}" placeholder="輸入作息內容..." 
+                           class="flex-1 px-3 py-2 bg-green-50 border border-green-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">
+                    <button onclick="removeActivityItem(this)" class="text-red-500 hover:text-red-700 text-sm">✕</button>
+                </div>
+            `;
+        }
+
+        function createNoteItem(note = '') {
+            return `
+                <div class="draggable-item flex items-center gap-2 p-2 bg-white rounded border" draggable="true">
+                    <span class="drag-handle text-gray-400 cursor-grab">⋮</span>
+                    <input type="text" value="${note}" placeholder="輸入備註內容..." 
+                           class="flex-1 px-3 py-2 bg-purple-50 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <button onclick="removeNoteItem(this)" class="text-red-500 hover:text-red-700 text-sm">✕</button>
+                </div>
+            `;
+        }
+        
+        function setupItemDragEvents(container) {
+            const draggableItems = container.querySelectorAll('.draggable-item');
+            draggableItems.forEach(item => {
+                item.addEventListener('dragstart', handleItemDragStart);
+                item.addEventListener('dragend', handleItemDragEnd);
+                item.addEventListener('dragover', handleItemDragOver);
+                item.addEventListener('drop', handleItemDrop);
+            });
+        }
+
+        function addActivityItem(button) {
+            const activityList = button.previousElementSibling;
+            const newItemHTML = createActivityItem();
+            activityList.insertAdjacentHTML('beforeend', newItemHTML);
+            
+            const newItem = activityList.lastElementChild;
+            setupItemDragEvents(newItem);
+        }
+
+        function addNoteItem(button) {
+            const noteList = button.previousElementSibling;
+            const newItemHTML = createNoteItem();
+            noteList.insertAdjacentHTML('beforeend', newItemHTML);
+
+            const newItem = noteList.lastElementChild;
+            setupItemDragEvents(newItem);
+        }
+
+        function removeActivityItem(button) {
+            button.closest('.draggable-item').remove();
+        }
+
+        function removeNoteItem(button) {
+            button.closest('.draggable-item').remove();
+        }
+
+        function removeRow(button) {
+            button.closest('.row-item').remove();
+        }
+
+        function moveRow(button, direction) {
+            const row = button.closest('.row-item');
+            if (!row) return;
+
+            if (direction === -1) { // Move Up
+                const prevRow = row.previousElementSibling;
+                if (prevRow) {
+                    prevRow.before(row);
+                }
+            } else if (direction === 1) { // Move Down
+                const nextRow = row.nextElementSibling;
+                if (nextRow) {
+                    nextRow.after(row);
+                }
+            }
+        }
+
+
+        // --- Drag and Drop Logic ---
+
+        function handleRowDragStart(e) {
+            if (e.target.classList.contains('row-item')) {
+                draggedElement = this;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/plain', this.dataset.id);
+            } else {
+                e.preventDefault();
+            }
+        }
+
+        function handleRowDragEnd() {
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+            }
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            draggedElement = null;
+        }
+
+        function handleRowDragOver(e) {
+            e.preventDefault();
+            if (!draggedElement || draggedElement === this) return;
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            this.classList.add('drag-over');
+        }
+
+        function handleRowDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!draggedElement || draggedElement === this) return;
+
+            const scheduleTable = document.getElementById('scheduleTable');
+            const rect = this.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            
+            if (e.clientY < midpoint) {
+                scheduleTable.insertBefore(draggedElement, this);
+            } else {
+                scheduleTable.insertBefore(draggedElement, this.nextElementSibling);
+            }
+            this.classList.remove('drag-over');
+        }
+
+        function handleItemDragStart(e) {
+            e.stopPropagation();
+            draggedItem = this;
+            this.classList.add('item-dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleItemDragEnd(e) {
+            e.stopPropagation();
+            if (draggedItem) {
+                draggedItem.classList.remove('item-dragging');
+            }
+            document.querySelectorAll('.item-drag-over').forEach(el => el.classList.remove('item-drag-over'));
+            draggedItem = null;
+        }
+
+        function handleItemDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!draggedItem || draggedItem === this) return;
+            document.querySelectorAll('.item-drag-over').forEach(el => el.classList.remove('item-drag-over'));
+            this.classList.add('item-drag-over');
+        }
+
+        function handleItemDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!draggedItem || draggedItem === this) return;
+
+            // 確保在同一個 list 內拖曳
+            if (draggedItem.parentElement === this.parentElement) {
+                const list = this.parentElement;
+                const rect = this.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+
+                if (e.clientY < midpoint) {
+                    list.insertBefore(draggedItem, this);
+                } else {
+                    list.insertBefore(draggedItem, this.nextElementSibling);
+                }
+            }
+            this.classList.remove('item-drag-over');
+        }
+        
+        // --- Time Picker Logic ---
+
+        function showTimePicker(event, inputElement) {
+            event.stopPropagation();
+            const timePicker = document.getElementById('timePicker');
+            currentTimeInput = inputElement;
+            const rect = inputElement.getBoundingClientRect();
+            
+            timePicker.style.top = `${rect.bottom + window.scrollY + 5}px`;
+            timePicker.style.left = `${rect.left + window.scrollX}px`;
+            timePicker.classList.add('show');
+
+            const [hour, minute] = inputElement.value.split(':');
+            if (hour && minute) {
+                document.getElementById('hourSelect').value = hour;
+                document.getElementById('minuteSelect').value = minute;
+            }
+        }
+
+        function closeTimePicker() {
+            document.getElementById('timePicker').classList.remove('show');
+            currentTimeInput = null;
+        }
+
+        function confirmTime() {
+            if (currentTimeInput) {
+                const hour = document.getElementById('hourSelect').value;
+                const minute = document.getElementById('minuteSelect').value;
+                currentTimeInput.value = `${hour}:${minute}`;
+            }
+            closeTimePicker();
+        }
+
+        // --- Data Persistence ---
+
+        function saveDataToLocalStorage() {
+             localStorage.setItem('weeklySchedules', JSON.stringify(weeklySchedules));
+             localStorage.setItem('scheduleTemplates', JSON.stringify(scheduleTemplates));
+        }
+
+        function loadDataFromLocalStorage() {
+            const storedSchedules = localStorage.getItem('weeklySchedules');
+            const storedTemplates = localStorage.getItem('scheduleTemplates');
+            if (storedSchedules) {
+                weeklySchedules = JSON.parse(storedSchedules);
+            } else {
+                weeklySchedules = {}; // 初始化
+            }
+            if (storedTemplates) {
+                scheduleTemplates = JSON.parse(storedTemplates);
+            } else {
+                scheduleTemplates = {}; // 初始化
+            }
+        }
+        
+        function saveCurrentSchedule() {
+            const date = document.getElementById('dateInput').value;
+            if (!date) return;
+
+            const title = document.getElementById('titleInput').value;
+            const rows = document.querySelectorAll('#scheduleTable .row-item');
+            const scheduleData = {
+                title: title,
+                rows: []
+            };
+
+            rows.forEach(row => {
+                const time = row.querySelector('input[type="text"]').value;
+                const activities = Array.from(row.querySelectorAll('.activity-list input')).map(input => input.value);
+                const notes = Array.from(row.querySelectorAll('.note-list input')).map(input => input.value);
+                scheduleData.rows.push({ time, activities, notes });
+            });
+
+            if (scheduleData.rows.length === 0 && !scheduleData.title) {
+                 delete weeklySchedules[date];
+            } else {
+                 weeklySchedules[date] = scheduleData;
+            }
+
+            saveDataToLocalStorage();
+            updateWeekButtonStyles(date);
+        }
+
+        function loadScheduleForDate(date) {
+            const scheduleTable = document.getElementById('scheduleTable');
+            scheduleTable.innerHTML = ''; // 清空當前表格
+
+            const schedule = weeklySchedules[date] || { title: '', rows: [] };
+            
+            document.getElementById('titleInput').value = schedule.title;
+            updateTitle();
+
+            if (schedule.rows.length > 0) {
+                schedule.rows.forEach(rowData => {
+                    addRow(rowData.time, rowData.activities, rowData.notes);
+                });
+            } else if (!weeklySchedules[date]) {
+                 // 如果沒有儲存的資料，則顯示預設行
+                addRow('08:00', ['晨間運動', '準備早餐'], ['在公園慢跑30分鐘', '營養均衡的早餐']);
+                addRow('12:00', ['午餐時間'], ['與同事一起用餐']);
+                addRow('18:00', ['下班回家', '晚餐'], ['整理今日工作', '家庭聚餐時光']);
+            }
+        }
+
+        function clearCurrentSchedule() {
+            const date = document.getElementById('dateInput').value;
+            document.getElementById('titleInput').value = '';
+            document.getElementById('scheduleTable').innerHTML = '';
+            
+            if (weeklySchedules[date]) {
+                delete weeklySchedules[date];
+                saveDataToLocalStorage();
+                updateWeekButtonStyles(date);
+            }
+            updateTitle();
+        }
+        
+        // --- Week Selector Logic ---
+        
+        function initWeekSelector(date) {
+            const utcDate = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+            const dayOfWeek = utcDate.getUTCDay(); // 0 = Sunday
+            currentWeekStartDate = new Date(utcDate);
+            currentWeekStartDate.setUTCDate(utcDate.getUTCDate() - dayOfWeek);
+            generateWeekButtons(currentWeekStartDate);
+        }
+        
+        function generateWeekButtons(startDate) {
+            const weekSelector = document.getElementById('weekSelector');
+            weekSelector.innerHTML = '';
+            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            
+            let tempDate = new Date(startDate);
+            for (let i = 0; i < 7; i++) {
+                const dateString = formatDate(tempDate);
+                const day = tempDate.getUTCDate();
+                const button = document.createElement('button');
+                button.className = `week-day-btn p-3 rounded-lg text-center ${weeklySchedules[dateString] ? 'has-data' : ''} ${dateString === currentSelectedDate ? 'active' : ''}`;
+                button.dataset.date = dateString;
+                button.innerHTML = `<div class="font-bold">${weekdays[i]}</div><div class="text-sm">${day}</div>`;
+                button.onclick = () => {
+                    saveCurrentSchedule();
+                    selectDate(dateString);
+                };
+                weekSelector.appendChild(button);
+                tempDate.setUTCDate(tempDate.getUTCDate() + 1);
+            }
+            
+            // 更新週範圍顯示
+            const endDate = new Date(startDate);
+            endDate.setUTCDate(startDate.getUTCDate() + 6);
+            document.getElementById('weekRangeDisplay').textContent = 
+                `${startDate.toLocaleDateString('zh-TW', { timeZone: 'UTC' })} - ${endDate.toLocaleDateString('zh-TW', { timeZone: 'UTC' })}`;
+        }
+        
+        function slideWeek(direction) {
+            saveCurrentSchedule();
+            currentWeekStartDate.setUTCDate(currentWeekStartDate.getUTCDate() + 7 * direction);
+            generateWeekButtons(currentWeekStartDate);
+            // 切換週後，自動選中新一週的第一天
+            selectDate(formatDate(currentWeekStartDate));
+        }
+        
+        function selectDate(date) {
+            currentSelectedDate = date;
+            document.getElementById('dateInput').value = date;
+            
+            // 更新按鈕樣式
+            document.querySelectorAll('#weekSelector .week-day-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.date === date);
+            });
+            
+            const selectedDateObj = parseDateString(date);
+            const weekEnd = new Date(currentWeekStartDate);
+            weekEnd.setUTCDate(currentWeekStartDate.getUTCDate() + 7);
+            
+            if (selectedDateObj < currentWeekStartDate || selectedDateObj >= weekEnd) {
+                 initWeekSelector(selectedDateObj);
+            }
+            
+            loadScheduleForDate(date);
+        }
+        
+        function updateAllWeekButtonStyles() {
+            document.querySelectorAll('#weekSelector .week-day-btn').forEach(btn => {
+                const date = btn.dataset.date;
+                btn.classList.toggle('has-data', !!weeklySchedules[date]);
+            });
+        }
+
+        function updateWeekButtonStyles(date) {
+            const button = document.querySelector(`#weekSelector .week-day-btn[data-date="${date}"]`);
+            if (button) {
+                button.classList.toggle('has-data', !!weeklySchedules[date]);
+            }
+        }
+        
+        // --- Template Logic ---
+        
+        function toggleTemplatePanel() {
+            const panel = document.getElementById('templatePanel');
+            const btn = document.getElementById('templateToggleBtn');
+            panel.classList.toggle('hidden');
+            if (panel.classList.contains('hidden')) {
+                btn.textContent = '📋 顯示模板';
+                btn.classList.replace('bg-gray-500', 'bg-orange-500');
+                btn.classList.replace('hover:bg-gray-600', 'hover:bg-orange-600');
+            } else {
+                btn.textContent = '🔼 隱藏模板';
+                btn.classList.replace('bg-orange-500', 'bg-gray-500');
+                btn.classList.replace('hover:bg-orange-600', 'hover:bg-gray-600');
+                renderSavedSchedulesList();
+            }
+        }
+
+        function saveTemplate() {
+            const name = document.getElementById('templateNameInput').value.trim();
+            if (!name) {
+                // Do nothing, no alert
+                return;
+            }
+            
+            const template = {
+                id: editingTemplateId || `tpl-${Date.now()}`,
+                name: name,
+                time: document.getElementById('templateTimeInput').value,
+                activities: Array.from(document.querySelectorAll('#templateActivities input')).map(i => i.value).filter(Boolean),
+                notes: Array.from(document.querySelectorAll('#templateNotes input')).map(i => i.value).filter(Boolean),
+            };
+
+            scheduleTemplates[template.id] = template;
+            saveDataToLocalStorage();
+            renderTemplates();
+            resetTemplateForm();
+        }
+
+        function renderTemplates() {
+            const list = document.getElementById('templateList');
+            list.innerHTML = '';
+            Object.values(scheduleTemplates).forEach(tpl => {
+                const item = document.createElement('div');
+                item.className = 'template-item flex justify-between items-center p-3 bg-white rounded-lg border';
+                item.draggable = true;
+                item.dataset.templateId = tpl.id;
+                
+                item.innerHTML = `
+                    <div class="flex-1">
+                        <p class="font-semibold text-orange-700">${tpl.name}</p>
+                        <p class="text-sm text-gray-500">${tpl.time} - ${tpl.activities.join(', ')}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editTemplate('${tpl.id}')" class="text-blue-500 hover:text-blue-700">✏️</button>
+                        <button onclick="deleteTemplate('${tpl.id}')" class="text-red-500 hover:text-red-700">🗑️</button>
+                    </div>
+                `;
+                item.addEventListener('dragstart', handleTemplateDragStart);
+                list.appendChild(item);
+            });
+        }
+        
+        function renderSavedSchedulesList() {
+            const list = document.getElementById('savedSchedulesList');
+            list.innerHTML = '';
+            Object.keys(weeklySchedules).sort().forEach(date => {
+                 const schedule = weeklySchedules[date];
+                 if (!schedule.title && schedule.rows.length === 0) return;
+                 
+                 const item = document.createElement('div');
+                 item.className = 'template-item flex justify-between items-center p-3 bg-white rounded-lg border';
+                 item.draggable = true;
+                 item.dataset.scheduleDate = date;
+
+                 const dateObj = parseDateString(date);
+
+                 item.innerHTML = `
+                    <div class="flex-1 overflow-hidden">
+                        <p class="font-semibold text-blue-700 truncate">${schedule.title || dateObj.toLocaleDateString('zh-TW', { timeZone: 'UTC' })}</p>
+                        <p class="text-sm text-gray-500">${date}</p>
+                    </div>
+                    <button onclick="applySavedSchedule('${date}')" class="ml-2 bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs hover:bg-blue-200">套用</button>
+                 `;
+                 item.addEventListener('dragstart', handleTemplateDragStart);
+                 list.appendChild(item);
+            });
+        }
+
+        function applySavedSchedule(date) {
+            const scheduleToApply = JSON.parse(JSON.stringify(weeklySchedules[date])); // Deep copy
+            weeklySchedules[currentSelectedDate] = scheduleToApply;
+            saveDataToLocalStorage();
+            loadScheduleForDate(currentSelectedDate);
+        }
+        
+        function editTemplate(id) {
+            const tpl = scheduleTemplates[id];
+            if (!tpl) return;
+
+            editingTemplateId = id;
+            document.getElementById('templateNameInput').value = tpl.name;
+            document.getElementById('templateTimeInput').value = tpl.time;
+            
+            const activitiesContainer = document.getElementById('templateActivities');
+            activitiesContainer.innerHTML = '';
+            tpl.activities.forEach(act => {
+                activitiesContainer.innerHTML += `<input type="text" value="${act}" placeholder="作息內容..." class="w-full px-3 py-2 bg-green-50 border border-green-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">`;
+            });
+
+            const notesContainer = document.getElementById('templateNotes');
+            notesContainer.innerHTML = '';
+            tpl.notes.forEach(note => {
+                notesContainer.innerHTML += `<input type="text" value="${note}" placeholder="備註內容..." class="w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">`;
+            });
+            
+            document.getElementById('cancelEditBtn').style.display = 'block';
+        }
+
+        function deleteTemplate(id) {
+            delete scheduleTemplates[id];
+            saveDataToLocalStorage();
+            renderTemplates();
+        }
+        
+        function resetTemplateForm() {
+            editingTemplateId = null;
+            document.getElementById('templateNameInput').value = '';
+            document.getElementById('templateTimeInput').value = '';
+            document.getElementById('templateActivities').innerHTML = '<input type="text" placeholder="作息內容..." class="w-full px-3 py-2 bg-green-50 border border-green-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">';
+            document.getElementById('templateNotes').innerHTML = '<input type="text" placeholder="備註內容..." class="w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+        }
+
+        function addTemplateActivity() {
+            document.getElementById('templateActivities').innerHTML += '<input type="text" placeholder="作息內容..." class="mt-2 w-full px-3 py-2 bg-green-50 border border-green-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500">';
+        }
+
+        function addTemplateNote() {
+            document.getElementById('templateNotes').innerHTML += '<input type="text" placeholder="備註內容..." class="mt-2 w-full px-3 py-2 bg-purple-50 border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500">';
+        }
+
+        // --- Template Drag & Drop ---
+        let draggedTemplateData = null;
+
+        function handleTemplateDragStart(e) {
+            this.classList.add('template-dragging');
+            if (this.dataset.templateId) {
+                draggedTemplateData = { type: 'template', id: this.dataset.templateId };
+            } else if (this.dataset.scheduleDate) {
+                draggedTemplateData = { type: 'schedule', date: this.dataset.scheduleDate };
+            }
+            e.dataTransfer.effectAllowed = 'copy';
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+        }
+
+        function dropOnTable(e) {
+            e.preventDefault();
+            if (!draggedTemplateData) return;
+
+            if (draggedTemplateData.type === 'template') {
+                const tpl = scheduleTemplates[draggedTemplateData.id];
+                if (tpl) {
+                    addRow(tpl.time, tpl.activities, tpl.notes);
+                }
+            } else if (draggedTemplateData.type === 'schedule') {
+                const scheduleToApply = JSON.parse(JSON.stringify(weeklySchedules[draggedTemplateData.date]));
+                weeklySchedules[currentSelectedDate] = scheduleToApply;
+                saveDataToLocalStorage();
+                loadScheduleForDate(currentSelectedDate);
+            }
+
+            draggedTemplateData = null;
+            document.querySelector('.template-dragging')?.classList.remove('template-dragging');
+        }
+
+        // --- Import / Export Logic ---
+        
+        function exportAllData() {
+            const dataToExport = {
+                schedules: weeklySchedules,
+                templates: scheduleTemplates
+            };
+            const dataStr = JSON.stringify(dataToExport, null, 2);
+            const blob = new Blob([dataStr], {type: "application/json"});
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            const today = formatDate(new Date());
+            a.download = `schedule_backup_${today}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function showImportDialog() {
+            document.getElementById('importDialog').classList.add('show');
+        }
+        
+        function closeImportDialog() {
+            document.getElementById('importDialog').classList.remove('show');
+            document.getElementById('importFileInput').value = '';
+            document.getElementById('importTextArea').value = '';
+            document.getElementById('selectedFileName').classList.add('hidden');
+        }
+        
+        function toggleImportMethod() {
+            const method = document.querySelector('input[name="importMethod"]:checked').value;
+            document.getElementById('fileImportSection').style.display = method === 'file' ? 'block' : 'none';
+            document.getElementById('textImportSection').style.display = method === 'text' ? 'block' : 'none';
+        }
+        
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const fileNameDisplay = document.getElementById('selectedFileName');
+                fileNameDisplay.textContent = `已選擇檔案：${file.name}`;
+                fileNameDisplay.classList.remove('hidden');
+            }
+        }
+        
+        function confirmImport() {
+            const method = document.querySelector('input[name="importMethod"]:checked').value;
+            if (method === 'file') {
+                const file = document.getElementById('importFileInput').files[0];
+                if (!file) {
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        processImportData(data);
+                    } catch (error) {
+                        console.error('檔案格式錯誤');
+                    }
+                };
+                reader.readAsText(file);
+            } else {
+                const text = document.getElementById('importTextArea').value;
+                if (!text) {
+                    return;
+                }
+                try {
+                    const data = JSON.parse(text);
+                    processImportData(data);
+                } catch (error) {
+                    console.error('文字格式錯誤');
+                }
+            }
+        }
+        
+        function processImportData(data) {
+            if (!data.schedules || !data.templates) {
+                 console.error('匯入的資料格式不符！');
+                return;
+            }
+
+            const option = document.querySelector('input[name="importOption"]:checked').value;
+
+            if (option === 'replace') {
+                weeklySchedules = data.schedules;
+                scheduleTemplates = data.templates;
+            } else { // merge
+                // 合併作息，匯入的資料會覆蓋現有同日期的資料
+                Object.assign(weeklySchedules, data.schedules);
+                // 合併模板，匯入的資料會覆蓋現有同ID的資料
+                Object.assign(scheduleTemplates, data.templates);
+            }
+            
+            saveDataToLocalStorage();
+            closeImportDialog();
+            
+            // 重新載入畫面
+            loadScheduleForDate(currentSelectedDate);
+            renderTemplates();
+            updateAllWeekButtonStyles();
+        }
+
+        // --- Copy/Clear Day Logic ---
+
+        function copyDaySchedule() {
+            copyDialogSelectedDates = [];
+            const today = new Date();
+            copyDialogCurrentDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1));
+
+            document.getElementById('copyDialog').classList.add('show');
+            generateCalendar(
+                'copyWeekSelector',
+                copyDialogCurrentDate,
+                copyDialogSelectedDates,
+                'copy'
+            );
+            updateSelectedDatesDisplay('copy');
+        }
+
+        function closeCopyDialog() {
+            document.getElementById('copyDialog').classList.remove('show');
+        }
+
+        function clearDaySchedule() {
+            clearDialogSelectedDates = [];
+            const today = new Date();
+            clearDialogCurrentDate = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1));
+            document.getElementById('clearDialog').classList.add('show');
+            generateCalendar(
+                'clearWeekSelector',
+                clearDialogCurrentDate,
+                clearDialogSelectedDates,
+                'clear'
+            );
+            updateSelectedDatesDisplay('clear');
+        }
+
+        function closeClearDialog() {
+            document.getElementById('clearDialog').classList.remove('show');
+        }
+        
+        function generateCalendar(containerId, date, selectedDates, type) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            const month = date.getUTCMonth();
+            const year = date.getUTCFullYear();
+
+            const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
+            const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0));
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'flex justify-between items-center mb-4';
+            header.innerHTML = `
+                <button onclick="navigateMonth(-1, '${type}')" class="px-2 py-1 rounded hover:bg-gray-100">&lt;</button>
+                <h4 class="font-semibold">${year}年 ${month + 1}月</h4>
+                <button onclick="navigateMonth(1, '${type}')" class="px-2 py-1 rounded hover:bg-gray-100">&gt;</button>
+            `;
+            container.appendChild(header);
+
+            // Weekday names
+            const weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+            const weekdaysGrid = document.createElement('div');
+            weekdaysGrid.className = 'grid grid-cols-7 gap-2 text-center text-sm text-gray-500 mb-2';
+            weekdays.forEach(day => {
+                const dayEl = document.createElement('div');
+                dayEl.textContent = day;
+                weekdaysGrid.appendChild(dayEl);
+            });
+            container.appendChild(weekdaysGrid);
+            
+            // Days grid
+            const daysGrid = document.createElement('div');
+            daysGrid.className = 'grid grid-cols-7 gap-2';
+            
+            // Add empty cells for the first week
+            for (let i = 0; i < firstDayOfMonth.getUTCDay(); i++) {
+                const emptyCell = document.createElement('div');
+                daysGrid.appendChild(emptyCell);
+            }
+
+            // Add day cells
+            for (let i = 1; i <= lastDayOfMonth.getUTCDate(); i++) {
+                const dayDate = new Date(Date.UTC(year, month, i));
+                const dateString = formatDate(dayDate);
+                const dayCell = document.createElement('div');
+                dayCell.textContent = i;
+                dayCell.className = `calendar-day p-2 text-center rounded-full cursor-pointer`;
+                dayCell.dataset.date = dateString;
+
+                if (selectedDates.includes(dateString)) {
+                    dayCell.classList.add('selected');
+                }
+                if (weeklySchedules[dateString]) {
+                    dayCell.classList.add('has-data');
+                }
+                const today = new Date();
+                const todayString = formatDate(new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())));
+                if (dateString === todayString) {
+                    dayCell.classList.add('is-today');
+                }
+                
+                dayCell.onclick = () => toggleDateSelection(dateString, type);
+                daysGrid.appendChild(dayCell);
+            }
+
+            container.appendChild(daysGrid);
+        }
+
+        function navigateMonth(direction, type) {
+            if (type === 'copy') {
+                copyDialogCurrentDate.setUTCMonth(copyDialogCurrentDate.getUTCMonth() + direction);
+                generateCalendar('copyWeekSelector', copyDialogCurrentDate, copyDialogSelectedDates, 'copy');
+            } else {
+                clearDialogCurrentDate.setUTCMonth(clearDialogCurrentDate.getUTCMonth() + direction);
+                generateCalendar('clearWeekSelector', clearDialogCurrentDate, clearDialogSelectedDates, 'clear');
+            }
+        }
+
+        function toggleDateSelection(date, type) {
+            let selectedDates;
+            if (type === 'copy') {
+                selectedDates = copyDialogSelectedDates;
+            } else {
+                selectedDates = clearDialogSelectedDates;
+            }
+
+            const index = selectedDates.indexOf(date);
+            if (index > -1) {
+                selectedDates.splice(index, 1);
+            } else {
+                selectedDates.push(date);
+            }
+            
+            const cell = document.querySelector(`#${type}WeekSelector .calendar-day[data-date="${date}"]`);
+            if (cell) {
+                cell.classList.toggle('selected');
+            }
+
+            updateSelectedDatesDisplay(type);
+        }
+
+        function updateSelectedDatesDisplay(type) {
+            const selectedDates = (type === 'copy') ? copyDialogSelectedDates : clearDialogSelectedDates;
+            const displayContainer = document.getElementById(`${type}SelectedDatesDisplay`);
+            const listContainer = document.getElementById(`${type}SelectedDatesList`);
+            const confirmBtn = document.getElementById(`confirm${type.charAt(0).toUpperCase() + type.slice(1)}Btn`);
+            const actionText = type === 'copy' ? '複製' : '清除';
+
+            if (confirmBtn) {
+                if (selectedDates.length > 0) {
+                    selectedDates.sort();
+                    if (listContainer) listContainer.textContent = selectedDates.join(', ');
+                    if (displayContainer) displayContainer.classList.remove('hidden');
+                    
+                    confirmBtn.disabled = false;
+                    confirmBtn.textContent = `確認${actionText} (${selectedDates.length}天)`;
+                } else {
+                    if (displayContainer) displayContainer.classList.add('hidden');
+                    confirmBtn.disabled = true;
+                    confirmBtn.textContent = `確認${actionText}`;
+                }
+            }
+        }
+
+        function selectWeekdays(type) {
+            quickSelectDates(d => d.getUTCDay() >= 1 && d.getUTCDay() <= 5, type);
+        }
+
+        function selectWeekends(type) {
+            quickSelectDates(d => d.getUTCDay() === 0 || d.getUTCDay() === 6, type);
+        }
+        
+        function selectCurrentWeek(type) {
+            const today = new Date();
+            const utcToday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+            const dayOfWeek = utcToday.getUTCDay();
+            const weekStart = new Date(utcToday);
+            weekStart.setUTCDate(utcToday.getUTCDate() - dayOfWeek);
+
+            const datesToSelect = [];
+            for (let i = 0; i < 7; i++) {
+                const date = new Date(weekStart);
+                date.setUTCDate(weekStart.getUTCDate() + i);
+                datesToSelect.push(formatDate(date));
+            }
+            
+            const selectedDates = (type === 'copy') ? copyDialogSelectedDates : clearDialogSelectedDates;
+            selectedDates.length = 0; // Clear existing
+            Array.prototype.push.apply(selectedDates, datesToSelect);
+            
+            const dialogDate = (type === 'copy') ? copyDialogCurrentDate : clearDialogCurrentDate;
+            generateCalendar(`${type}WeekSelector`, dialogDate, selectedDates, type);
+            updateSelectedDatesDisplay(type);
+        }
+
+
+        function clearAllSelections(type) {
+            const selectedDates = (type === 'copy') ? copyDialogSelectedDates : clearDialogSelectedDates;
+            selectedDates.length = 0;
+            document.querySelectorAll(`#${type}WeekSelector .calendar-day.selected`).forEach(el => el.classList.remove('selected'));
+            updateSelectedDatesDisplay(type);
+        }
+        
+        function quickSelectDates(filterFunc, type) {
+            const dialogDate = (type === 'copy') ? copyDialogCurrentDate : clearDialogCurrentDate;
+            const year = dialogDate.getUTCFullYear();
+            const month = dialogDate.getUTCMonth();
+            const lastDay = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+            
+            const datesToSelect = [];
+            for (let i = 1; i <= lastDay; i++) {
+                const date = new Date(Date.UTC(year, month, i));
+                if (filterFunc(date)) {
+                    datesToSelect.push(formatDate(date));
+                }
+            }
+
+            const selectedDates = (type === 'copy') ? copyDialogSelectedDates : clearDialogSelectedDates;
+            selectedDates.length = 0; // Clear existing
+            Array.prototype.push.apply(selectedDates, datesToSelect);
+            
+            generateCalendar(`${type}WeekSelector`, dialogDate, selectedDates, type);
+            updateSelectedDatesDisplay(type);
+        }
+
+
+        function confirmCopy() {
+            const sourceSchedule = weeklySchedules[currentSelectedDate];
+            if (!sourceSchedule) {
+                console.error('當前日期沒有作息可以複製！');
+                return;
+            }
+            if (copyDialogSelectedDates.length === 0) {
+                console.error('請選擇要複製到的日期！');
+                return;
+            }
+
+            copyDialogSelectedDates.forEach(date => {
+                weeklySchedules[date] = JSON.parse(JSON.stringify(sourceSchedule)); // Deep copy
+            });
+            saveDataToLocalStorage();
+            closeCopyDialog();
+            updateAllWeekButtonStyles();
+        }
+
+        function confirmClear() {
+            if (clearDialogSelectedDates.length === 0) {
+                console.error('請選擇要清除的日期！');
+                return;
+            }
+
+            clearDialogSelectedDates.forEach(date => {
+                delete weeklySchedules[date];
+            });
+            saveDataToLocalStorage();
+            closeClearDialog();
+            // 如果當前日期被清除，重新載入
+            if (clearDialogSelectedDates.includes(currentSelectedDate)) {
+                loadScheduleForDate(currentSelectedDate);
+            }
+            updateAllWeekButtonStyles();
+        }
+
+    </script>
+</body>
+</html>
+
