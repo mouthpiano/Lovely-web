@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幼兒數學樂園：認識十位數與個位數</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            touch-action: manipulation; /* 禁用雙擊縮放，提升行動裝置體驗 */
+        }
+        .card-base {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            user-select: none;
+        }
+        .tens-card {
+            width: 100px;
+            height: 140px;
+            font-size: 3rem;
+            background: linear-gradient(145deg, #3b82f6, #60a5fa);
+            border: 4px solid #2563eb;
+        }
+        .ones-card {
+            width: 80px;
+            height: 112px;
+            font-size: 2.5rem;
+            background: linear-gradient(145deg, #f97316, #fb923c);
+            border: 4px solid #ea580c;
+        }
+        .card-base:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+        .card-base.selected {
+            transform: scale(0.95);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .slot {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 1rem;
+            min-height: 160px;
+            transition: background-color 0.3s;
+        }
+        .tens-slot {
+            border: 4px dashed #3b82f6;
+            background-color: #eff6ff;
+        }
+        .ones-slot {
+            border: 4px dashed #f97316;
+            background-color: #fff7ed;
+        }
+        /* 彈出視窗動畫 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .modal {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+    </style>
+</head>
+<body class="bg-amber-50 min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-4xl mx-auto bg-white rounded-2xl shadow-lg p-6 md:p-8 space-y-6">
+        
+        <!-- 標題 -->
+        <header class="text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-700">幼兒數學樂園</h1>
+            <p class="text-slate-500 mt-2 text-lg">學習十位數與個位數</p>
+        </header>
+
+        <!-- 遊戲核心區域 -->
+        <main class="space-y-8">
+            <!-- 題目數字 -->
+            <div class="bg-slate-100 rounded-lg p-4 text-center">
+                <p class="text-lg text-slate-600">請組合出下方的數字：</p>
+                <p id="target-number" class="text-7xl font-bold text-emerald-600 my-2">53</p>
+            </div>
+
+            <!-- 位值表格 -->
+            <div>
+                <h2 class="text-xl font-semibold text-center mb-4 text-slate-700">位值表</h2>
+                <div class="grid grid-cols-2 gap-4 md:gap-6">
+                    <!-- 十位數放置區 -->
+                    <div class="tens-slot slot" id="tens-drop-zone">
+                        <div class="text-center">
+                             <p class="font-bold text-xl text-blue-600">十位數</p>
+                             <p class="text-sm text-blue-500">(大卡片)</p>
+                        </div>
+                    </div>
+                    <!-- 個位數放置區 -->
+                    <div class="ones-slot slot" id="ones-drop-zone">
+                         <div class="text-center">
+                            <p class="font-bold text-xl text-orange-600">個位數</p>
+                            <p class="text-sm text-orange-500">(小卡片)</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 數字卡片選擇區 -->
+            <div class="space-y-6">
+                <!-- 十位數卡片 -->
+                <div>
+                    <h3 class="text-lg font-semibold text-blue-600 mb-3 text-center">選擇十位數（大卡片）</h3>
+                    <div id="tens-cards-container" class="flex flex-wrap justify-center gap-3">
+                        <!-- JS 動態生成 -->
+                    </div>
+                </div>
+                <!-- 個位數卡片 -->
+                <div>
+                    <h3 class="text-lg font-semibold text-orange-600 mb-3 text-center">選擇個位數（小卡片）</h3>
+                    <div id="ones-cards-container" class="flex flex-wrap justify-center gap-3">
+                        <!-- JS 動態生成 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                <button id="check-answer" class="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform transform hover:scale-105">檢查答案</button>
+                <button id="next-question" class="w-full sm:w-auto bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform transform hover:scale-105">換一題</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- 結果彈出視窗 -->
+    <div id="modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden">
+        <div id="modal-content" class="modal bg-white rounded-2xl shadow-2xl p-8 text-center max-w-sm w-full space-y-4">
+            <p id="modal-icon" class="text-8xl"></p>
+            <p id="modal-message" class="text-2xl font-bold text-slate-700"></p>
+            <button id="modal-close" class="mt-4 bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-lg text-base transition-transform transform hover:scale-105">知道了</button>
+        </div>
+    </div>
+
+<script>
+    // DOM 元素
+    const targetNumberEl = document.getElementById('target-number');
+    const tensCardsContainer = document.getElementById('tens-cards-container');
+    const onesCardsContainer = document.getElementById('ones-cards-container');
+    const tensDropZone = document.getElementById('tens-drop-zone');
+    const onesDropZone = document.getElementById('ones-drop-zone');
+    const checkAnswerBtn = document.getElementById('check-answer');
+    const nextQuestionBtn = document.getElementById('next-question');
+    const modal = document.getElementById('modal');
+    const modalIcon = document.getElementById('modal-icon');
+    const modalMessage = document.getElementById('modal-message');
+    const modalCloseBtn = document.getElementById('modal-close');
+
+    // 遊戲狀態
+    let currentNumber = 0;
+    let correctTens = 0;
+    let correctOnes = 0;
+    let selectedTens = null;
+    let selectedOnes = null;
+
+    // 初始化遊戲
+    function init() {
+        createCards();
+        generateNewQuestion();
+        addEventListeners();
+    }
+
+    // 建立數字卡片
+    function createCards() {
+        // 建立十位數卡片 (10, 20, ..., 90)
+        for (let i = 1; i <= 9; i++) {
+            const value = i * 10;
+            const card = document.createElement('div');
+            card.className = 'card-base tens-card';
+            card.textContent = value;
+            card.dataset.value = value;
+            tensCardsContainer.appendChild(card);
+        }
+        // 建立個位數卡片 (0, 1, ..., 9)
+        for (let i = 0; i <= 9; i++) {
+            const value = i;
+            const card = document.createElement('div');
+            card.className = 'card-base ones-card';
+            card.textContent = value;
+            card.dataset.value = value;
+            onesCardsContainer.appendChild(card);
+        }
+    }
+
+    // 新增事件監聽
+    function addEventListeners() {
+        tensCardsContainer.addEventListener('click', handleCardSelection);
+        onesCardsContainer.addEventListener('click', handleCardSelection);
+        checkAnswerBtn.addEventListener('click', checkAnswer);
+        nextQuestionBtn.addEventListener('click', generateNewQuestion);
+        modalCloseBtn.addEventListener('click', hideModal);
+    }
+    
+    // 處理卡片選擇
+    function handleCardSelection(e) {
+        const selectedCard = e.target.closest('.card-base');
+        if (!selectedCard || selectedCard.classList.contains('selected')) return;
+
+        const value = parseInt(selectedCard.dataset.value);
+        
+        if (selectedCard.classList.contains('tens-card')) {
+            // 如果是十位數卡片
+            if (selectedTens) {
+                // 如果已經選過，取消之前的選擇
+                tensCardsContainer.querySelector(`[data-value="${selectedTens}"]`).classList.remove('selected');
+            }
+            selectedTens = value;
+            const cardClone = selectedCard.cloneNode(true);
+            cardClone.classList.remove('selected');
+            cardClone.style.cursor = 'default';
+            tensDropZone.innerHTML = '';
+            tensDropZone.appendChild(cardClone);
+        } else if (selectedCard.classList.contains('ones-card')) {
+            // 如果是個位數卡片
+            if (selectedOnes !== null) {
+                // 如果已經選過，取消之前的選擇
+                onesCardsContainer.querySelector(`[data-value="${selectedOnes}"]`).classList.remove('selected');
+            }
+            selectedOnes = value;
+            const cardClone = selectedCard.cloneNode(true);
+            cardClone.classList.remove('selected');
+            cardClone.style.cursor = 'default';
+            onesDropZone.innerHTML = '';
+            onesDropZone.appendChild(cardClone);
+        }
+        
+        // 更新選擇樣式
+        updateSelectedStyles();
+    }
+
+    function updateSelectedStyles() {
+        // 先移除所有 selected class
+        tensCardsContainer.querySelectorAll('.card-base').forEach(c => c.classList.remove('selected'));
+        onesCardsContainer.querySelectorAll('.card-base').forEach(c => c.classList.remove('selected'));
+
+        // 加上 selected class 給目前選擇的
+        if(selectedTens) {
+             tensCardsContainer.querySelector(`[data-value="${selectedTens}"]`).classList.add('selected');
+        }
+        if(selectedOnes !== null) {
+             onesCardsContainer.querySelector(`[data-value="${selectedOnes}"]`).classList.add('selected');
+        }
+    }
+
+    // 產生新題目
+    function generateNewQuestion() {
+        // 產生 10 到 99 之間的隨機數字
+        currentNumber = Math.floor(Math.random() * 90) + 10;
+        correctTens = Math.floor(currentNumber / 10) * 10;
+        correctOnes = currentNumber % 10;
+        
+        // 更新顯示
+        targetNumberEl.textContent = currentNumber;
+        
+        // 重置狀態
+        resetSelection();
+    }
+
+    // 重置選擇
+    function resetSelection() {
+        selectedTens = null;
+        selectedOnes = null;
+
+        // 清空位值表
+        tensDropZone.innerHTML = `<div class="text-center"><p class="font-bold text-xl text-blue-600">十位數</p><p class="text-sm text-blue-500">(大卡片)</p></div>`;
+        onesDropZone.innerHTML = `<div class="text-center"><p class="font-bold text-xl text-orange-600">個位數</p><p class="text-sm text-orange-500">(小卡片)</p></div>`;
+
+        // 移除所有卡片的選擇樣式
+        tensCardsContainer.querySelectorAll('.card-base').forEach(c => c.classList.remove('selected'));
+        onesCardsContainer.querySelectorAll('.card-base').forEach(c => c.classList.remove('selected'));
+    }
+
+    // 檢查答案
+    function checkAnswer() {
+        if (selectedTens === null || selectedOnes === null) {
+            showModal('🤔', '要選擇十位數和個位數喔！');
+            return;
+        }
+
+        if (selectedTens === correctTens && selectedOnes === correctOnes) {
+            showModal('🎉', '答對了！你真棒！');
+        } else {
+            showModal('😟', '喔喔，再想一下！');
+        }
+    }
+    
+    // 顯示/隱藏彈出視窗
+    function showModal(icon, message) {
+        modalIcon.textContent = icon;
+        modalMessage.textContent = message;
+        modal.classList.remove('hidden');
+    }
+    function hideModal() {
+        modal.classList.add('hidden');
+        if(modalIcon.textContent === '🎉') {
+             generateNewQuestion();
+        }
+    }
+
+    // 啟動遊戲
+    init();
+
+</script>
+</body>
+</html>
