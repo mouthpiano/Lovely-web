@@ -412,6 +412,7 @@
 
         document.addEventListener('touchmove', (e) => {
             if (draggedCoinClone) {
+                e.preventDefault(); // <-- 修正：防止頁面在觸控拖曳時滾動
                 const touch = e.touches[0];
                 draggedCoinClone.style.left = `${touch.pageX - draggedCoin.offsetWidth / 2}px`;
                 draggedCoinClone.style.top = `${touch.pageY - draggedCoin.offsetHeight / 2}px`;
