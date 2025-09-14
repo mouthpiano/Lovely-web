@@ -442,15 +442,21 @@
             if (isDragging && draggedCoinClone) {
                 const touch = e.changedTouches[0];
                 
-                // 使用 pointer-events: none 解決觸控無法放下的問題
-                draggedCoinClone.style.pointerEvents = 'none';
-                const elementUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
-                draggedCoinClone.style.pointerEvents = '';
-                
-                const dropZone = elementUnderTouch ? elementUnderTouch.closest('.drop-zone') : null;
+                // 獲取兩個放置區的邊界資訊
+                const tensRect = tensDropZone.getBoundingClientRect();
+                const onesRect = onesDropZone.getBoundingClientRect();
 
-                if (dropZone) {
-                    handleDrop(draggedCoin.dataset.value, dropZone);
+                // 檢查觸控點是否在任何一個放置區內
+                const isInsideTens = (touch.clientX >= tensRect.left && touch.clientX <= tensRect.right &&
+                                      touch.clientY >= tensRect.top && touch.clientY <= tensRect.bottom);
+                
+                const isInsideOnes = (touch.clientX >= onesRect.left && touch.clientX <= onesRect.right &&
+                                      touch.clientY >= onesRect.top && touch.clientY <= onesRect.bottom);
+
+                if (isInsideTens) {
+                    handleDrop(draggedCoin.dataset.value, tensDropZone);
+                } else if (isInsideOnes) {
+                    handleDrop(draggedCoin.dataset.value, onesDropZone);
                 }
 
                 document.body.removeChild(draggedCoinClone);
