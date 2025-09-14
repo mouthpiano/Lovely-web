@@ -89,6 +89,11 @@
             gap: 0.5rem;
             justify-content: center;
         }
+        /* 新增：讓放置區內的硬幣可點擊 */
+        .dropped-coins-container .ten-coin,
+        .dropped-coins-container .one-coin {
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
@@ -292,6 +297,7 @@
             // 點擊後將按鈕文字改回「新遊戲」
             newGameBtn.textContent = '新遊戲';
         };
+        
 
         const populateCoinBank = () => {
             coinBank.innerHTML = '';
@@ -315,7 +321,6 @@
         const createCoin = (type) => {
             const coin = document.createElement('div');
             coin.className = `draggable ${type === 'ten' ? 'ten-coin' : 'one-coin'} flex items-center justify-center`;
-            coin.draggable = true;
             coin.dataset.value = type === 'ten' ? 10 : 1;
             coin.textContent = type === 'ten' ? '10元' : '1元';
             return coin;
@@ -351,108 +356,136 @@
                 generateAndPlayAudio('再試一次，你快成功了！');
             }
         };
+        
+        // --- 觸控與滑鼠拖曳事件處理 (最終修復後的版本) ---
 
-        // --- 拖曳事件處理 (滑鼠) ---
-        document.addEventListener('dragstart', (e) => {
-            if (e.target.classList.contains('draggable')) {
-                e.dataTransfer.setData('text/plain', e.target.dataset.value);
+        // 取得事件的正確座標，兼容滑鼠和觸控
+        const getCoords = (e) => {
+            if (e.touches && e.touches.length > 0) {
+                return e.touches[0];
             }
-        });
+            if (e.changedTouches && e.changedTouches.length > 0) {
+                return e.changedTouches[0];
+            }
+            return e;
+        };
 
-        tensDropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            tensDropZone.classList.add('drag-over');
-        });
+        // 啟動拖曳
+        const handleDragStart = (e) => {
+            const target = e.target.closest('.draggable');
+            if (!target) return;
 
-        tensDropZone.addEventListener('dragleave', () => {
+            // 確保不是點擊已放置的硬幣，否則會啟動拖曳
+            if (target.parentElement.classList.contains('dropped-coins-container')) {
+                return;
+            }
+
+            draggedCoin = target;
+            
+            // 創建一個硬幣的克隆作為拖曳時的視覺效果
+            draggedCoinClone = draggedCoin.cloneNode(true);
+            draggedCoinClone.style.position = 'absolute';
+            draggedCoinClone.style.zIndex = '1000';
+            draggedCoinClone.style.opacity = '0.7';
+            document.body.appendChild(draggedCoinClone);
+            
+            // 綁定移動和結束事件到整個文檔，以確保在拖出放置區時仍能跟蹤
+            document.addEventListener('mousemove', handleDragMove);
+            document.addEventListener('mouseup', handleDragEnd);
+            document.addEventListener('touchmove', handleDragMove);
+            document.addEventListener('touchend', handleDragEnd);
+
+            const coords = getCoords(e);
+            draggedCoinClone.style.left = `${coords.pageX - draggedCoin.offsetWidth / 2}px`;
+            draggedCoinClone.style.top = `${coords.pageY - draggedCoin.offsetHeight / 2}px`;
+
+            e.preventDefault(); // 防止瀏覽器默認的拖曳行為
+        };
+
+        // 拖曳中
+        const handleDragMove = (e) => {
+            if (!draggedCoinClone) return;
+            
+            const coords = getCoords(e);
+            draggedCoinClone.style.left = `${coords.pageX - draggedCoin.offsetWidth / 2}px`;
+            draggedCoinClone.style.top = `${coords.pageY - draggedCoin.offsetHeight / 2}px`;
+
+            // 視覺效果：檢查手指或滑鼠是否在放置區上方
+            const elementUnderPointer = document.elementFromPoint(coords.clientX, coords.clientY);
             tensDropZone.classList.remove('drag-over');
-        });
-
-        tensDropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            tensDropZone.classList.remove('drag-over');
-            const value = e.dataTransfer.getData('text/plain');
-            handleDrop(value, tensDropZone);
-        });
-
-        onesDropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            onesDropZone.classList.add('drag-over');
-        });
-
-        onesDropZone.addEventListener('dragleave', () => {
             onesDropZone.classList.remove('drag-over');
-        });
-
-        onesDropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            onesDropZone.classList.remove('drag-over');
-            const value = e.dataTransfer.getData('text/plain');
-            handleDrop(value, onesDropZone);
-        });
-
-        // --- 觸控事件處理 (手機/平板) ---
-        document.addEventListener('touchstart', (e) => {
-            if (e.target.classList.contains('draggable')) {
-                draggedCoin = e.target;
-                e.preventDefault(); // <-- 新增：確保在觸控開始時就阻止捲動
-
-                // 複製硬幣來創造拖曳視覺效果
-                draggedCoinClone = draggedCoin.cloneNode(true);
-                draggedCoinClone.style.position = 'absolute';
-                draggedCoinClone.style.zIndex = '1000';
-                draggedCoinClone.style.opacity = '0.7';
-                document.body.appendChild(draggedCoinClone);
-                
-                const touch = e.touches[0];
-                draggedCoinClone.style.left = `${touch.pageX - draggedCoin.offsetWidth / 2}px`;
-                draggedCoinClone.style.top = `${touch.pageY - draggedCoin.offsetHeight / 2}px`;
-            }
-        });
-
-        document.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // <-- 新增：確保在觸控移動時就阻止捲動
-            if (draggedCoinClone) {
-                const touch = e.touches[0];
-                draggedCoinClone.style.left = `${touch.pageX - draggedCoin.offsetWidth / 2}px`;
-                draggedCoinClone.style.top = `${touch.pageY - draggedCoin.offsetHeight / 2}px`;
-
-                // 檢查是否在拖放區上
-                const elementUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
-                const isOverDropZone = elementUnderTouch && elementUnderTouch.closest('.drop-zone');
-
-                if (isOverDropZone) {
-                    isOverDropZone.classList.add('drag-over');
-                    if (isOverDropZone.id !== 'tens-drop-zone') tensDropZone.classList.remove('drag-over');
-                    if (isOverDropZone.id !== 'ones-drop-zone') onesDropZone.classList.remove('drag-over');
-                } else {
-                    tensDropZone.classList.remove('drag-over');
-                    onesDropZone.classList.remove('drag-over');
-                }
-            }
-        });
-
-        document.addEventListener('touchend', (e) => {
-            if (draggedCoinClone) {
-                const touch = e.changedTouches[0];
-                const elementUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
-                const dropZone = elementUnderTouch ? elementUnderTouch.closest('.drop-zone') : null;
-
+            if (elementUnderPointer) {
+                const dropZone = elementUnderPointer.closest('.drop-zone');
                 if (dropZone) {
-                    handleDrop(draggedCoin.dataset.value, dropZone);
+                    dropZone.classList.add('drag-over');
                 }
-
-                document.body.removeChild(draggedCoinClone);
-                draggedCoinClone = null;
-                draggedCoin = null;
-
-                tensDropZone.classList.remove('drag-over');
-                onesDropZone.classList.remove('drag-over');
             }
-        });
+        };
 
+        // 結束拖曳
+        const handleDragEnd = (e) => {
+            if (!draggedCoin) return;
+            
+            const coords = getCoords(e);
+            
+            // 在偵測下方元素前，暫時隱藏拖曳中的硬幣替身
+            if (draggedCoinClone) {
+                draggedCoinClone.style.display = 'none';
+            }
 
-        // 事件監聽器
+            // 使用 document.elementFromPoint() 來取得最終位置下的元素，這是最可靠的方法
+            const elementUnderPointer = document.elementFromPoint(coords.clientX, coords.clientY);
+            const dropZone = elementUnderPointer ? elementUnderPointer.closest('.drop-zone') : null;
+
+            // 恢復顯示拖曳中的硬幣替身
+            if (draggedCoinClone) {
+                draggedCoinClone.style.display = 'block';
+            }
+
+            if (dropZone) {
+                handleDrop(draggedCoin.dataset.value, dropZone);
+            }
+            
+            // 清理拖曳狀態
+            if (draggedCoinClone) {
+                document.body.removeChild(draggedCoinClone);
+            }
+            draggedCoin = null;
+            draggedCoinClone = null;
+
+            // 清理事件監聽器和視覺效果
+            document.removeEventListener('mousemove', handleDragMove);
+            document.removeEventListener('mouseup', handleDragEnd);
+            document.removeEventListener('touchmove', handleDragMove);
+            document.removeEventListener('touchend', handleDragEnd);
+            tensDropZone.classList.remove('drag-over');
+            onesDropZone.classList.remove('drag-over');
+        };
+
+        // 處理點擊移除硬幣的事件
+        const handleCoinRemoval = (e) => {
+            const coin = e.target.closest('.ten-coin, .one-coin');
+            if (coin && coin.parentElement.classList.contains('dropped-coins-container')) {
+                if (coin.classList.contains('ten-coin')) {
+                    tensCoinsCount--;
+                } else if (coin.classList.contains('one-coin')) {
+                    onesCoinsCount--;
+                }
+                coin.remove();
+            }
+        };
+
+        // 綁定事件監聽器到整個遊戲容器
+        document.getElementById('game-container').addEventListener('mousedown', handleDragStart);
+        document.getElementById('game-container').addEventListener('touchstart', handleDragStart, { passive: false });
+        
+        // 綁定點擊事件到放置區容器，用於移除硬幣
+        tensCoinsContainer.addEventListener('click', handleCoinRemoval);
+        onesCoinsContainer.addEventListener('click', handleCoinRemoval);
+        tensCoinsContainer.addEventListener('touchstart', handleCoinRemoval);
+        onesCoinsContainer.addEventListener('touchstart', handleCoinRemoval);
+        
+        // 按鈕事件監聽器
         checkAnswerBtn.addEventListener('click', checkAnswer);
         newGameBtn.addEventListener('click', initGame);
 
