@@ -47,7 +47,7 @@
             color: #1a202c;
             cursor: grab;
             user-select: none;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1-px rgba(0,0,0,0.06);
             transition: transform 0.2s;
         }
         .one-coin {
@@ -158,6 +158,7 @@
         let audioContext;
         let draggedCoin = null;
         let draggedCoinClone = null;
+        let isDragging = false; // 新增：追蹤是否正在拖曳
 
         // UI 元素
         const targetNumberDisplay = document.getElementById('target-number-display');
@@ -394,8 +395,9 @@
         // --- 觸控事件處理 (手機/平板) ---
         document.addEventListener('touchstart', (e) => {
             if (e.target.classList.contains('draggable')) {
+                isDragging = true;
                 draggedCoin = e.target;
-                e.preventDefault(); // <-- 新增：確保在觸控開始時就阻止捲動
+                e.preventDefault(); 
 
                 // 複製硬幣來創造拖曳視覺效果
                 draggedCoinClone = draggedCoin.cloneNode(true);
@@ -408,11 +410,11 @@
                 draggedCoinClone.style.left = `${touch.pageX - draggedCoin.offsetWidth / 2}px`;
                 draggedCoinClone.style.top = `${touch.pageY - draggedCoin.offsetHeight / 2}px`;
             }
-        });
+        }, { passive: false }); // 新增：使用非被動式監聽器
 
         document.addEventListener('touchmove', (e) => {
-            e.preventDefault(); // <-- 新增：確保在觸控移動時就阻止捲動
-            if (draggedCoinClone) {
+            if (isDragging && draggedCoinClone) {
+                e.preventDefault(); // <-- 新增：只有在拖曳時才阻止捲動
                 const touch = e.touches[0];
                 draggedCoinClone.style.left = `${touch.pageX - draggedCoin.offsetWidth / 2}px`;
                 draggedCoinClone.style.top = `${touch.pageY - draggedCoin.offsetHeight / 2}px`;
@@ -430,10 +432,10 @@
                     onesDropZone.classList.remove('drag-over');
                 }
             }
-        });
+        }, { passive: false }); // 新增：使用非被動式監聽器
 
         document.addEventListener('touchend', (e) => {
-            if (draggedCoinClone) {
+            if (isDragging && draggedCoinClone) {
                 const touch = e.changedTouches[0];
                 const elementUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
                 const dropZone = elementUnderTouch ? elementUnderTouch.closest('.drop-zone') : null;
@@ -449,6 +451,18 @@
                 tensDropZone.classList.remove('drag-over');
                 onesDropZone.classList.remove('drag-over');
             }
+            isDragging = false; // 結束拖曳
+        });
+
+        document.addEventListener('touchcancel', (e) => {
+            if (draggedCoinClone) {
+                document.body.removeChild(draggedCoinClone);
+                draggedCoinClone = null;
+                draggedCoin = null;
+                tensDropZone.classList.remove('drag-over');
+                onesDropZone.classList.remove('drag-over');
+            }
+            isDragging = false; // 結束拖曳
         });
 
 
