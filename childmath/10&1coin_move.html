@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>幼兒數學遊戲：十位與個位</title>
+    <!-- 載入 Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0fdf4; /* 淺綠色背景 */
+        }
+        .card {
+            background: linear-gradient(135deg, #ffffff, #f0f9ff); /* 白色到淺藍色漸變 */
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1), 0 6px 6px rgba(0,0,0,0.1);
+        }
+        .coin-bank {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+            min-height: 100px;
+        }
+        .ten-coin-container, .one-coin-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start;
+            gap: 1rem;
+            width: 100%;
+        }
+        .ten-coin {
+            width: 70px;
+            height: 70px;
+            background-color: #c4c4c4; /* 類似十元硬幣的銀色 */
+            border: 2px solid #a0a0a0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.5rem;
+            color: #1a202c;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            transition: transform 0.2s;
+        }
+        .one-coin {
+            width: 50px;
+            height: 50px;
+            background-color: #d1b191; /* 類似一元硬幣的銅色 */
+            border: 2px solid #b39071;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #1a202c;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            transition: transform 0.2s;
+        }
+        .ten-coin:active, .one-coin:active {
+            cursor: grabbing;
+        }
+        .drop-zone {
+            border: 3px dashed #cbd5e0;
+            border-radius: 1rem;
+            min-height: 120px;
+            padding: 1rem;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .drop-zone.drag-over {
+            border-color: #4f46e5;
+            background-color: #e0e7ff;
+            transform: scale(1.02);
+        }
+        .dropped-coins-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="card p-8 rounded-3xl w-full max-w-2xl text-center border border-gray-200">
+        <!-- 標題 -->
+        <h1 class="text-4xl sm:text-5xl font-bold text-green-700 mb-2 drop-shadow-md">魔法硬幣數學樂園</h1>
+        <p class="text-lg text-gray-600 mb-8">拖曳硬幣來學習十位與個位！</p>
+
+        <!-- 目標數字顯示 -->
+        <div class="mb-8">
+            <h2 class="text-2xl font-bold text-gray-700 mb-2">請用硬幣表示這個數字：</h2>
+            <div id="target-number-display" class="text-8xl font-bold text-purple-600 animate-pulse transition-all duration-500">25</div>
+        </div>
+
+        <!-- 硬幣銀行 -->
+        <div class="mb-8 p-4 bg-gray-100 rounded-lg flex flex-col items-center">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4">硬幣銀行</h3>
+            <div id="coin-bank" class="w-full">
+                <!-- 硬幣會由 JavaScript 動態生成 -->
+            </div>
+        </div>
+
+        <!-- 拖放區 -->
+        <div class="flex flex-col sm:flex-row space-y-6 sm:space-y-0 sm:space-x-6 justify-center mb-8">
+            <!-- 十位區 -->
+            <div id="tens-drop-zone" class="drop-zone flex flex-col items-center justify-center bg-gray-50 flex-1" data-drop-zone="tens">
+                <span class="text-xl font-bold text-gray-500 mb-2">十位</span>
+                <div class="dropped-coins-container" id="tens-coins-container"></div>
+            </div>
+            <!-- 個位區 -->
+            <div id="ones-drop-zone" class="drop-zone flex flex-col items-center justify-center bg-gray-50 flex-1" data-drop-zone="ones">
+                <span class="text-xl font-bold text-gray-500 mb-2">個位</span>
+                <div class="dropped-coins-container" id="ones-coins-container"></div>
+            </div>
+        </div>
+        
+        <!-- 檢查與新遊戲按鈕 -->
+        <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 justify-center">
+            <button id="check-answer-btn" class="py-3 px-8 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-full shadow-lg transition-transform transform hover:scale-105">
+                檢查答案
+            </button>
+            <button id="new-game-btn" class="py-3 px-8 bg-purple-500 hover:bg-purple-600 text-white font-bold rounded-full shadow-lg transition-transform transform hover:scale-105">
+                新遊戲
+            </button>
+        </div>
+
+        <!-- 結果與提示訊息 -->
+        <div id="message-area" class="mt-8 h-12 flex items-center justify-center text-xl font-bold rounded-full"></div>
+        <div id="loading-indicator" class="hidden mt-4 text-sm text-gray-500">
+            <svg class="animate-spin h-5 w-5 mr-3 inline text-blue-500" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            語音生成中...
+        </div>
+        
+        <!-- 語音播放 -->
+        <audio id="audio-player" class="hidden"></audio>
+    </div>
+
+    <script>
+        // 遊戲狀態變數
+        let targetNumber = 0;
+        let tensCoinsCount = 0;
+        let onesCoinsCount = 0;
+        let audioContext;
+        let draggedCoin = null;
+        let draggedCoinClone = null;
+
+        // UI 元素
+        const targetNumberDisplay = document.getElementById('target-number-display');
+        const coinBank = document.getElementById('coin-bank');
+        const tensDropZone = document.getElementById('tens-drop-zone');
+        const onesDropZone = document.getElementById('ones-drop-zone');
+        const tensCoinsContainer = document.getElementById('tens-coins-container');
+        const onesCoinsContainer = document.getElementById('ones-coins-container');
+        const checkAnswerBtn = document.getElementById('check-answer-btn');
+        const newGameBtn = document.getElementById('new-game-btn');
+        const messageArea = document.getElementById('message-area');
+        const loadingIndicator = document.getElementById('loading-indicator');
+
+        // 語音生成與播放功能
+        const generateAndPlayAudio = async (text) => {
+            loadingIndicator.classList.remove('hidden');
+            
+            // 使用 Gemini API 呼叫的有效負載
+            const payload = {
+                contents: [{
+                    parts: [{ text: text }]
+                }],
+                generationConfig: {
+                    responseModalities: ["AUDIO"],
+                    speechConfig: {
+                        voiceConfig: {
+                            prebuiltVoiceConfig: { voiceName: "Puck" }
+                        }
+                    }
+                },
+                model: "gemini-2.5-flash-preview-tts"
+            };
+
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+            // 使用指數退避策略處理 API 呼叫
+            let retries = 0;
+            const maxRetries = 5;
+            let response;
+
+            while (retries < maxRetries) {
+                try {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.ok) {
+                        break; // 成功，退出重試迴圈
+                    } else if (response.status === 429) {
+                        const delay = Math.pow(2, retries) * 1000;
+                        console.warn(`API 請求被限流，將在 ${delay / 1000} 秒後重試...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        retries++;
+                    } else {
+                        throw new Error(`API 錯誤：${response.statusText}`);
+                    }
+                } catch (error) {
+                    console.error('API 呼叫失敗:', error);
+                    break;
+                }
+            }
+            loadingIndicator.classList.add('hidden');
+
+            if (!response || !response.ok) {
+                console.error('所有重試均失敗。');
+                return;
+            }
+
+            const result = await response.json();
+            const part = result?.candidates?.[0]?.content?.parts?.[0];
+            const audioData = part?.inlineData?.data;
+            const mimeType = part?.inlineData?.mimeType;
+
+            if (audioData && mimeType && mimeType.startsWith("audio/")) {
+                const sampleRateMatch = mimeType.match(/rate=(\d+)/);
+                const sampleRate = sampleRateMatch ? parseInt(sampleRateMatch[1], 10) : 16000;
+                
+                const binaryString = atob(audioData);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                const pcm16 = new Int16Array(bytes.buffer);
+
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
+                const audioBuffer = audioContext.createBuffer(1, pcm16.length, sampleRate);
+                const channelData = audioBuffer.getChannelData(0);
+
+                for(let i = 0; i < pcm16.length; i++) {
+                    channelData[i] = pcm16[i] / 32768.0;
+                }
+
+                const source = audioContext.createBufferSource();
+                source.buffer = audioBuffer;
+                source.connect(audioContext.destination);
+                source.start(0);
+
+            } else {
+                console.error('音訊資料格式不正確或遺失');
+            }
+        };
+
+        // 遊戲邏輯
+        const initGame = () => {
+            // 隨機產生一個 10 到 99 之間的數字
+            targetNumber = Math.floor(Math.random() * 90) + 10;
+            tensCoinsCount = 0;
+            onesCoinsCount = 0;
+            targetNumberDisplay.textContent = targetNumber;
+            messageArea.textContent = '';
+            messageArea.className = 'mt-8 h-12 flex items-center justify-center text-xl font-bold rounded-full';
+            
+            // 清空拖曳區
+            tensCoinsContainer.innerHTML = '';
+            onesCoinsContainer.innerHTML = '';
+
+            // 重新生成硬幣
+            populateCoinBank();
+            
+            // 播放語音提示
+            const promptText = `請用硬幣表示數字 ${targetNumber}。`;
+            generateAndPlayAudio(promptText);
+            
+            // 點擊後將按鈕文字改回「新遊戲」
+            newGameBtn.textContent = '新遊戲';
+        };
+
+        const populateCoinBank = () => {
+            coinBank.innerHTML = '';
+            const tenCoinContainer = document.createElement('div');
+            tenCoinContainer.className = 'ten-coin-container';
+            const oneCoinContainer = document.createElement('div');
+            oneCoinContainer.className = 'one-coin-container';
+            
+            // 產生足夠的硬幣讓孩子使用
+            for (let i = 0; i < 9; i++) {
+                const tenCoin = createCoin('ten');
+                tenCoinContainer.appendChild(tenCoin);
+                const oneCoin = createCoin('one');
+                oneCoinContainer.appendChild(oneCoin);
+            }
+
+            coinBank.appendChild(tenCoinContainer);
+            coinBank.appendChild(oneCoinContainer);
+        };
+
+        const createCoin = (type) => {
+            const coin = document.createElement('div');
+            coin.className = `draggable ${type === 'ten' ? 'ten-coin' : 'one-coin'} flex items-center justify-center`;
+            coin.draggable = true;
+            coin.dataset.value = type === 'ten' ? 10 : 1;
+            coin.textContent = type === 'ten' ? '10元' : '1元';
+            return coin;
+        };
+        
+        const handleDrop = (value, dropZone) => {
+            if (value === '10' && dropZone.id === 'tens-drop-zone') {
+                const newCoin = createCoin('ten');
+                tensCoinsContainer.appendChild(newCoin);
+                tensCoinsCount++;
+                return true;
+            } else if (value === '1' && dropZone.id === 'ones-drop-zone') {
+                const newCoin = createCoin('one');
+                onesCoinsContainer.appendChild(newCoin);
+                onesCoinsCount++;
+                return true;
+            }
+            return false;
+        }
+
+        const checkAnswer = () => {
+            const userValue = tensCoinsCount * 10 + onesCoinsCount;
+            if (userValue === targetNumber) {
+                messageArea.textContent = '答對了！你真棒！';
+                messageArea.classList.add('bg-green-200', 'text-green-800');
+                const tensDigit = Math.floor(targetNumber / 10);
+                const onesDigit = targetNumber % 10;
+                const feedbackText = `太棒了！${targetNumber} 就是 ${tensDigit} 個十元硬幣和 ${onesDigit} 個一元硬幣。十位上是${tensDigit}，代表${tensDigit}個十；個位上是${onesDigit}，代表${onesDigit}個一。`;
+                generateAndPlayAudio(feedbackText);
+            } else {
+                messageArea.textContent = '再試一次，你快成功了！';
+                messageArea.classList.add('bg-red-200', 'text-red-800');
+                generateAndPlayAudio('再試一次，你快成功了！');
+            }
+        };
+
+        // --- 拖曳事件處理 (滑鼠) ---
+        document.addEventListener('dragstart', (e) => {
+            if (e.target.classList.contains('draggable')) {
+                e.dataTransfer.setData('text/plain', e.target.dataset.value);
+            }
+        });
+
+        tensDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            tensDropZone.classList.add('drag-over');
+        });
+
+        tensDropZone.addEventListener('dragleave', () => {
+            tensDropZone.classList.remove('drag-over');
+        });
+
+        tensDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            tensDropZone.classList.remove('drag-over');
+            const value = e.dataTransfer.getData('text/plain');
+            handleDrop(value, tensDropZone);
+        });
+
+        onesDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            onesDropZone.classList.add('drag-over');
+        });
+
+        onesDropZone.addEventListener('dragleave', () => {
+            onesDropZone.classList.remove('drag-over');
+        });
+
+        onesDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            onesDropZone.classList.remove('drag-over');
+            const value = e.dataTransfer.getData('text/plain');
+            handleDrop(value, onesDropZone);
+        });
+
+        // --- 觸控事件處理 (手機/平板) ---
+        document.addEventListener('touchstart', (e) => {
+            if (e.target.classList.contains('draggable')) {
+                draggedCoin = e.target;
+                e.preventDefault(); // 防止頁面滾動
+
+                // 複製硬幣來創造拖曳視覺效果
+                draggedCoinClone = draggedCoin.cloneNode(true);
+                draggedCoinClone.style.position = 'absolute';
+                draggedCoinClone.style.zIndex = '1000';
+                draggedCoinClone.style.opacity = '0.7';
+                document.body.appendChild(draggedCoinClone);
+                
+                const touch = e.touches[0];
+                draggedCoinClone.style.left = `${touch.pageX - draggedCoin.offsetWidth / 2}px`;
+                draggedCoinClone.style.top = `${touch.pageY - draggedCoin.offsetHeight / 2}px`;
+            }
+        });
+
+        document.addEventListener('touchmove', (e) => {
+            if (draggedCoinClone) {
+                const touch = e.touches[0];
+                draggedCoinClone.style.left = `${touch.pageX - draggedCoin.offsetWidth / 2}px`;
+                draggedCoinClone.style.top = `${touch.pageY - draggedCoin.offsetHeight / 2}px`;
+
+                // 檢查是否在拖放區上
+                const elementUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
+                const isOverDropZone = elementUnderTouch && elementUnderTouch.closest('.drop-zone');
+
+                if (isOverDropZone) {
+                    isOverDropZone.classList.add('drag-over');
+                    if (isOverDropZone.id !== 'tens-drop-zone') tensDropZone.classList.remove('drag-over');
+                    if (isOverDropZone.id !== 'ones-drop-zone') onesDropZone.classList.remove('drag-over');
+                } else {
+                    tensDropZone.classList.remove('drag-over');
+                    onesDropZone.classList.remove('drag-over');
+                }
+            }
+        });
+
+        document.addEventListener('touchend', (e) => {
+            if (draggedCoinClone) {
+                const touch = e.changedTouches[0];
+                const elementUnderTouch = document.elementFromPoint(touch.clientX, touch.clientY);
+                const dropZone = elementUnderTouch ? elementUnderTouch.closest('.drop-zone') : null;
+
+                if (dropZone) {
+                    handleDrop(draggedCoin.dataset.value, dropZone);
+                }
+
+                document.body.removeChild(draggedCoinClone);
+                draggedCoinClone = null;
+                draggedCoin = null;
+
+                tensDropZone.classList.remove('drag-over');
+                onesDropZone.classList.remove('drag-over');
+            }
+        });
+
+
+        // 事件監聽器
+        checkAnswerBtn.addEventListener('click', checkAnswer);
+        newGameBtn.addEventListener('click', initGame);
+
+        // 初始時將按鈕文字設為「開始遊戲」
+        newGameBtn.textContent = '開始遊戲';
+
+    </script>
+</body>
+</html>
