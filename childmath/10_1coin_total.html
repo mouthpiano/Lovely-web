@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>幼兒錢幣數學遊戲(5元版)</title>
+    <title>幼兒錢幣數學遊戲(10元版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -45,18 +45,19 @@
             color: #d4a961;
         }
         
-        .five-yuan-coin {
-            width: 70px;
-            height: 70px;
+        .ten-yuan-coin {
+            width: 90px;
+            height: 90px;
             border-radius: 50%;
-            background-color: #d1d5db;
-            border: 2px solid #a1a1a1;
+            background-color: #f9d949;
+            border: 2px solid #d4a001;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             display: flex;
             justify-content: center;
             align-items: center;
             font-weight: bold;
-            color: #4b5563;
+            color: #634002;
+            font-size: 24px;
         }
 
         .dropzone {
@@ -132,7 +133,7 @@
         <p class="text-center text-gray-600 mb-8">請把 1 元硬幣拖曳到下方的框框裡，看看會發生什麼事！</p>
 
         <!-- 1元硬幣區域 -->
-        <div id="coin-tray-v1" class="flex flex-wrap justify-center gap-4 p-4 mb-8 bg-gray-100 rounded-2xl shadow-inner">
+        <div id="coin-tray" class="flex flex-wrap justify-center gap-4 p-4 mb-8 bg-gray-100 rounded-2xl shadow-inner">
             <!-- JavaScript 會在這裡產生硬幣 -->
         </div>
 
@@ -140,8 +141,8 @@
         <div class="flex flex-col md:flex-row justify-between items-stretch gap-6">
             <!-- 左邊放置區 -->
             <div class="flex-1 rounded-2xl">
-                <p class="text-center text-gray-500 font-bold text-xl mb-2">已放入金額：<span id="amount-display-1" class="text-blue-600">0</span> 元</p>
-                <div id="left-dropzone-v1" class="dropzone">
+                <p class="text-center text-gray-500 font-bold text-xl mb-2">已放入金額：<span id="amount-display-3" class="text-blue-600">0</span> 元</p>
+                <div id="left-dropzone" class="dropzone">
                     <p class="text-gray-500 text-center mt-2">1 元硬幣放置區</p>
                 </div>
             </div>
@@ -152,75 +153,77 @@
             </div>
 
             <!-- 右邊顯示區 -->
-            <div id="right-display-v1" class="right-section flex-1 rounded-2xl border-4 border-gray-300 p-4 bg-gray-200">
-                <p class="text-gray-500 text-center mt-2">5 元硬幣顯示區</p>
+            <div id="right-display" class="right-section flex-1 rounded-2xl border-4 border-gray-300 p-4 bg-gray-200">
+                <p class="text-gray-500 text-center mt-2">轉換區</p>
             </div>
         </div>
 
         <div class="mt-8 text-center">
-            <button id="reset-button-v1" class="reset-button">
+            <button id="reset-button" class="reset-button">
                 <i class="fas fa-redo-alt mr-2"></i>重來一次
             </button>
         </div>
     </div>
 
     <!-- Message Box -->
-    <div id="message-box-v1" class="message-box text-center">
-        <p id="message-text-v1">太棒了！</p>
+    <div id="message-box" class="message-box text-center">
+        <p id="message-text">太棒了！</p>
     </div>
 
     <script>
-        const coinTrayV1 = document.getElementById('coin-tray-v1');
-        const leftDropzoneV1 = document.getElementById('left-dropzone-v1');
-        const rightDisplayV1 = document.getElementById('right-display-v1');
-        const resetButtonV1 = document.getElementById('reset-button-v1');
-        const messageBoxV1 = document.getElementById('message-box-v1');
-        const messageTextV1 = document.getElementById('message-text-v1');
-        const amountDisplayV1 = document.getElementById('amount-display-1');
+        const coinTray = document.getElementById('coin-tray');
+        const leftDropzone = document.getElementById('left-dropzone');
+        const rightDisplay = document.getElementById('right-display');
+        const resetButton = document.getElementById('reset-button');
+        const messageBox = document.getElementById('message-box');
+        const messageText = document.getElementById('message-text');
+        const amountDisplay = document.getElementById('amount-display-3');
 
-        let droppedCoinsCountV1 = 0;
-        let draggedCoinV1 = null;
+        let droppedCoinsCount = 0;
+        let isDragging = false;
+        let draggedCoin = null;
 
         // 生成一個新的 1 元硬幣
-        function generateSingleCoinV1() {
+        function generateSingleCoin() {
             const coin = document.createElement('div');
             coin.classList.add('coin', 'one-yuan', 'draggable-item');
             coin.textContent = '1元';
             coin.draggable = true;
             coin.setAttribute('data-value', '1');
-            coinTrayV1.appendChild(coin);
+            coinTray.appendChild(coin);
         }
 
         // 顯示訊息
-        function showMessageV1(text, duration = 2000) {
-            messageTextV1.textContent = text;
-            messageBoxV1.style.display = 'block';
+        function showMessage(text, duration = 2000) {
+            messageText.textContent = text;
+            messageBox.style.display = 'block';
             setTimeout(() => {
-                messageBoxV1.style.display = 'none';
+                messageBox.style.display = 'none';
             }, duration);
         }
         
-        // 更新顯示的 5 元硬幣
-        function updateFiveYuanCoinsV1() {
-            const fiveYuanCount = Math.floor(droppedCoinsCountV1 / 5);
-            rightDisplayV1.innerHTML = '<p class="text-gray-500 text-center mt-2">5 元硬幣顯示區</p>';
+        // 更新顯示的硬幣
+        function updateRightSide() {
+            rightDisplay.innerHTML = '<p class="text-gray-500 text-center mt-2">轉換區</p>';
 
-            if (fiveYuanCount > 0) {
-                for (let i = 0; i < fiveYuanCount; i++) {
-                    const fiveYuanCoin = document.createElement('div');
-                    fiveYuanCoin.classList.add('five-yuan-coin');
-                    fiveYuanCoin.textContent = '5元';
-                    rightDisplayV1.appendChild(fiveYuanCoin);
+            const tenYuanCount = Math.floor(droppedCoinsCount / 10);
+
+            if (tenYuanCount > 0) {
+                for(let i = 0; i < tenYuanCount; i++) {
+                    const newCoin = document.createElement('div');
+                    newCoin.classList.add('ten-yuan-coin');
+                    newCoin.textContent = '10元';
+                    rightDisplay.appendChild(newCoin);
                 }
             }
 
             // 重新排列左邊的 1 元硬幣
-            const oneYuanCoins = Array.from(leftDropzoneV1.querySelectorAll('.coin'));
-            leftDropzoneV1.innerHTML = '<p class="text-gray-500 text-center mt-2">1 元硬幣放置區</p>';
+            const oneYuanCoins = Array.from(leftDropzone.querySelectorAll('.coin'));
+            leftDropzone.innerHTML = '<p class="text-gray-500 text-center mt-2">1 元硬幣放置區</p>';
 
             let rowContainer = document.createElement('div');
             rowContainer.classList.add('flex', 'flex-col', 'items-center', 'gap-2');
-            leftDropzoneV1.appendChild(rowContainer);
+            leftDropzone.appendChild(rowContainer);
 
             let coinRow = document.createElement('div');
             coinRow.classList.add('coin-row');
@@ -238,33 +241,34 @@
                 rowContainer.appendChild(coinRow);
             }
 
-            if (droppedCoinsCountV1 % 5 === 0 && droppedCoinsCountV1 > 0) {
-                showMessageV1(`太棒了！您有 ${fiveYuanCount} 個 5 元硬幣。`);
+            // 檢查是否為 10 的倍數，並顯示訊息
+            if (droppedCoinsCount % 10 === 0 && droppedCoinsCount > 0) {
+                showMessage(`太棒了！您有 ${tenYuanCount} 個 10 元硬幣！`);
             }
         }
-
+        
         // 更新金額顯示
-        function updateAmountDisplayV1() {
-            amountDisplayV1.textContent = droppedCoinsCountV1;
+        function updateAmountDisplay() {
+            amountDisplay.textContent = droppedCoinsCount;
         }
 
         // 重設遊戲
-        function resetGameV1() {
-            leftDropzoneV1.innerHTML = '<p class="text-gray-500 text-center mt-2">1 元硬幣放置區</p>';
-            rightDisplayV1.innerHTML = '<p class="text-gray-500 text-center mt-2">5 元硬幣顯示區</p>';
-            coinTrayV1.innerHTML = '';
-            droppedCoinsCountV1 = 0;
-            updateAmountDisplayV1();
+        function resetGame() {
+            leftDropzone.innerHTML = '<p class="text-gray-500 text-center mt-2">1 元硬幣放置區</p>';
+            rightDisplay.innerHTML = '<p class="text-gray-500 text-center mt-2">轉換區</p>';
+            coinTray.innerHTML = '';
+            droppedCoinsCount = 0;
+            updateAmountDisplay();
             // 初始產生 5 個硬幣
             for (let i = 0; i < 5; i++) {
-                generateSingleCoinV1();
+                generateSingleCoin();
             }
         }
 
         // --- Drag and Drop Logic (for desktop) ---
         document.addEventListener('dragstart', (e) => {
-            if (e.target.closest('#coin-tray-v1') && e.target.classList.contains('draggable-item')) {
-                draggedCoinV1 = e.target;
+            if (e.target.classList.contains('draggable-item')) {
+                draggedCoin = e.target;
                 e.dataTransfer.effectAllowed = 'move';
                 e.dataTransfer.setData('text/plain', 'dragged');
                 setTimeout(() => e.target.classList.add('opacity-50'), 0);
@@ -272,56 +276,56 @@
         });
 
         document.addEventListener('dragend', (e) => {
-            if (draggedCoinV1) {
-                draggedCoinV1.classList.remove('opacity-50');
-                draggedCoinV1 = null;
+            if (draggedCoin) {
+                draggedCoin.classList.remove('opacity-50');
+                draggedCoin = null;
             }
         });
 
-        leftDropzoneV1.addEventListener('dragover', (e) => {
+        leftDropzone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            leftDropzoneV1.classList.add('active');
+            leftDropzone.classList.add('active');
         });
 
-        leftDropzoneV1.addEventListener('dragleave', (e) => {
-            leftDropzoneV1.classList.remove('active');
+        leftDropzone.addEventListener('dragleave', (e) => {
+            leftDropzone.classList.remove('active');
         });
 
-        leftDropzoneV1.addEventListener('drop', (e) => {
+        leftDropzone.addEventListener('drop', (e) => {
             e.preventDefault();
-            leftDropzoneV1.classList.remove('active');
+            leftDropzone.classList.remove('active');
             
-            if (draggedCoinV1) {
-                const dropzoneRect = leftDropzoneV1.getBoundingClientRect();
+            if (draggedCoin) {
+                const dropzoneRect = leftDropzone.getBoundingClientRect();
                 if (e.clientX >= dropzoneRect.left && e.clientX <= dropzoneRect.right &&
                     e.clientY >= dropzoneRect.top && e.clientY <= dropzoneRect.bottom) {
                     
-                    draggedCoinV1.parentNode.removeChild(draggedCoinV1);
-                    leftDropzoneV1.appendChild(draggedCoinV1);
-                    droppedCoinsCountV1 += 1;
-                    updateAmountDisplayV1();
-                    updateFiveYuanCoinsV1();
-                    generateSingleCoinV1(); // 每次放入一個硬幣就產生一個新的
+                    draggedCoin.parentNode.removeChild(draggedCoin);
+                    leftDropzone.appendChild(draggedCoin);
+                    droppedCoinsCount += 1;
+                    updateAmountDisplay();
+                    updateRightSide();
+                    generateSingleCoin(); // 每次放入一個硬幣就產生一個新的
                 }
-                draggedCoinV1 = null;
+                draggedCoin = null;
             }
         });
 
         // --- Touch Events for mobile devices ---
         document.addEventListener('touchstart', (e) => {
-            if (e.target.closest('#coin-tray-v1') && e.target.classList.contains('draggable-item')) {
+            if (e.target.classList.contains('draggable-item')) {
                 e.preventDefault();
-                draggedCoinV1 = e.target;
+                draggedCoin = e.target;
                 
-                const dropzoneRect = leftDropzoneV1.getBoundingClientRect();
+                const dropzoneRect = leftDropzone.getBoundingClientRect();
 
                 const onMove = (e) => {
                     const touch = e.touches[0];
                     if (touch.clientX >= dropzoneRect.left && touch.clientX <= dropzoneRect.right &&
                         touch.clientY >= dropzoneRect.top && touch.clientY <= dropzoneRect.bottom) {
-                        leftDropzoneV1.classList.add('active');
+                        leftDropzone.classList.add('active');
                     } else {
-                        leftDropzoneV1.classList.remove('active');
+                        leftDropzone.classList.remove('active');
                     }
                 };
 
@@ -329,20 +333,20 @@
                     document.removeEventListener('touchmove', onMove);
                     document.removeEventListener('touchend', onEnd);
                     
-                    leftDropzoneV1.classList.remove('active');
+                    leftDropzone.classList.remove('active');
                     const touch = e.changedTouches[0];
 
                     if (touch.clientX >= dropzoneRect.left && touch.clientX <= dropzoneRect.right &&
                         touch.clientY >= dropzoneRect.top && touch.clientY <= dropzoneRect.bottom) {
                         
-                        draggedCoinV1.parentNode.removeChild(draggedCoinV1);
-                        leftDropzoneV1.appendChild(draggedCoinV1);
-                        droppedCoinsCountV1 += 1;
-                        updateAmountDisplayV1();
-                        updateFiveYuanCoinsV1();
-                        generateSingleCoinV1(); // 每次放入一個硬幣就產生一個新的
+                        draggedCoin.parentNode.removeChild(draggedCoin);
+                        leftDropzone.appendChild(draggedCoin);
+                        droppedCoinsCount += 1;
+                        updateAmountDisplay();
+                        updateRightSide();
+                        generateSingleCoin(); // 每次放入一個硬幣就產生一個新的
                     }
-                    draggedCoinV1 = null;
+                    draggedCoin = null;
                 };
 
                 document.addEventListener('touchmove', onMove, { passive: false });
@@ -351,10 +355,10 @@
         }, { passive: false });
 
         // 監聽重來一次按鈕
-        resetButtonV1.addEventListener('click', resetGameV1);
+        resetButton.addEventListener('click', resetGame);
 
         // 初始化遊戲
-        resetGameV1();
+        resetGame();
     </script>
 </body>
 </html>
