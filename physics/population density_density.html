@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人口與物質密度對照模擬</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', '微軟正黑體', sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+        }
+
+        /* --- 人口密度樣式 --- */
+        .land-area {
+            position: relative;
+            background-color: #e2f2e3;
+            border: 2px dashed #a3c4a3;
+            /* **修正核心**：移除寬度的 transition 動畫，讓寬度變化立即生效 */
+            transition: height 0.3s ease-in-out;
+            overflow: hidden;
+        }
+        .person-icon {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            transition: all 0.1s ease-in-out; /* 加快一點動畫速度 */
+        }
+
+        /* --- 物質密度樣式 --- */
+        .sphere-container {
+            position: relative;
+            border-radius: 50%;
+            background: radial-gradient(circle at 65% 35%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1));
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.1), 0 10px 20px rgba(0,0,0,0.1);
+            transition: width 0.3s ease-in-out, height 0.3s ease-in-out;
+        }
+        .small-sphere {
+            position: absolute;
+            border-radius: 50%;
+            transition: all 0.3s ease-in-out;
+            background: radial-gradient(circle at 65% 35%, rgba(255,255,255,0.9), rgba(0,0,0,0.2));
+        }
+        .orange-particle {
+            background-color: #fb923c;
+            box-shadow: 0 0 10px #fb923c, inset 0 0 5px rgba(255,255,255,0.5);
+        }
+        .blue-particle {
+            background-color: #60a5fa;
+            box-shadow: 0 0 10px #60a5fa, inset 0 0 5px rgba(255,255,255,0.5);
+        }
+
+        /* --- 通用樣式 --- */
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; height: 8px; border-radius: 5px;
+            background: #d1d5db; outline: none; opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover { opacity: 1; }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px; height: 20px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-slate-800">密度概念模擬器</h1>
+            <p class="text-lg text-slate-600 mt-2">從「人口密度」到「物質密度」，探索空間、數量與密度的關係。</p>
+        </header>
+
+        <!-- ==================== 人口密度模擬區 ==================== -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold text-center text-slate-700 mb-6 border-b-2 pb-2">Part 1: 人口密度</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <!-- 左邊土地 -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-orange-500">地區 A</h3>
+                    <div id="landA" class="land-area w-full h-48 rounded-lg"></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="areaA" class="block mb-2 font-medium text-slate-700">土地面積: <span id="areaValueA">50</span> m²</label>
+                            <input type="range" id="areaA" min="10" max="100" value="50">
+                        </div>
+                        <div>
+                            <label for="populationA" class="block mb-2 font-medium text-slate-700">人口數: <span id="populationValueA">15</span> 人</label>
+                            <input type="range" id="populationA" min="1" max="100" value="15">
+                        </div>
+                        <div class="text-center bg-orange-100 p-3 rounded-lg">
+                            <p class="text-lg font-semibold text-orange-800">人口密度 = <span id="popDensityA">0.30</span> 人/m²</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- 右邊土地 -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-blue-500">地區 B</h3>
+                    <div id="landB" class="land-area w-full h-48 rounded-lg"></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="areaB" class="block mb-2 font-medium text-slate-700">土地面積: <span id="areaValueB">50</span> m²</label>
+                            <input type="range" id="areaB" min="10" max="100" value="50">
+                        </div>
+                        <div>
+                            <label for="populationB" class="block mb-2 font-medium text-slate-700">人口數: <span id="populationValueB">15</span> 人</label>
+                            <input type="range" id="populationB" min="1" max="100" value="15">
+                        </div>
+                        <div class="text-center bg-blue-100 p-3 rounded-lg">
+                            <p class="text-lg font-semibold text-blue-800">人口密度 = <span id="popDensityB">0.30</span> 人/m²</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 物質密度模擬區 ==================== -->
+        <section>
+            <h2 class="text-3xl font-bold text-center text-slate-700 mb-6 border-b-2 pb-2">Part 2: 物質密度 (質量/體積)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <!-- 左邊球體 -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-orange-500">物體 A</h3>
+                    <div id="sphereA" class="sphere-container" style="width: 250px; height: 250px;"></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="volumeA" class="block mb-2 font-medium text-slate-700">體積 (V): <span id="volumeValueA">125</span> cm³</label>
+                            <input type="range" id="volumeA" min="100" max="400" value="250">
+                        </div>
+                        <div>
+                            <label for="massA" class="block mb-2 font-medium text-slate-700">粒子數量 (質量 M): <span id="massValueA">30</span></label>
+                            <input type="range" id="massA" min="1" max="100" value="30">
+                        </div>
+                        <div class="text-center bg-orange-100 p-3 rounded-lg">
+                            <p class="text-lg font-semibold text-orange-800">密度 (D) = <span id="densityA">0.24</span> g/cm³</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- 右邊球體 -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-blue-500">物體 B</h3>
+                    <div id="sphereB" class="sphere-container" style="width: 250px; height: 250px;"></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="volumeB" class="block mb-2 font-medium text-slate-700">體積 (V): <span id="volumeValueB">125</span> cm³</label>
+                            <input type="range" id="volumeB" min="100" max="400" value="250">
+                        </div>
+                        <div>
+                            <label for="massB" class="block mb-2 font-medium text-slate-700">粒子數量 (質量 M): <span id="massValueB">30</span></label>
+                            <input type="range" id="massB" min="1" max="100" value="30">
+                        </div>
+                        <div class="text-center bg-blue-100 p-3 rounded-lg">
+                            <p class="text-lg font-semibold text-blue-800">密度 (D) = <span id="densityB">0.24</span> g/cm³</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center mt-12 text-slate-500">
+            <p>密度的基本概念：單位空間內的數量</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- 全域變數與初始化 ---
+        const personSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm9 7h-6v13h-2v-6h-2v6H9V9H3V7h18v2z"></path></svg>`;
+        
+        window.addEventListener('load', () => {
+            // 初始化人口密度
+            updatePopulationA();
+            updatePopulationB();
+            // 初始化物質密度
+            updateSphereA();
+            updateSphereB();
+        });
+
+        // --- 人口密度模擬相關 ---
+        const landA = document.getElementById('landA');
+        const areaSliderA = document.getElementById('areaA');
+        const populationSliderA = document.getElementById('populationA');
+        const areaValueA = document.getElementById('areaValueA');
+        const populationValueA = document.getElementById('populationValueA');
+        const popDensityA = document.getElementById('popDensityA');
+
+        const landB = document.getElementById('landB');
+        const areaSliderB = document.getElementById('areaB');
+        const populationSliderB = document.getElementById('populationB');
+        const areaValueB = document.getElementById('areaValueB');
+        const populationValueB = document.getElementById('populationValueB');
+        const popDensityB = document.getElementById('popDensityB');
+
+        function updatePopulation(land, areaSlider, populationSlider, areaEl, popEl, densityEl, color) {
+            const area = parseInt(areaSlider.value);
+            const population = parseInt(populationSlider.value);
+            const density = (population / area).toFixed(2);
+
+            areaEl.textContent = area;
+            popEl.textContent = population;
+            densityEl.textContent = density;
+
+            land.style.width = `${area}%`;
+            
+            // 使用 setTimeout 推遲執行，確保在瀏覽器同步渲染寬度變化後再讀取 clientWidth
+            setTimeout(() => {
+                land.innerHTML = '';
+                const landWidth = land.clientWidth;
+                const landHeight = land.clientHeight;
+                const iconSize = 20;
+
+                // 採用網格布局來均勻分布
+                if (population > 0 && landWidth > 0 && landHeight > 0) {
+                    const ratio = landWidth / landHeight;
+                    const cols = Math.ceil(Math.sqrt(population * ratio));
+                    const rows = Math.ceil(population / cols);
+
+                    const colWidth = landWidth / cols;
+                    const rowHeight = landHeight / rows;
+
+                    for (let i = 0; i < population; i++) {
+                        const person = document.createElement('div');
+                        person.className = 'person-icon';
+                        person.innerHTML = personSVG;
+                        person.style.color = color;
+
+                        const colIndex = i % cols;
+                        const rowIndex = Math.floor(i / cols);
+
+                        // 將圖示置於其網格單元的中間
+                        const left = colIndex * colWidth + (colWidth - iconSize) / 2;
+                        const top = rowIndex * rowHeight + (rowHeight - iconSize) / 2;
+
+                        person.style.left = `${left}px`;
+                        person.style.top = `${top}px`;
+                        land.appendChild(person);
+                    }
+                }
+            }, 0); // 延遲 0 毫秒即可
+        }
+        
+        const updatePopulationA = () => updatePopulation(landA, areaSliderA, populationSliderA, areaValueA, populationValueA, popDensityA, '#f97316');
+        const updatePopulationB = () => updatePopulation(landB, areaSliderB, populationSliderB, areaValueB, populationValueB, popDensityB, '#3b82f6');
+        
+        areaSliderA.addEventListener('input', updatePopulationA);
+        populationSliderA.addEventListener('input', updatePopulationA);
+        areaSliderB.addEventListener('input', updatePopulationB);
+        populationSliderB.addEventListener('input', updatePopulationB);
+
+
+        // --- 物質密度模擬相關 ---
+        const sphereA = document.getElementById('sphereA');
+        const volumeSliderA = document.getElementById('volumeA');
+        const massSliderA = document.getElementById('massA');
+        const volumeValueA = document.getElementById('volumeValueA');
+        const massValueA = document.getElementById('massValueA');
+        const densityA = document.getElementById('densityA');
+
+        const sphereB = document.getElementById('sphereB');
+        const volumeSliderB = document.getElementById('volumeB');
+        const massSliderB = document.getElementById('massB');
+        const volumeValueB = document.getElementById('volumeValueB');
+        const massValueB = document.getElementById('massValueB');
+        const densityB = document.getElementById('densityB');
+
+        function updateSphere(sphere, volumeSlider, massSlider, volumeValueEl, massValueEl, densityEl, particleColorClass) {
+            const diameter = parseFloat(volumeSlider.value);
+            const volume = Math.round((diameter / 250) * 200); 
+            const mass = parseInt(massSlider.value);
+            const density = (mass / volume).toFixed(2);
+
+            volumeValueEl.textContent = volume;
+            massValueEl.textContent = mass;
+            densityEl.textContent = density;
+
+            sphere.style.width = `${diameter}px`;
+            sphere.style.height = `${diameter}px`;
+
+            sphere.innerHTML = '';
+            const sphereRadius = diameter / 2;
+            const smallSphereDiameter = Math.max(15, sphereRadius * 0.1);
+
+            for (let i = 0; i < mass; i++) {
+                const smallSphere = document.createElement('div');
+                smallSphere.className = `small-sphere ${particleColorClass}`;
+                smallSphere.style.width = `${smallSphereDiameter}px`;
+                smallSphere.style.height = `${smallSphereDiameter}px`;
+
+                // 使用 Fibonacci sphere 算法實現均勻分布
+                const goldenRatio = (1 + Math.sqrt(5)) / 2;
+                const index = i + 0.5;
+
+                // 體積內的均勻分布
+                const r = sphereRadius * Math.cbrt(index / mass) * 0.9; 
+
+                // 均勻的方向分布
+                const theta = Math.acos(1 - 2 * index / mass);
+                const phi = 2 * Math.PI * index / goldenRatio;
+
+                const x = r * Math.sin(theta) * Math.cos(phi);
+                const y = r * Math.sin(theta) * Math.sin(phi);
+                const z = r * Math.cos(theta); 
+
+                const scale = (z + sphereRadius) / (2 * sphereRadius) * 0.75 + 0.5;
+                const opacity = (z + sphereRadius) / (2 * sphereRadius) * 0.8 + 0.2;
+                
+                const left = x + sphereRadius - (smallSphereDiameter / 2);
+                const top = y + sphereRadius - (smallSphereDiameter / 2);
+
+                smallSphere.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
+                smallSphere.style.opacity = opacity;
+                
+                sphere.appendChild(smallSphere);
+            }
+        }
+        
+        const updateSphereA = () => updateSphere(sphereA, volumeSliderA, massSliderA, volumeValueA, massValueA, densityA, 'orange-particle');
+        const updateSphereB = () => updateSphere(sphereB, volumeSliderB, massSliderB, volumeValueB, massValueB, densityB, 'blue-particle');
+
+        volumeSliderA.addEventListener('input', updateSphereA);
+        massSliderA.addEventListener('input', updateSphereA);
+        volumeSliderB.addEventListener('input', updateSphereB);
+        massSliderB.addEventListener('input', updateSphereB);
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人口密度模擬器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', '微軟正黑體', sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+        }
+
+        /* --- 人口密度樣式 --- */
+        .land-area {
+            position: relative;
+            background-color: #e2f2e3;
+            border: 2px dashed #a3c4a3;
+            transition: height 0.3s ease-in-out;
+            overflow: hidden;
+        }
+        .person-icon {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            transition: all 0.1s ease-in-out;
+        }
+
+        /* --- 通用樣式 --- */
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; height: 8px; border-radius: 5px;
+            background: #d1d5db; outline: none; opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover { opacity: 1; }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px; height: 20px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-slate-800">人口密度概念模擬器</h1>
+            <p class="text-lg text-slate-600 mt-2">探索土地面積、人口數與人口密度的關係。</p>
+        </header>
+
+        <!-- ==================== 人口密度模擬區 ==================== -->
+        <section class="mb-12">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <!-- 左邊土地 -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-orange-500">地區 A</h3>
+                    <div id="landA" class="land-area w-full h-48 rounded-lg"></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="areaA" class="block mb-2 font-medium text-slate-700">土地面積: <span id="areaValueA">50</span> m²</label>
+                            <input type="range" id="areaA" min="10" max="100" value="50">
+                        </div>
+                        <div>
+                            <label for="populationA" class="block mb-2 font-medium text-slate-700">人口數: <span id="populationValueA">15</span> 人</label>
+                            <input type="range" id="populationA" min="1" max="100" value="15">
+                        </div>
+                        <div class="text-center bg-orange-100 p-3 rounded-lg">
+                            <p class="text-lg font-semibold text-orange-800">人口密度 = <span id="popDensityA">0.30</span> 人/m²</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- 右邊土地 -->
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-blue-500">地區 B</h3>
+                    <div id="landB" class="land-area w-full h-48 rounded-lg"></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="areaB" class="block mb-2 font-medium text-slate-700">土地面積: <span id="areaValueB">50</span> m²</label>
+                            <input type="range" id="areaB" min="10" max="100" value="50">
+                        </div>
+                        <div>
+                            <label for="populationB" class="block mb-2 font-medium text-slate-700">人口數: <span id="populationValueB">15</span> 人</label>
+                            <input type="range" id="populationB" min="1" max="100" value="15">
+                        </div>
+                        <div class="text-center bg-blue-100 p-3 rounded-lg">
+                            <p class="text-lg font-semibold text-blue-800">人口密度 = <span id="popDensityB">0.30</span> 人/m²</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center mt-12 text-slate-500">
+            <p>人口密度 = 總人口 / 總面積</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- 全域變數與初始化 ---
+        const personSVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm9 7h-6v13h-2v-6h-2v6H9V9H3V7h18v2z"></path></svg>`;
+        
+        window.addEventListener('load', () => {
+            updatePopulationA();
+            updatePopulationB();
+        });
+
+        // --- 人口密度模擬相關 ---
+        const landA = document.getElementById('landA');
+        const areaSliderA = document.getElementById('areaA');
+        const populationSliderA = document.getElementById('populationA');
+        const areaValueA = document.getElementById('areaValueA');
+        const populationValueA = document.getElementById('populationValueA');
+        const popDensityA = document.getElementById('popDensityA');
+
+        const landB = document.getElementById('landB');
+        const areaSliderB = document.getElementById('areaB');
+        const populationSliderB = document.getElementById('populationB');
+        const areaValueB = document.getElementById('areaValueB');
+        const populationValueB = document.getElementById('populationValueB');
+        const popDensityB = document.getElementById('popDensityB');
+
+        function updatePopulation(land, areaSlider, populationSlider, areaEl, popEl, densityEl, color) {
+            const area = parseInt(areaSlider.value);
+            const population = parseInt(populationSlider.value);
+            const density = (population / area).toFixed(2);
+
+            areaEl.textContent = area;
+            popEl.textContent = population;
+            densityEl.textContent = density;
+
+            land.style.width = `${area}%`;
+            
+            setTimeout(() => {
+                land.innerHTML = '';
+                const landWidth = land.clientWidth;
+                const landHeight = land.clientHeight;
+                const iconSize = 20;
+
+                if (population > 0 && landWidth > 0 && landHeight > 0) {
+                    const ratio = landWidth / landHeight;
+                    const cols = Math.ceil(Math.sqrt(population * ratio));
+                    const rows = Math.ceil(population / cols);
+
+                    const colWidth = landWidth / cols;
+                    const rowHeight = landHeight / rows;
+
+                    for (let i = 0; i < population; i++) {
+                        const person = document.createElement('div');
+                        person.className = 'person-icon';
+                        person.innerHTML = personSVG;
+                        person.style.color = color;
+
+                        const colIndex = i % cols;
+                        const rowIndex = Math.floor(i / cols);
+
+                        const left = colIndex * colWidth + (colWidth - iconSize) / 2;
+                        const top = rowIndex * rowHeight + (rowHeight - iconSize) / 2;
+
+                        person.style.left = `${left}px`;
+                        person.style.top = `${top}px`;
+                        land.appendChild(person);
+                    }
+                }
+            }, 0);
+        }
+        
+        const updatePopulationA = () => updatePopulation(landA, areaSliderA, populationSliderA, areaValueA, populationValueA, popDensityA, '#f97316');
+        const updatePopulationB = () => updatePopulation(landB, areaSliderB, populationSliderB, areaValueB, populationValueB, popDensityB, '#3b82f6');
+        
+        areaSliderA.addEventListener('input', updatePopulationA);
+        populationSliderA.addEventListener('input', updatePopulationA);
+        areaSliderB.addEventListener('input', updatePopulationB);
+        populationSliderB.addEventListener('input', updatePopulationB);
+    </script>
+</body>
+</html>
