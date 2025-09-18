@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>質量與密度互動教學</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', '微軟正黑體', sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+        }
+        /* 主球體容器樣式 */
+        .sphere-container {
+            position: relative;
+            border-radius: 50%;
+            background: radial-gradient(circle at 65% 35%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1));
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.1), 0 10px 20px rgba(0,0,0,0.1);
+            transition: width 0.3s ease-in-out, height 0.3s ease-in-out;
+        }
+        /* 內部小球樣式 */
+        .small-sphere {
+            position: absolute;
+            border-radius: 50%;
+            transition: all 0.3s ease-in-out;
+            background: radial-gradient(circle at 65% 35%, rgba(255,255,255,0.9), rgba(0,0,0,0.2));
+        }
+        .orange {
+            background-color: #fb923c;
+            box-shadow: 0 0 10px #fb923c, inset 0 0 5px rgba(255,255,255,0.5);
+        }
+        .blue {
+            background-color: #60a5fa;
+            box-shadow: 0 0 10px #60a5fa, inset 0 0 5px rgba(255,255,255,0.5);
+        }
+        /* 滑桿美化 */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #d1d5db;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover {
+            opacity: 1;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-slate-800">質量、體積與密度模擬器</h1>
+            <p class="text-lg text-slate-600 mt-2">透過調整體積與粒子數量，觀察密度的變化。</p>
+        </header>
+
+        <div class="flex justify-center items-center gap-2 md:gap-4 mb-6">
+            <button id="showMassBtn" class="px-4 py-2 text-sm md:text-base rounded-lg bg-blue-500 text-white font-semibold shadow-md transition-all duration-200">質量</button>
+            <button id="showDensityBtn" class="px-4 py-2 text-sm md:text-base rounded-lg bg-white text-slate-700 font-semibold shadow-md transition-all duration-200">密度</button>
+            <button id="showBothBtn" class="px-4 py-2 text-sm md:text-base rounded-lg bg-white text-slate-700 font-semibold shadow-md transition-all duration-200">質量與密度</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+            <!-- 左邊球體與控制器 -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                <h2 class="text-2xl font-bold mb-4 text-orange-500">物體 A</h2>
+                <div id="sphereA" class="sphere-container" style="width: 250px; height: 250px;"></div>
+                <div class="w-full mt-6 space-y-4">
+                    <div>
+                        <label for="volumeA" class="block mb-2 font-medium text-slate-700">大球體積 (V): <span id="volumeValueA">125</span> cm³</label>
+                        <input type="range" id="volumeA" min="100" max="400" value="250" class="w-full">
+                    </div>
+                    <div>
+                        <label for="massA" class="block mb-2 font-medium text-slate-700">粒子數量 (質量 M): <span id="massValueA">30</span></label>
+                        <input type="range" id="massA" min="1" max="100" value="30" class="w-full">
+                    </div>
+                    <div class="text-center bg-orange-100 p-3 rounded-lg min-h-[80px] flex flex-col justify-center space-y-1">
+                        <p id="massDisplayA" class="text-lg font-semibold text-orange-800">質量 (M) = <span id="massResultA">30</span> g</p>
+                        <p id="densityDisplayA" class="text-lg font-semibold text-orange-800">密度 (D) = <span id="densityA">0.24</span> g/cm³</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右邊球體與控制器 -->
+            <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                <h2 class="text-2xl font-bold mb-4 text-blue-500">物體 B</h2>
+                <div id="sphereB" class="sphere-container" style="width: 250px; height: 250px;"></div>
+                <div class="w-full mt-6 space-y-4">
+                    <div>
+                        <label for="volumeB" class="block mb-2 font-medium text-slate-700">大球體積 (V): <span id="volumeValueB">125</span> cm³</label>
+                        <input type="range" id="volumeB" min="100" max="400" value="250" class="w-full">
+                    </div>
+                    <div>
+                        <label for="massB" class="block mb-2 font-medium text-slate-700">粒子數量 (質量 M): <span id="massValueB">30</span></label>
+                        <input type="range" id="massB" min="1" max="100" value="30" class="w-full">
+                    </div>
+                    <div class="text-center bg-blue-100 p-3 rounded-lg min-h-[80px] flex flex-col justify-center space-y-1">
+                        <p id="massDisplayB" class="text-lg font-semibold text-blue-800">質量 (M) = <span id="massResultB">30</span> g</p>
+                        <p id="densityDisplayB" class="text-lg font-semibold text-blue-800">密度 (D) = <span id="densityB">0.24</span> g/cm³</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="text-center mt-12 text-slate-500">
+            <p>密度 = 質量 / 體積</p>
+        </footer>
+    </div>
+
+    <script>
+        // DOM 元素獲取
+        const sphereA = document.getElementById('sphereA');
+        const volumeSliderA = document.getElementById('volumeA');
+        const massSliderA = document.getElementById('massA');
+        const volumeValueA = document.getElementById('volumeValueA');
+        const massValueA = document.getElementById('massValueA');
+        const densityA = document.getElementById('densityA');
+        const massResultA = document.getElementById('massResultA');
+        const massDisplayA = document.getElementById('massDisplayA');
+        const densityDisplayA = document.getElementById('densityDisplayA');
+
+        const sphereB = document.getElementById('sphereB');
+        const volumeSliderB = document.getElementById('volumeB');
+        const massSliderB = document.getElementById('massB');
+        const volumeValueB = document.getElementById('volumeValueB');
+        const massValueB = document.getElementById('massValueB');
+        const densityB = document.getElementById('densityB');
+        const massResultB = document.getElementById('massResultB');
+        const massDisplayB = document.getElementById('massDisplayB');
+        const densityDisplayB = document.getElementById('densityDisplayB');
+
+        const showDensityBtn = document.getElementById('showDensityBtn');
+        const showMassBtn = document.getElementById('showMassBtn');
+        const showBothBtn = document.getElementById('showBothBtn');
+
+        let currentDisplayMode = 'mass'; // 初始顯示模式
+
+        // 更新顯示內容的可見性
+        function updateDisplayVisibility() {
+            const buttons = [showDensityBtn, showMassBtn, showBothBtn];
+            buttons.forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white');
+                btn.classList.add('bg-white', 'text-slate-700');
+            });
+            
+            massDisplayA.classList.add('hidden');
+            densityDisplayA.classList.add('hidden');
+            massDisplayB.classList.add('hidden');
+            densityDisplayB.classList.add('hidden');
+
+            if (currentDisplayMode === 'density') {
+                densityDisplayA.classList.remove('hidden');
+                densityDisplayB.classList.remove('hidden');
+                showDensityBtn.classList.add('bg-blue-500', 'text-white');
+                showDensityBtn.classList.remove('bg-white', 'text-slate-700');
+            } else if (currentDisplayMode === 'mass') {
+                massDisplayA.classList.remove('hidden');
+                massDisplayB.classList.remove('hidden');
+                showMassBtn.classList.add('bg-blue-500', 'text-white');
+                showMassBtn.classList.remove('bg-white', 'text-slate-700');
+            } else if (currentDisplayMode === 'both') {
+                massDisplayA.classList.remove('hidden');
+                densityDisplayA.classList.remove('hidden');
+                massDisplayB.classList.remove('hidden');
+                densityDisplayB.classList.remove('hidden');
+                showBothBtn.classList.add('bg-blue-500', 'text-white');
+                showBothBtn.classList.remove('bg-white', 'text-slate-700');
+            }
+        }
+
+        // 更新模擬函數
+        function updateSimulation(sphere, volumeSlider, massSlider, volumeValueEl, massValueEl, densityEl, color, massResultEl) {
+            const diameter = parseFloat(volumeSlider.value);
+            const volume = Math.round((diameter / 250) * 200); 
+            const mass = parseInt(massSlider.value);
+            const density = (mass / volume).toFixed(2);
+
+            volumeValueEl.textContent = volume;
+            massValueEl.textContent = mass;
+            densityEl.textContent = density;
+            massResultEl.textContent = mass;
+
+            sphere.style.width = `${diameter}px`;
+            sphere.style.height = `${diameter}px`;
+            sphere.innerHTML = '';
+            const sphereRadius = diameter / 2;
+            const smallSphereDiameter = 15;
+
+            for (let i = 0; i < mass; i++) {
+                const smallSphere = document.createElement('div');
+                smallSphere.className = `small-sphere ${color}`;
+                smallSphere.style.width = `${smallSphereDiameter}px`;
+                smallSphere.style.height = `${smallSphereDiameter}px`;
+
+                const goldenRatio = (1 + Math.sqrt(5)) / 2;
+                const index = i + 0.5;
+                const r = sphereRadius * Math.cbrt(index / mass) * 0.9;
+                const theta = Math.acos(1 - 2 * index / mass);
+                const phi = 2 * Math.PI * index / goldenRatio;
+                const x = r * Math.sin(theta) * Math.cos(phi);
+                const y = r * Math.sin(theta) * Math.sin(phi);
+                const left = x + sphereRadius - (smallSphereDiameter / 2);
+                const top = y + sphereRadius - (smallSphereDiameter / 2);
+                smallSphere.style.transform = `translate(${left}px, ${top}px)`;
+                sphere.appendChild(smallSphere);
+            }
+        }
+
+        // 按鈕事件監聽器
+        showDensityBtn.addEventListener('click', () => {
+            currentDisplayMode = 'density';
+            updateDisplayVisibility();
+        });
+        showMassBtn.addEventListener('click', () => {
+            currentDisplayMode = 'mass';
+            updateDisplayVisibility();
+        });
+        showBothBtn.addEventListener('click', () => {
+            currentDisplayMode = 'both';
+            updateDisplayVisibility();
+        });
+
+        // 滑桿事件監聽器
+        volumeSliderA.addEventListener('input', () => updateSimulation(sphereA, volumeSliderA, massSliderA, volumeValueA, massValueA, densityA, 'orange', massResultA));
+        massSliderA.addEventListener('input', () => updateSimulation(sphereA, volumeSliderA, massSliderA, volumeValueA, massValueA, densityA, 'orange', massResultA));
+
+        volumeSliderB.addEventListener('input', () => updateSimulation(sphereB, volumeSliderB, massSliderB, volumeValueB, massValueB, densityB, 'blue', massResultB));
+        massSliderB.addEventListener('input', () => updateSimulation(sphereB, volumeSliderB, massSliderB, volumeValueB, massValueB, densityB, 'blue', massResultB));
+
+        // 頁面載入時初始化
+        window.addEventListener('load', () => {
+            updateSimulation(sphereA, volumeSliderA, massSliderA, volumeValueA, massValueA, densityA, 'orange', massResultA);
+            updateSimulation(sphereB, volumeSliderB, massSliderB, volumeValueB, massValueB, densityB, 'blue', massResultB);
+            updateDisplayVisibility();
+        });
+    </script>
+</body>
+</html>
+
