@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>密度與濃度對照模擬</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', '微軟正黑體', sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+        }
+        
+        /* --- 物質密度樣式 --- */
+        .sphere-container {
+            position: relative;
+            border-radius: 50%;
+            background: radial-gradient(circle at 65% 35%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1));
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.1), 0 10px 20px rgba(0,0,0,0.1);
+            transition: width 0.3s ease-in-out, height 0.3s ease-in-out;
+        }
+        .small-sphere {
+            position: absolute;
+            border-radius: 50%;
+            transition: all 0.3s ease-in-out;
+            background: radial-gradient(circle at 65% 35%, rgba(255,255,255,0.9), rgba(0,0,0,0.2));
+        }
+        .orange-particle { background-color: #fb923c; box-shadow: 0 0 10px #fb923c, inset 0 0 5px rgba(255,255,255,0.5); }
+        .blue-particle { background-color: #60a5fa; box-shadow: 0 0 10px #60a5fa, inset 0 0 5px rgba(255,255,255,0.5); }
+
+        /* --- 溶液濃度樣式 --- */
+        .beaker {
+            width: 180px;
+            height: 220px;
+            border: 4px solid #9ca3af;
+            border-top: none;
+            border-radius: 0 0 20px 20px;
+            position: relative;
+            background-color: #e5e7eb;
+        }
+        .beaker::before { /* 燒杯上緣厚度 */
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            right: -8px;
+            height: 8px;
+            background: #9ca3af;
+            border-radius: 8px 8px 0 0;
+        }
+        .water {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(135, 206, 235, 0.5); /* 淡藍色水 */
+            border-radius: 0 0 16px 16px;
+            /* **修正核心**：增加此行，隱藏超出邊界的內容 */
+            overflow: hidden;
+        }
+        .solute-particle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.3);
+            animation-name: swim;
+            animation-iteration-count: infinite;
+            animation-timing-function: ease-in-out;
+        }
+        .purple-solute { background-color: #c084fc; }
+        .green-solute { background-color: #4ade80; }
+
+        @keyframes swim {
+            0% { transform: translate(0, 0); }
+            25% { transform: translate(4px, -6px); }
+            50% { transform: translate(-3px, 5px); }
+            75% { transform: translate(5px, 2px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        /* --- 通用樣式 --- */
+        input[type="range"] {
+            -webkit-appearance: none; appearance: none;
+            width: 100%; height: 8px; border-radius: 5px;
+            background: #d1d5db; outline: none; opacity: 0.7;
+            transition: opacity .2s;
+        }
+        input[type="range"]:hover { opacity: 1; }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px; height: 20px; border-radius: 50%;
+            background: #3b82f6; cursor: pointer;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl font-bold text-slate-800">密度與濃度概念模擬器</h1>
+            <p class="text-lg text-slate-600 mt-2">從「物質密度」到「溶液濃度」，探索空間、數量與分布的關係。</p>
+        </header>
+
+        <!-- ==================== 物質密度模擬區 ==================== -->
+        <section class="mb-12">
+            <h2 class="text-3xl font-bold text-center text-slate-700 mb-6 border-b-2 pb-2">Part 1: 物質密度 (質量/體積)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-orange-500">物體 A</h3>
+                    <div id="sphereA" class="sphere-container" style="width: 250px; height: 250px;"></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="volumeA" class="block mb-2 font-medium text-slate-700">體積 (V): <span id="volumeValueA">125</span> cm³</label>
+                            <input type="range" id="volumeA" min="100" max="400" value="250">
+                        </div>
+                        <div>
+                            <label for="massA" class="block mb-2 font-medium text-slate-700">粒子數量 (質量 M): <span id="massValueA">30</span></label>
+                            <input type="range" id="massA" min="1" max="100" value="30">
+                        </div>
+                        <div class="text-center bg-orange-100 p-3 rounded-lg"><p class="text-lg font-semibold text-orange-800">密度 (D) = <span id="densityA">0.24</span> g/cm³</p></div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-blue-500">物體 B</h3>
+                    <div id="sphereB" class="sphere-container" style="width: 250px; height: 250px;"></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="volumeB" class="block mb-2 font-medium text-slate-700">體積 (V): <span id="volumeValueB">125</span> cm³</label>
+                            <input type="range" id="volumeB" min="100" max="400" value="250">
+                        </div>
+                        <div>
+                            <label for="massB" class="block mb-2 font-medium text-slate-700">粒子數量 (質量 M): <span id="massValueB">30</span></label>
+                            <input type="range" id="massB" min="1" max="100" value="30">
+                        </div>
+                        <div class="text-center bg-blue-100 p-3 rounded-lg"><p class="text-lg font-semibold text-blue-800">密度 (D) = <span id="densityB">0.24</span> g/cm³</p></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 溶液濃度模擬區 ==================== -->
+        <section>
+            <h2 class="text-3xl font-bold text-center text-slate-700 mb-6 border-b-2 pb-2">Part 2: 溶液濃度 (溶質/溶液)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-purple-500">溶液 A</h3>
+                    <div class="beaker"><div id="waterA" class="water"></div></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="solventA" class="block mb-2 font-medium text-slate-700">水的體積 (溶劑): <span id="solventValueA">100</span> mL</label>
+                            <input type="range" id="solventA" min="20" max="200" value="100">
+                        </div>
+                        <div>
+                            <label for="soluteA" class="block mb-2 font-medium text-slate-700">顆粒數量 (溶質): <span id="soluteValueA">10</span> 顆</label>
+                            <input type="range" id="soluteA" min="1" max="50" value="10">
+                        </div>
+                        <div class="text-center bg-purple-100 p-3 rounded-lg text-purple-800 space-y-1">
+                            <p class="font-medium">溶液總質量: <span id="totalMassA">110</span> g</p>
+                            <p class="text-lg font-semibold">重量百分濃度 = <span id="concentrationA">9.1</span> %</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-lg flex flex-col items-center">
+                    <h3 class="text-2xl font-bold mb-4 text-green-500">溶液 B</h3>
+                    <div class="beaker"><div id="waterB" class="water"></div></div>
+                    <div class="w-full mt-6 space-y-4">
+                        <div>
+                            <label for="solventB" class="block mb-2 font-medium text-slate-700">水的體積 (溶劑): <span id="solventValueB">100</span> mL</label>
+                            <input type="range" id="solventB" min="20" max="200" value="100">
+                        </div>
+                        <div>
+                            <label for="soluteB" class="block mb-2 font-medium text-slate-700">顆粒數量 (溶質): <span id="soluteValueB">10</span> 顆</label>
+                            <input type="range" id="soluteB" min="1" max="50" value="10">
+                        </div>
+                        <div class="text-center bg-green-100 p-3 rounded-lg text-green-800 space-y-1">
+                            <p class="font-medium">溶液總質量: <span id="totalMassB">110</span> g</p>
+                            <p class="text-lg font-semibold">重量百分濃度 = <span id="concentrationB">9.1</span> %</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="text-center mt-12 text-slate-500">
+            <p>密度的基本概念：單位空間內的數量</p>
+        </footer>
+    </div>
+
+    <script>
+        // --- 初始化 ---
+        window.addEventListener('load', () => {
+            updateSphereA(); updateSphereB();
+            updateSolutionA(); updateSolutionB();
+        });
+
+        // --- 物質密度模擬 ---
+        const sphereA = document.getElementById('sphereA');
+        const volumeSliderA = document.getElementById('volumeA');
+        const massSliderA = document.getElementById('massA');
+        const volumeValueA = document.getElementById('volumeValueA');
+        const massValueA = document.getElementById('massValueA');
+        const densityA = document.getElementById('densityA');
+        const sphereB = document.getElementById('sphereB');
+        const volumeSliderB = document.getElementById('volumeB');
+        const massSliderB = document.getElementById('massB');
+        const volumeValueB = document.getElementById('volumeValueB');
+        const massValueB = document.getElementById('massValueB');
+        const densityB = document.getElementById('densityB');
+
+        function updateSphere(sphere, volumeSlider, massSlider, volumeValueEl, massValueEl, densityEl, particleColorClass) {
+            const diameter = parseFloat(volumeSlider.value);
+            const volume = Math.round((diameter / 250) * 200); 
+            const mass = parseInt(massSlider.value);
+            const density = volume > 0 ? (mass / volume).toFixed(2) : 0;
+            volumeValueEl.textContent = volume; massValueEl.textContent = mass; densityEl.textContent = density;
+            sphere.style.width = `${diameter}px`; sphere.style.height = `${diameter}px`;
+            sphere.innerHTML = '';
+            const sphereRadius = diameter / 2;
+            const smallSphereDiameter = Math.max(15, sphereRadius * 0.1);
+            for (let i = 0; i < mass; i++) {
+                const smallSphere = document.createElement('div');
+                smallSphere.className = `small-sphere ${particleColorClass}`;
+                smallSphere.style.width = `${smallSphereDiameter}px`; smallSphere.style.height = `${smallSphereDiameter}px`;
+                const goldenRatio = (1 + Math.sqrt(5)) / 2; const index = i + 0.5;
+                const r = sphereRadius * Math.cbrt(index / mass) * 0.9; 
+                const theta = Math.acos(1 - 2 * index / mass); const phi = 2 * Math.PI * index / goldenRatio;
+                const x = r * Math.sin(theta) * Math.cos(phi); const y = r * Math.sin(theta) * Math.sin(phi); const z = r * Math.cos(theta); 
+                const scale = (z + sphereRadius) / (2 * sphereRadius) * 0.75 + 0.5;
+                const opacity = (z + sphereRadius) / (2 * sphereRadius) * 0.8 + 0.2;
+                const left = x + sphereRadius - (smallSphereDiameter / 2); const top = y + sphereRadius - (smallSphereDiameter / 2);
+                smallSphere.style.transform = `translate(${left}px, ${top}px) scale(${scale})`;
+                smallSphere.style.opacity = opacity;
+                sphere.appendChild(smallSphere);
+            }
+        }
+        
+        const updateSphereA = () => updateSphere(sphereA, volumeSliderA, massSliderA, volumeValueA, massValueA, densityA, 'orange-particle');
+        const updateSphereB = () => updateSphere(sphereB, volumeSliderB, massSliderB, volumeValueB, massValueB, densityB, 'blue-particle');
+        volumeSliderA.addEventListener('input', updateSphereA); massSliderA.addEventListener('input', updateSphereA);
+        volumeSliderB.addEventListener('input', updateSphereB); massSliderB.addEventListener('input', updateSphereB);
+
+        // --- 溶液濃度模擬 ---
+        const waterA = document.getElementById('waterA');
+        const solventSliderA = document.getElementById('solventA');
+        const soluteSliderA = document.getElementById('soluteA');
+        const solventValueA = document.getElementById('solventValueA');
+        const soluteValueA = document.getElementById('soluteValueA');
+        const totalMassA = document.getElementById('totalMassA');
+        const concentrationA = document.getElementById('concentrationA');
+        const waterB = document.getElementById('waterB');
+        const solventSliderB = document.getElementById('solventB');
+        const soluteSliderB = document.getElementById('soluteB');
+        const solventValueB = document.getElementById('solventValueB');
+        const soluteValueB = document.getElementById('soluteValueB');
+        const totalMassB = document.getElementById('totalMassB');
+        const concentrationB = document.getElementById('concentrationB');
+        
+        function updateSolution(waterDiv, solventSlider, soluteSlider, solventEl, soluteEl, totalMassEl, concEl, particleColorClass) {
+            const solventMass = parseInt(solventSlider.value); // 水的體積mL = 質量g
+            const soluteMass = parseInt(soluteSlider.value); // 假設每顆粒1g
+            const solutionMass = solventMass + soluteMass;
+            const concentration = solutionMass > 0 ? ((soluteMass / solutionMass) * 100).toFixed(1) : 0;
+            
+            solventEl.textContent = solventMass;
+            soluteEl.textContent = soluteMass;
+            totalMassEl.textContent = solutionMass;
+            concEl.textContent = concentration;
+
+            const maxSolvent = parseInt(solventSlider.max);
+            waterDiv.style.height = `${(solventMass / maxSolvent) * waterDiv.parentElement.clientHeight}px`;
+            
+            requestAnimationFrame(() => {
+                waterDiv.innerHTML = '';
+                const waterWidth = waterDiv.clientWidth;
+                const waterHeight = waterDiv.clientHeight; 
+                const particleSize = 12;
+
+                if (soluteMass > 0 && waterWidth > 0 && waterHeight >= particleSize) {
+                    const ratio = waterWidth / waterHeight;
+                    const cols = Math.max(1, Math.round(Math.sqrt(soluteMass * ratio)));
+                    const rows = Math.ceil(soluteMass / cols);
+
+                    const colWidth = waterWidth / cols;
+                    const effectiveHeight = waterHeight - particleSize;
+                    const rowHeight = rows > 1 ? effectiveHeight / (rows - 1) : 0;
+
+                    for (let i = 0; i < soluteMass; i++) {
+                        const particle = document.createElement('div');
+                        particle.className = `solute-particle ${particleColorClass}`;
+                        const colIndex = i % cols;
+                        const rowIndex = Math.floor(i / cols);
+
+                        const left = colIndex * colWidth + (colWidth - particleSize) / 2;
+                        const bottom = rowIndex * rowHeight;
+
+                        particle.style.left = `${left}px`;
+                        particle.style.bottom = `${bottom}px`;
+
+                        const duration = Math.random() * 6 + 6;
+                        const delay = Math.random() * -12;
+                        particle.style.animationDuration = `${duration}s`;
+                        particle.style.animationDelay = `${delay}s`;
+
+                        waterDiv.appendChild(particle);
+                    }
+                }
+            });
+        }
+
+        const updateSolutionA = () => updateSolution(waterA, solventSliderA, soluteSliderA, solventValueA, soluteValueA, totalMassA, concentrationA, 'purple-solute');
+        const updateSolutionB = () => updateSolution(waterB, solventSliderB, soluteSliderB, solventValueB, soluteValueB, totalMassB, concentrationB, 'green-solute');
+        solventSliderA.addEventListener('input', updateSolutionA); soluteSliderA.addEventListener('input', updateSolutionA);
+        solventSliderB.addEventListener('input', updateSolutionB); soluteSliderB.addEventListener('input', updateSolutionB);
+    </script>
+</body>
+</html>
