@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>化學分子的超級馬拉松 - 色層分析法互動教學</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        button:disabled {
+            cursor: not-allowed;
+            background-color: #94a3b8; /* Tailwind gray-400 */
+            opacity: 0.7;
+        }
+        .color-btn-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .molecule-tail {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 4px;
+            height: 0;
+            border-radius: 2px;
+            transform-origin: bottom;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-sky-700">化學分子的超級馬拉松</h1>
+            <p class="text-lg md:text-xl text-gray-600 mt-2">色層分析法 (Chromatography) 互動教學</p>
+        </header>
+
+        <section class="bg-white p-6 rounded-lg shadow-md mb-8">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4">這是一場什麼樣的比賽？</h2>
+            <p class="mb-4">嗨！別被「色層分析」這個名詞嚇到了，它的原理就像一場有趣的馬拉松比賽！我們用這個比賽來把混合在一起的東西分開。</p>
+            <div class="grid md:grid-cols-3 gap-4 text-center">
+                <div class="bg-blue-100 p-4 rounded-lg">
+                    <h3 class="font-bold text-lg text-blue-800">選手們 (Runners)</h3>
+                    <p class="mt-2 text-sm">就是我們要分離的「混合物」，例如黑色墨水裡各種顏色的色素分子。</p>
+                </div>
+                <div class="bg-green-100 p-4 rounded-lg">
+                    <h3 class="font-bold text-lg text-green-800">跑道 (Racetrack)</h3>
+                    <p class="mt-2 text-sm">一個固定不動的東西，叫做「固定相」。它對不同的選手有不同的吸引力。</p>
+                </div>
+                <div class="bg-orange-100 p-4 rounded-lg">
+                    <h3 class="font-bold text-lg text-orange-800">往前推的動力 (Pusher)</h3>
+                    <p class="mt-2 text-sm">會流動的物質，叫做「移動相」。它會推著所有選手往前跑。</p>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 text-center">模擬實驗：自己動手混合墨水！</h2>
+            
+            <div class="flex flex-col lg:flex-row gap-8 items-start">
+                
+                <div class="w-full lg:w-1/3 mx-auto flex flex-col items-center">
+                    <p class="text-sm text-gray-500 mb-2">這裡是實驗裝置</p>
+                    <div class="w-48 h-96 bg-gray-200 border-2 border-gray-400 rounded-t-lg relative overflow-hidden shadow-inner" id="beaker">
+                        <div class="w-32 h-[360px] bg-white absolute bottom-0 left-1/2 -translate-x-1/2 shadow-lg" id="paper">
+                            <div class="absolute bottom-10 left-0 w-full h-0.5 bg-gray-300"></div>
+                            <div class="absolute bottom-[38px] left-1/2 -translate-x-1/2 text-xs text-gray-400">起跑線</div>
+                            
+                            <div class="absolute bottom-10 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full z-30 transition-all duration-300 border-2 border-gray-300" id="ink-spot" style="background-color: transparent;"></div>
+                            
+                            <div id="molecules-container" class="absolute bottom-10 left-0 w-full h-full z-20"></div>
+                            
+                            <div class="absolute bottom-0 left-0 w-full bg-sky-200/50 z-10" id="solvent-front" style="height: 0%;"></div>
+                        </div>
+                    </div>
+                    <div class="mt-4 w-full flex flex-col items-center gap-3">
+                        <p class="text-sm font-bold">1. 請選擇要混合的墨水：</p>
+                        <div class="flex gap-2">
+                            <button id="add-blue-btn" class="w-10 h-10 bg-blue-500 rounded-full text-white font-bold transition-transform duration-200 hover:scale-110 color-btn-shadow"></button>
+                            <button id="add-red-btn" class="w-10 h-10 bg-red-500 rounded-full text-white font-bold transition-transform duration-200 hover:scale-110 color-btn-shadow"></button>
+                            <button id="add-yellow-btn" class="w-10 h-10 bg-yellow-400 rounded-full text-white font-bold transition-transform duration-200 hover:scale-110 color-btn-shadow"></button>
+                        </div>
+                         <p class="text-sm font-bold mt-2">2. 開始比賽或重來：</p>
+                        <div class="flex gap-2">
+                            <button id="start-btn" class="bg-sky-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-sky-700 transition-colors duration-300 shadow-md">開始分離</button>
+                            <button id="reset-btn" class="bg-gray-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-600 transition-colors duration-300 shadow-md">清除重來</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-full lg:w-2/3">
+                    <h3 class="text-xl font-bold text-gray-700 mb-3">比賽實況報導：</h3>
+                    <div id="status-box" class="bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-[160px] transition-all duration-300">
+                        <p id="status-text" class="text-gray-600">請點擊上方的彩色按鈕，將墨水點到起跑線上。</p>
+                    </div>
+
+                    <div id="results-box" class="mt-6 opacity-0 transition-opacity duration-500">
+                         <h3 class="text-xl font-bold text-gray-700 mb-3">比賽結果分析：</h3>
+                         <div class="space-y-3" id="results-details">
+                         </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white p-6 rounded-lg shadow-md mt-8">
+            <h2 class="text-2xl font-bold text-gray-700 mb-4">原理總結 & 生活應用</h2>
+            <p class="mb-4 text-lg">
+                <strong>核心原理：</strong>就是利用混合物中的不同成分（選手），對「固定相」（跑道）的<strong class="text-green-700">吸引力不同</strong>，以及跟著「移動相」（推力）<strong class="text-orange-700">前進的速度也不同</strong>，來把它們分開！
+            </p>
+            <p class="font-bold">這個技術在生活中超級有用喔！例如：</p>
+            <ul class="list-disc list-inside mt-2 space-y-1 text-gray-700">
+                <li><strong>食品檢驗：</strong>檢查食物裡有沒有不該加的農藥或色素。</li>
+                <li><strong>運動禁藥檢測：</strong>分析運動員的尿液，看看有沒有作弊。</li>
+                <li><strong>刑事鑑定：</strong>分析犯罪現場的墨水或藥物，幫助抓到壞人。</li>
+                <li><strong>環境監測：</strong>檢測河水是不是被工廠汙染了。</li>
+            </ul>
+        </section>
+
+    </div>
+    
+    <script>
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const addBlueBtn = document.getElementById('add-blue-btn');
+        const addRedBtn = document.getElementById('add-red-btn');
+        const addYellowBtn = document.getElementById('add-yellow-btn');
+        const colorBtns = [addBlueBtn, addRedBtn, addYellowBtn];
+        
+        const inkSpot = document.getElementById('ink-spot');
+        const solventFront = document.getElementById('solvent-front');
+        const moleculesContainer = document.getElementById('molecules-container');
+        const paper = document.getElementById('paper');
+        const statusText = document.getElementById('status-text');
+        const resultsBox = document.getElementById('results-box');
+        const resultsDetails = document.getElementById('results-details');
+
+        let animationFrameId = null;
+        let isRunning = false;
+        let startTime = null;
+        const DURATION = 8000;
+        let selectedColors = new Set();
+        let moleculesToAnimate = [];
+        let startLineHeightPx = 40; 
+        let dotHeightPx = 12;
+
+        const allMolecules = [
+            { id: 'blue', name: '藍色選手', color: 'bg-blue-500', tailColor: '59, 130, 246', speedFactor: 0.88, description: '跑得最快！它不太喜歡跑道（固定相），所以幾乎跟著動力（移動相）一起跑在最前面。' },
+            { id: 'red', name: '紅色選手', color: 'bg-red-500', tailColor: '239, 68, 68', speedFactor: 0.65, description: '速度中等。它對跑道的吸引力不大不小，跑在中間位置。' },
+            { id: 'yellow', name: '黃色選手', color: 'bg-yellow-400', tailColor: '250, 204, 21', speedFactor: 0.4, description: '跑得最慢！它非常喜歡跑道（濾紙），一直被跑道黏住，所以落在了最後面。' }
+        ];
+
+        function updateInkSpotColor() {
+            const has = (color) => selectedColors.has(color);
+            let bgColor = 'transparent';
+            if (has('blue') && has('red') && has('yellow')) bgColor = '#333';
+            else if (has('blue') && has('red')) bgColor = '#8b008b';
+            else if (has('blue') && has('yellow')) bgColor = '#006400';
+            else if (has('red') && has('yellow')) bgColor = '#ff8c00';
+            else if (has('blue')) bgColor = '#0000ff';
+            else if (has('red')) bgColor = '#ff0000';
+            else if (has('yellow')) bgColor = '#ffd700';
+            inkSpot.style.backgroundColor = bgColor;
+        }
+
+        function addColor(color) {
+            if (isRunning) return;
+            selectedColors.add(color);
+            updateInkSpotColor();
+            startBtn.disabled = false;
+            statusText.textContent = '混合好了嗎？按下「開始分離」來進行比賽吧！';
+        }
+        
+        function resetSimulation() {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+            isRunning = false;
+            startTime = null;
+            selectedColors.clear();
+            moleculesToAnimate = [];
+            moleculesContainer.innerHTML = '';
+            inkSpot.style.transition = 'all 0.3s';
+            inkSpot.style.opacity = '1';
+            inkSpot.style.backgroundColor = 'transparent';
+            solventFront.style.height = '0%';
+            solventFront.style.transition = 'none'; 
+            resultsBox.style.opacity = '0';
+            statusText.textContent = '請點擊上方的彩色按鈕，將墨水點到起跑線上。';
+            startBtn.disabled = true;
+            resetBtn.disabled = false;
+            colorBtns.forEach(btn => btn.disabled = false);
+        }
+
+        function animate(timestamp) {
+            if (!startTime) startTime = timestamp;
+            const elapsedTime = timestamp - startTime;
+            let progress = elapsedTime / DURATION;
+            if (progress > 1) progress = 1;
+
+            if (progress > 0.15 && progress < 0.5) statusText.textContent = '比賽開始！動力（移動相）正推著選手們向上跑...';
+            else if (progress >= 0.5 && progress < 0.9) statusText.textContent = '快看！選手們開始分開了！跑得快的和跑得慢的拉開了距離...';
+            else if (progress >= 0.9) statusText.textContent = '比賽即將結束，勝負已定！';
+            
+            solventFront.style.height = `${progress * 85}%`;
+            
+            const solventFrontHeight = paper.clientHeight * progress * 0.85;
+            const visualSafetyGap = 10; // [終極修正] 將可見間隙大幅增加到 10px，徹底解決視覺問題
+
+            moleculesToAnimate.forEach(mol => {
+                const effectiveSolventHeight = solventFrontHeight - visualSafetyGap;
+                const solventTravelPastStart = Math.max(0, effectiveSolventHeight - startLineHeightPx);
+                
+                // [最終完美修正 v3.0]
+                // 1. 選手 "頂部" 的可移動空間
+                const topTravelSpace = Math.max(0, solventTravelPastStart - dotHeightPx);
+
+                // 2. 選手 "頂部" 實際移動的距離
+                const topUpwardDistance = topTravelSpace * mol.speedFactor;
+
+                // 3. 選手需要向上平移的總距離
+                const translationY = -(topUpwardDistance);
+                
+                mol.el.style.transform = `translateX(calc(-50% + ${mol.randomOffset}px)) translateY(${translationY}px)`;
+                
+                // 4. 尾巴的高度 = 選手頂部移動的距離
+                mol.tailEl.style.height = `${topUpwardDistance}px`;
+            });
+
+            if (progress < 1) {
+                animationFrameId = requestAnimationFrame(animate);
+            } else {
+                isRunning = false;
+                resetBtn.disabled = false;
+                statusText.textContent = '比賽結束！看看下面的結果分析吧！';
+                
+                resultsDetails.innerHTML = '';
+                const sortedResults = [...moleculesToAnimate].sort((a, b) => b.speedFactor - a.speedFactor);
+                sortedResults.forEach(mol => {
+                    const resultEl = document.createElement('div');
+                    let bgColorClass = '', textColorClass = '';
+                    switch (mol.id) {
+                        case 'blue': bgColorClass = 'bg-blue-50'; textColorClass = 'text-blue-600'; break;
+                        case 'red': bgColorClass = 'bg-red-50'; textColorClass = 'text-red-600'; break;
+                        case 'yellow': bgColorClass = 'bg-yellow-50'; textColorClass = 'text-yellow-600'; break;
+                    }
+                    resultEl.className = `flex items-center gap-3 p-2 ${bgColorClass} rounded-lg`;
+                    resultEl.innerHTML = `
+                        <div class="w-5 h-5 ${mol.color} rounded-full flex-shrink-0"></div>
+                        <p><strong class="${textColorClass}">${mol.name}：</strong>${mol.description}</p>
+                    `;
+                    resultsDetails.appendChild(resultEl);
+                });
+                resultsBox.style.opacity = '1';
+            }
+        }
+
+        function startSeparation() {
+            if (isRunning || selectedColors.size === 0) {
+                 if(selectedColors.size === 0) statusText.textContent = "請至少選擇一種墨水才能開始！";
+                 return;
+            }
+            
+            isRunning = true;
+            startBtn.disabled = true;
+            resetBtn.disabled = true;
+            colorBtns.forEach(btn => btn.disabled = true);
+            
+            moleculesToAnimate = allMolecules.filter(m => selectedColors.has(m.id));
+            moleculesContainer.innerHTML = ''; 
+            
+            moleculesToAnimate.forEach(mol => {
+                mol.randomOffset = 0; // 將隨機水平偏移量設為 0
+                
+                const tailEl = document.createElement('div');
+                tailEl.className = 'molecule-tail';
+                tailEl.style.background = `linear-gradient(to top, rgba(${mol.tailColor}, 0.05), rgba(${mol.tailColor}, 0.7))`;
+                tailEl.style.transform = `translateX(calc(-50% + ${mol.randomOffset}px))`;
+                tailEl.style.opacity = '0';
+                moleculesContainer.appendChild(tailEl);
+                mol.tailEl = tailEl;
+            });
+
+            moleculesToAnimate.forEach(mol => {
+                const molEl = document.createElement('div');
+                molEl.className = `absolute bottom-0 left-1/2 w-3 h-3 ${mol.color} rounded-full transition-opacity duration-500 opacity-0`;
+                molEl.style.transform = `translateX(calc(-50% + ${mol.randomOffset}px)) translateY(0px)`;
+                moleculesContainer.appendChild(molEl);
+                mol.el = molEl;
+            });
+            
+            setTimeout(() => {
+                moleculesToAnimate.forEach(mol => {
+                    mol.el.style.opacity = '1';
+                    mol.tailEl.style.opacity = '1';
+                    mol.tailEl.style.transition = 'opacity 0.5s';
+                });
+            }, 200);
+
+            setTimeout(() => {
+                inkSpot.style.transition = 'opacity 0.5s ease-out';
+                inkSpot.style.opacity = '0';
+            }, 800);
+
+            solventFront.style.transition = 'none';
+            
+            setTimeout(() => {
+                startTime = null;
+                animationFrameId = requestAnimationFrame(animate);
+            }, 500);
+        }
+
+        addBlueBtn.addEventListener('click', () => addColor('blue'));
+        addRedBtn.addEventListener('click', () => addColor('red'));
+        addYellowBtn.addEventListener('click', () => addColor('yellow'));
+        startBtn.addEventListener('click', startSeparation);
+        resetBtn.addEventListener('click', resetSimulation);
+
+        window.onload = () => {
+            const tempMol = document.createElement('div');
+            tempMol.className = 'w-3 h-3';
+            tempMol.style.visibility = 'hidden';
+            document.body.appendChild(tempMol);
+            dotHeightPx = tempMol.offsetHeight;
+            document.body.removeChild(tempMol);
+            startLineHeightPx = parseFloat(window.getComputedStyle(moleculesContainer).bottom);
+            resetSimulation();
+        };
+    </script>
+</body>
+</html>
+
