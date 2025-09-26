@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>進階版濾水器！淨水者聯盟的科學原理</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0f9ff;
+        }
+        .draggable { cursor: grab; transition: all 0.2s ease-in-out; }
+        .draggable:hover { transform: scale(1.05); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+        .dragging { opacity: 0.5; cursor: grabbing; }
+        .dropzone { transition: all 0.2s ease-in-out; border-style: dashed; }
+        .dropzone.drag-over { background-color: #93c5fd; border-color: #2563eb; }
+        .material-placed { transition: all 0.3s ease-in; opacity: 1; transform: scale(1); }
+        @keyframes flow-dirty { 0% { transform: translateY(-100%); } 100% { transform: translateY(0); } }
+        .dirty-water { animation: flow-dirty 3s linear forwards; }
+        @keyframes flow-clean { 0% { transform: translateY(-100%); opacity: 0; } 50% { transform: translateY(-100%); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+        .clean-water { animation: flow-clean 4s linear forwards; }
+        .accordion-content { max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out; }
+        
+        /* --- 微觀動畫樣式 V5 --- */
+        #microscope-modal { transition: opacity 0.3s ease-in-out; }
+        #microscope-modal > div { transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out; }
+        #microscope-modal.visible { opacity: 1; pointer-events: auto; }
+        #microscope-modal.visible > div { opacity: 1; transform: scale(1); }
+
+        /* 材料層紋理 */
+        .layer-sand {
+            background-color: #fce9c5;
+            background-image: radial-gradient(#e6c08e 1px, transparent 1px),
+                              radial-gradient(#d2b48c 1px, transparent 1px);
+            background-size: 12px 12px, 20px 20px;
+            background-position: 0 0, 10px 10px;
+        }
+        .layer-maifan {
+            background-color: #e5e7eb;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239ca3af' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+        .layer-carbon {
+            background-color: #374151;
+            background-image:
+                radial-gradient(circle at 10px 10px, #4b5563 10%, transparent 11%),
+                radial-gradient(circle at 40px 30px, #6b7280 15%, transparent 16%),
+                radial-gradient(circle at 25px 50px, #1f2937 12%, transparent 13%);
+            background-size: 50px 50px;
+        }
+        .layer-cotton {
+            background-color: #e0f2fe;
+            background-image: 
+                linear-gradient(135deg, #a5d8ff 25%, transparent 25%), 
+                linear-gradient(225deg, #a5d8ff 25%, transparent 25%),
+                linear-gradient(45deg, #a5d8ff 25%, transparent 25%),
+                linear-gradient(315deg, #a5d8ff 25%, transparent 25%);
+            background-position: 10px 0, 10px 0, 0 0, 0 0;
+            background-size: 20px 20px;
+            background-repeat: repeat;
+        }
+
+        /* 粒子樣式 */
+        .particle { position: absolute; top: -20px; animation-timing-function: linear; animation-iteration-count: 1; animation-fill-mode: forwards; }
+        .p-water { background-color: #3b82f6; width: 8px; height: 8px; z-index: 20; border-radius: 50%; }
+        .p-mud { background-color: #a16207; width: 16px; height: 16px; z-index: 21; border-radius: 30%; }
+        .p-metal { background: #71717a; width: 12px; height: 12px; z-index: 22; clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%); }
+        .p-odor { background: #facc15; width: 10px; height: 10px; z-index: 23; opacity: 0.8; box-shadow: 0 0 5px #facc15; border-radius: 50%; }
+
+        /* 動畫 Keyframes - 已修正 */
+        @keyframes fall-water {
+            0% { top: -5%; } 24% { top: 24%; transform: translateX(0); } 26% { transform: translateX(5px); }
+            49% { top: 49%; transform: translateX(5px); } 51% { transform: translateX(-3px); }
+            74% { top: 74%; transform: translateX(-3px); } 76% { transform: translateX(2px); }
+            99% { top: 99%; transform: translateX(2px); } 100% { top: 105%; }
+        }
+        @keyframes fall-to-sand { 0% { top: -5%; } 100% { top: 20%; } }
+        @keyframes fall-to-maifan { 0% { top: -5%; } 100% { top: 45%; } }
+        @keyframes fall-to-carbon { 0% { top: -5%; } 100% { top: 70%; } }
+        .layer-label {
+            position: absolute;
+            right: 8px;
+            transform: translateY(-50%);
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #1e3a8a;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-5xl font-bold text-blue-800">進階版濾水器！</h1>
+            <h2 class="text-xl md:text-2xl font-semibold text-blue-600 mt-2">淨水者聯盟的科學原理</h2>
+        </header>
+
+        <!-- 原理說明區 -->
+        <section id="explanation-section" class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+            <h3 class="text-2xl font-bold text-center text-blue-700 mb-4">原理搶先看：認識淨水者聯盟</h3>
+            <div class="space-y-2">
+                <!-- Accordion Item 1: 海灘砂 -->
+                <div class="border border-yellow-200 rounded-lg">
+                    <button class="accordion-header w-full flex justify-between items-center p-4 bg-yellow-50 hover:bg-yellow-100 transition">
+                        <span class="font-bold text-lg text-yellow-800">🏖️ 海灘砂 (The Sand Barrier)</span>
+                        <span class="text-2xl font-light text-yellow-600 transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content bg-white p-4 border-t border-yellow-200">
+                        <strong class="text-blue-600">角色定位：</strong>物理柵欄，像城牆上的弓箭手，負責擋下第一波最大批的敵人。<br>
+                        <strong class="text-blue-600">過濾原理：</strong>物理過濾法。沙粒之間的縫隙能讓水分子通過，但會「卡」住體積較大的懸浮物，例如泥沙、鐵鏽等。
+                    </div>
+                </div>
+                <!-- Accordion Item 2: 麥飯石 -->
+                <div class="border border-gray-300 rounded-lg">
+                    <button class="accordion-header w-full flex justify-between items-center p-4 bg-gray-100 hover:bg-gray-200 transition">
+                        <span class="font-bold text-lg text-gray-800">🪨 麥飯石 (The Mineral Purifier)</span>
+                        <span class="text-2xl font-light text-gray-600 transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content bg-white p-4 border-t border-gray-300">
+                        <strong class="text-blue-600">角色定位：</strong>礦物魔法師，能吸附有害物質，同時又能釋放有益元素。<br>
+                        <strong class="text-blue-600">吸附原理：</strong>離子交換與吸附作用。多孔隙結構能吸附雜質，並透過「離子交換」捕獲水中的重金屬離子和細菌，同時釋放出有益的礦物質。
+                    </div>
+                </div>
+                <!-- Accordion Item 3: 活性碳 -->
+                <div class="border border-gray-800 rounded-lg">
+                    <button class="accordion-header w-full flex justify-between items-center p-4 bg-gray-700 hover:bg-gray-600 transition">
+                        <span class="font-bold text-lg text-white">⚫ 活性碳 (The Odor Eater)</span>
+                        <span class="text-2xl font-light text-gray-300 transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content bg-gray-50 p-4 border-t border-gray-800">
+                        <strong class="text-blue-600">角色定位：</strong>氣味與顏色終結者，專門對付溶解在水中、看不見的敵人。<br>
+                        <strong class="text-blue-600">吸附原理：</strong>物理性吸附作用。表面有極其巨大的孔隙結構，像迷宮一樣，利用分子間的吸引力將造成異味、異色的化學物質分子「吸」進並困住。
+                    </div>
+                </div>
+                <!-- Accordion Item 4: 棉花 -->
+                <div class="border border-blue-200 rounded-lg">
+                    <button class="accordion-header w-full flex justify-between items-center p-4 bg-blue-50 hover:bg-blue-100 transition">
+                        <span class="font-bold text-lg text-blue-800">☁️ 棉花 (The Final Guard)</span>
+                        <span class="text-2xl font-light text-blue-600 transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content bg-white p-4 border-t border-blue-200">
+                        <strong class="text-blue-600">角色定位：</strong>最終守門員，確保沒有任何一個小嘍囉能溜出城門。<br>
+                        <strong class="text-blue-600">過濾原理：</strong>精密物理過濾法。緻密的纖維結構可以托住上層較細的材料，並攔截最細微的懸浮雜質。
+                    </div>
+                </div>
+                <!-- Accordion Item 5: 進階思考 -->
+                <div class="border border-purple-300 rounded-lg">
+                    <button class="accordion-header w-full flex justify-between items-center p-4 bg-purple-100 hover:bg-purple-200 transition">
+                        <span class="font-bold text-lg text-purple-800">💡 進階思考：麥飯石和活性炭，誰在上層，誰在下層呢？</span>
+                        <span class="text-2xl font-light text-purple-600 transform transition-transform duration-300">+</span>
+                    </button>
+                    <div class="accordion-content bg-white p-4 border-t border-purple-200 text-gray-700 space-y-3">
+                        <p>這是一個非常專業的問題！在簡易的過濾中，兩者順序顛倒看似影響不大。但在專業的濾水器設計中，將麥飯石放在活性碳之前是更推薦的做法：</p>
+                        <div>
+                            <strong class="text-purple-700">1. 保護活性碳，延長濾心壽命：</strong>
+                            <p class="pl-4">活性碳依靠微小孔洞吸附雜質。麥飯石可以作為<strong class="text-red-500">「前置處理」</strong>，先攔截穿過砂層的更細微懸浮物，防止它們去堵塞活性碳珍貴的微孔，從而保護活性碳的吸附效率。</p>
+                        </div>
+                        <div>
+                            <strong class="text-purple-700">2. 處理流程的效率考量：</strong>
+                             <p class="pl-4">水處理的順序通常是從「大顆粒」到「小顆粒」，從「懸浮物」到「溶解物」。先讓麥飯石處理掉水中的無機離子和部分雜質，再讓專門處理小分子有機物的活性碳上場，整個流程會更有效率。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 互動操作區 -->
+        <main class="bg-white p-6 rounded-2xl shadow-lg mb-8">
+            <p class="text-center text-gray-600 mb-6">
+                閱讀完原理後，請試著將左邊的過濾材料，依照<strong class="text-red-500">由上到下</strong>的正確順序，拖曳到右邊的燒杯中！
+            </p>
+            <div class="flex flex-col md:flex-row gap-8 justify-center items-start">
+                <div id="materials-container" class="w-full md:w-1/3 space-y-4">
+                    <h3 class="text-xl font-bold text-center border-b-2 border-blue-200 pb-2">過濾材料區</h3>
+                    <div id="sand" data-name="海灘砂" class="draggable flex items-center p-4 bg-yellow-100 border-2 border-yellow-300 rounded-lg shadow-sm" draggable="true">
+                        <span class="text-3xl mr-4">🏖️</span>
+                        <div><p class="font-bold text-yellow-800">海灘砂</p><p class="text-sm text-yellow-700">物理柵欄</p></div>
+                    </div>
+                    <div id="maifan" data-name="麥飯石" class="draggable flex items-center p-4 bg-gray-200 border-2 border-gray-400 rounded-lg shadow-sm" draggable="true">
+                        <span class="text-3xl mr-4">🪨</span>
+                        <div><p class="font-bold text-gray-800">麥飯石</p><p class="text-sm text-gray-700">礦物魔法師</p></div>
+                    </div>
+                    <div id="carbon" data-name="活性碳" class="draggable flex items-center p-4 bg-gray-700 text-white border-2 border-black rounded-lg shadow-sm" draggable="true">
+                        <span class="text-3xl mr-4">⚫</span>
+                         <div><p class="font-bold">活性碳</p><p class="text-sm text-gray-300">氣味與顏色終結者</p></div>
+                    </div>
+                    <div id="cotton" data-name="棉花" class="draggable flex items-center p-4 bg-blue-100 border-2 border-blue-200 rounded-lg shadow-sm" draggable="true">
+                        <span class="text-3xl mr-4">☁️</span>
+                         <div><p class="font-bold text-blue-800">棉花</p><p class="text-sm text-blue-700">最終守門員</p></div>
+                    </div>
+                </div>
+
+                <div class="w-full md:w-2/3 flex flex-col items-center">
+                    <h3 class="text-xl font-bold text-center border-b-2 border-blue-200 pb-2 w-full mb-4">濾水器組裝區</h3>
+                    <div id="water-source" class="relative w-48 h-24 mb-2 opacity-0 transition-opacity duration-500">
+                        <div class="absolute inset-0 bg-yellow-800 opacity-60 rounded-t-lg overflow-hidden">
+                           <div class="dirty-water absolute bottom-0 left-0 w-full h-full bg-yellow-900"></div>
+                        </div>
+                        <p class="absolute inset-0 flex items-center justify-center text-white font-bold">混濁的髒水</p>
+                    </div>
+                    <div class="w-48 h-80 bg-blue-100/50 border-4 border-gray-400 rounded-b-3xl rounded-t-lg relative flex flex-col justify-end" style="border-bottom-left-radius: 40px; border-bottom-right-radius: 40px;">
+                        <div class="absolute bottom-[-10px] left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-400 rounded-full"></div>
+                        <div id="dropzone-0" data-index="0" class="dropzone flex-1 border-b-2 border-gray-300 m-1 rounded-t-md flex justify-center items-center text-gray-400 font-bold">上層</div>
+                        <div id="dropzone-1" data-index="1" class="dropzone flex-1 border-b-2 border-gray-300 m-1 flex justify-center items-center text-gray-400 font-bold"></div>
+                        <div id="dropzone-2" data-index="2" class="dropzone flex-1 border-b-2 border-gray-300 m-1 flex justify-center items-center text-gray-400 font-bold"></div>
+                        <div id="dropzone-3" data-index="3" class="dropzone flex-1 m-1 rounded-b-2xl flex justify-center items-center text-gray-400 font-bold">底層</div>
+                    </div>
+                     <div id="clean-water-beaker" class="relative w-48 h-24 mt-4 opacity-0 transition-opacity duration-500">
+                        <div class="absolute inset-0 bg-blue-400/80 rounded-lg overflow-hidden">
+                           <div class="clean-water absolute bottom-0 left-0 w-full h-full bg-blue-500"></div>
+                        </div>
+                        <p class="absolute inset-0 flex items-center justify-center text-white font-bold">過濾後的清水</p>
+                    </div>
+                </div>
+            </div>
+            <div id="message-area" class="text-center mt-6 h-12">
+                <p id="message-text" class="text-lg font-bold transition-opacity duration-300"></p>
+            </div>
+            <div class="text-center">
+                 <button id="reset-button" class="bg-red-500 text-white font-bold py-2 px-6 rounded-lg shadow-md hover:bg-red-600 transition-all">重新開始</button>
+            </div>
+        </main>
+        
+    </div>
+
+    <!-- 微觀動畫 Modal -->
+    <div id="microscope-modal" class="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50 opacity-0 pointer-events-none">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-11/12 md:w-2/3 lg:w-1/2 relative transform transition-all scale-95 opacity-0">
+            <button id="close-modal-button" class="absolute top-2 right-3 text-gray-500 hover:text-gray-800 text-4xl font-light">&times;</button>
+            <h3 class="text-2xl font-bold text-center mb-4 text-blue-800">過濾器微觀世界</h3>
+            <div id="microscope-view" class="h-96 w-full bg-blue-50 border-2 border-gray-300 rounded-lg relative overflow-hidden">
+                <!-- Filter Layers -->
+                <div class="absolute top-0 left-0 w-full h-1/4 layer-sand" style="z-index: 1;"></div>
+                <div class="absolute top-1/4 left-0 w-full h-1/4 layer-maifan" style="z-index: 1;"></div>
+                <div class="absolute top-2/4 left-0 w-full h-1/4 layer-carbon" style="z-index: 1;"></div>
+                <div class="absolute top-3/4 left-0 w-full h-1/4 layer-cotton" style="z-index: 1;"></div>
+                
+                <!-- Layer Labels -->
+                <div class="layer-label" style="top: 12.5%;">海灘砂</div>
+                <div class="layer-label" style="top: 37.5%;">麥飯石</div>
+                <div class="layer-label" style="top: 62.5%; color: white; background-color: rgba(0,0,0,0.5);">活性碳</div>
+                <div class="layer-label" style="top: 87.5%;">棉花</div>
+                
+                <div id="particle-container" class="absolute inset-0 z-10"></div>
+            </div>
+             <!-- 圖例 -->
+            <div class="mt-3 flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-sm text-gray-700 border-t pt-3">
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    <span>水分子</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 bg-yellow-800 rounded-[30%]"></div>
+                    <span>泥沙顆粒</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-zinc-500" style="clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);"></div>
+                    <span>重金屬粒子</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 bg-yellow-400 rounded-full shadow-sm shadow-yellow-400"></div>
+                    <span>氣味分子</span>
+                </div>
+            </div>
+            <p class="text-center mt-2 text-gray-600 text-xs">觀察不同雜質如何被過濾層攔截、吸附並累積下來！</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const draggables = document.querySelectorAll('.draggable');
+            const dropzones = document.querySelectorAll('.dropzone');
+            const messageText = document.getElementById('message-text');
+            const resetButton = document.getElementById('reset-button');
+            const waterSource = document.getElementById('water-source');
+            const cleanWaterBeaker = document.getElementById('clean-water-beaker');
+
+            const microscopeModal = document.getElementById('microscope-modal');
+            const closeModalButton = document.getElementById('close-modal-button');
+            const particleContainer = document.getElementById('particle-container');
+
+            const correctOrder = ['sand', 'maifan', 'carbon', 'cotton'];
+            let placedOrder = [];
+            let draggedItem = null;
+            let particleInterval = null;
+
+            draggables.forEach(draggable => {
+                draggable.addEventListener('dragstart', (e) => {
+                    draggedItem = e.target.closest('.draggable');
+                    draggedItem.classList.add('dragging');
+                });
+                draggable.addEventListener('dragend', () => {
+                    draggedItem.classList.remove('dragging');
+                    draggedItem = null;
+                });
+            });
+
+            dropzones.forEach(dropzone => {
+                dropzone.addEventListener('dragover', (e) => { e.preventDefault(); if (!dropzone.hasChildNodes() || dropzone.children[0].classList.contains('text-gray-400')) { dropzone.classList.add('drag-over'); } });
+                dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('drag-over'); });
+                dropzone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    dropzone.classList.remove('drag-over');
+                    if (dropzone.children.length > 0 && !dropzone.children[0].classList.contains('text-gray-400')) return;
+
+                    const dropIndex = parseInt(dropzone.dataset.index);
+                    if (draggedItem.id === correctOrder[placedOrder.length] && dropIndex === placedOrder.length) {
+                        placedOrder.push(draggedItem.id);
+                        dropzone.innerHTML = '';
+                        const clone = draggedItem.cloneNode(true);
+                        clone.classList.remove('draggable');
+                        clone.classList.add('w-full', 'h-full', 'material-placed');
+                        dropzone.appendChild(clone);
+                        
+                        draggedItem.style.opacity = '0.3';
+                        draggedItem.setAttribute('draggable', 'false');
+                        draggedItem.style.cursor = 'not-allowed';
+                        
+                        showMessage('太棒了！順序正確！', 'success');
+                        if (placedOrder.length === correctOrder.length) {
+                            allMaterialsPlaced();
+                        }
+                    } else {
+                        showMessage('順序錯了喔！想一想，哪一種材料應該先過濾比較大的雜質？', 'error');
+                    }
+                });
+            });
+
+            function showMessage(msg, type) {
+                messageText.textContent = msg;
+                messageText.className = 'text-lg font-bold transition-opacity duration-300';
+                if (type === 'success') messageText.classList.add('text-green-600');
+                else if (type === 'error') messageText.classList.add('text-red-600');
+                else messageText.classList.add('text-blue-600');
+            }
+
+            function allMaterialsPlaced() {
+                showMessage('恭喜你，濾水器組裝完成！準備開始過濾！', 'final');
+                setTimeout(() => {
+                    waterSource.style.opacity = '1';
+                    cleanWaterBeaker.style.opacity = '1';
+                    setTimeout(startMicroscopeAnimation, 1500);
+                }, 1000);
+            }
+            
+            function createParticle() {
+                const rand = Math.random();
+                let particleData;
+                let isPersistent = false;
+
+                if (rand < 0.5) { // 水
+                    particleData = { type: 'water', animationName: 'fall-water', duration: 3 + Math.random() * 2 };
+                    isPersistent = false;
+                } else if (rand < 0.7) { // 泥沙 (停在海灘砂層: 0-25%)
+                    particleData = { type: 'mud', animationName: 'fall-to-sand', duration: 1.5 + Math.random(), finalLayerTop: 5, layerHeight: 15 }; 
+                    isPersistent = true;
+                } else if (rand < 0.85) { // 重金屬 (停在麥飯石層: 25-50%)
+                    particleData = { type: 'metal', animationName: 'fall-to-maifan', duration: 2.5 + Math.random(), finalLayerTop: 30, layerHeight: 15 }; 
+                    isPersistent = true;
+                } else { // 氣味 (停在活性碳層: 50-75%)
+                    particleData = { type: 'odor', animationName: 'fall-to-carbon', duration: 3.5 + Math.random(), finalLayerTop: 50, layerHeight: 25 }; 
+                    isPersistent = true;
+                }
+                
+                const p = document.createElement('div');
+                p.classList.add('particle', `p-${particleData.type}`);
+                p.style.left = `${Math.random() * 95}%`;
+                p.style.animationName = particleData.animationName;
+                p.style.animationDuration = `${particleData.duration}s`;
+                
+                particleContainer.appendChild(p);
+
+                if (isPersistent) {
+                    p.addEventListener('animationend', () => {
+                        if (!p.parentElement) return;
+                        p.style.animation = 'none';
+                        const finalTop = particleData.finalLayerTop + (Math.random() * particleData.layerHeight);
+                        p.style.top = `${finalTop}%`;
+                    }, { once: true });
+                } else {
+                    setTimeout(() => {
+                        if (p.parentElement) p.parentElement.removeChild(p);
+                    }, particleData.duration * 1000);
+                }
+            }
+
+            function startMicroscopeAnimation() {
+                microscopeModal.classList.add('visible');
+                if(particleInterval) clearInterval(particleInterval);
+                particleContainer.innerHTML = '';
+                particleInterval = setInterval(createParticle, 200);
+            }
+
+            function stopMicroscopeAnimation() {
+                microscopeModal.classList.remove('visible');
+                if(particleInterval) clearInterval(particleInterval);
+            }
+
+            closeModalButton.addEventListener('click', stopMicroscopeAnimation);
+            
+            resetButton.addEventListener('click', () => {
+                placedOrder = [];
+                draggables.forEach(d => { d.style.opacity = '1'; d.setAttribute('draggable', 'true'); d.style.cursor = 'grab'; });
+                dropzones.forEach((dz, index) => { dz.innerHTML = `<span class="text-gray-400 font-bold">${index === 0 ? '上層' : index === 3 ? '底層' : ''}</span>`; });
+                waterSource.style.opacity = '0'; cleanWaterBeaker.style.opacity = '0';
+                stopMicroscopeAnimation();
+                particleContainer.innerHTML = '';
+
+                const dirtyWaterEl = waterSource.querySelector('.dirty-water');
+                const cleanWaterEl = cleanWaterBeaker.querySelector('.clean-water');
+                dirtyWaterEl.classList.remove('dirty-water'); cleanWaterEl.classList.remove('clean-water');
+                void dirtyWaterEl.offsetWidth; void cleanWaterEl.offsetWidth;
+                dirtyWaterEl.classList.add('dirty-water'); cleanWaterEl.classList.add('clean-water');
+                messageText.textContent = '';
+            });
+            
+            const accordionHeaders = document.querySelectorAll('.accordion-header');
+            accordionHeaders.forEach(header => {
+                header.addEventListener('click', (e) => {
+                    const button = e.currentTarget;
+                    const content = button.nextElementSibling;
+                    const icon = button.querySelector('span:last-child');
+                    
+                    const isOpening = !content.style.maxHeight || content.style.maxHeight === '0px';
+
+                    // Close all others
+                    document.querySelectorAll('.accordion-content').forEach(c => {
+                        if(c !== content) {
+                            c.style.maxHeight = null;
+                            c.previousElementSibling.querySelector('span:last-child').textContent = '+';
+                             c.previousElementSibling.querySelector('span:last-child').classList.remove('rotate-45');
+                        }
+                    });
+                    
+                    if (isOpening) {
+                        content.style.maxHeight = content.scrollHeight + "px";
+                        icon.textContent = '+';
+                        icon.classList.add('rotate-45');
+                    } else {
+                        content.style.maxHeight = null;
+                        icon.textContent = '+';
+                        icon.classList.remove('rotate-45');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+
+
