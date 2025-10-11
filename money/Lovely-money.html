@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心金記帳本</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', 'Noto Sans TC', sans-serif; }
+        .form-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+        }
+        .tab-active {
+            border-bottom-color: #3b82f6; /* blue-500 */
+            color: #2563eb; /* blue-600 */
+        }
+        .delete-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 9999px;
+            color: #9ca3af;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .delete-btn:hover {
+            background-color: #fee2e2;
+            color: #ef4444;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-2xl">
+        
+        <header class="mb-8 text-center">
+            <h1 class="text-4xl font-bold text-blue-600">心金記帳本</h1>
+            <p class="text-gray-500 mt-2">輕鬆記錄您的每一筆收支</p>
+        </header>
+
+        <div id="settings-section" class="mb-6 p-4 bg-white rounded-lg shadow-md border border-gray-200">
+            <label for="apps-script-url" class="block text-sm font-medium text-gray-700 mb-2">Google Apps Script URL</label>
+            <input type="url" id="apps-script-url" placeholder="請貼上您部署後的 Google Apps Script URL" class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition">
+            <button id="save-url-btn" class="mt-3 w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition duration-300">儲存 URL</button>
+        </div>
+
+        <main id="app-section" class="hidden">
+            <div class="text-right mb-4">
+                <button id="change-url-btn" class="text-sm text-blue-600 hover:text-blue-800 hover:underline focus:outline-none">更改 URL</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="border-b border-gray-200 mb-6">
+                <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                    <button id="tab-add" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg tab-active">新增紀錄</button>
+                    <button id="tab-summary" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg text-gray-500 hover:text-gray-700 hover:border-gray-300">分類總覽</button>
+                    <button id="tab-manage" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg text-gray-500 hover:text-gray-700 hover:border-gray-300">分類管理</button>
+                    <button id="tab-fixed" class="whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg text-gray-500 hover:text-gray-700 hover:border-gray-300">固定項目</button>
+                </nav>
+            </div>
+
+            <!-- View: Add Transaction -->
+            <div id="view-add">
+                <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+                    <form id="transaction-form" class="space-y-4">
+                        <div><label for="date" class="block text-sm font-medium text-gray-700">日期</label><input type="date" id="date" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></div>
+                        <div><label for="type" class="block text-sm font-medium text-gray-700">類型</label><select id="type" required class="form-select mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 appearance-none"></select></div>
+                        <div><label for="category" class="block text-sm font-medium text-gray-700">分類</label><select id="category" required class="form-select mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 appearance-none"></select></div>
+                        <div><label for="description" class="block text-sm font-medium text-gray-700">項目說明</label><input type="text" id="description" placeholder="例如：晚餐、交通費" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></div>
+                        <div><label for="amount" class="block text-sm font-medium text-gray-700">金額</label><input type="number" id="amount" placeholder="請輸入金額" required min="0" step="any" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></div>
+                        <button type="submit" id="submit-btn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-lg font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition duration-300"><svg id="spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span id="button-text">儲存紀錄</span></button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- View: Summary -->
+            <div id="view-summary" class="hidden"><div id="app-data-loading" class="text-center py-10"><p class="text-gray-500">讀取資料中...</p></div><div id="summary-content" class="space-y-8 hidden"><div><h2 class="text-2xl font-semibold mb-4 text-green-600">收入總覽</h2><div id="income-summary-container" class="bg-white p-4 rounded-lg shadow"></div></div><div><h2 class="text-2xl font-semibold mb-4 text-red-600">支出總覽</h2><div id="expense-summary-container" class="bg-white p-4 rounded-lg shadow"></div></div></div><div id="app-data-error" class="hidden text-center p-4 rounded-md bg-red-100 text-red-800"></div></div>
+            
+            <!-- View: Manage Categories -->
+            <div id="view-manage" class="hidden"><div class="space-y-8"><div class="bg-white p-6 rounded-lg shadow-lg border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-green-600">收入分類管理</h2><div class="flex gap-2 mb-4"><input type="text" id="new-income-category" placeholder="新增收入分類" class="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"><button id="add-income-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition">新增</button></div><ul id="income-category-list" class="space-y-2"></ul></div><div class="bg-white p-6 rounded-lg shadow-lg border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-red-600">支出分類管理</h2><div class="flex gap-2 mb-4"><input type="text" id="new-expense-category" placeholder="新增支出分類" class="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"><button id="add-expense-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition">新增</button></div><ul id="expense-category-list" class="space-y-2"></ul></div></div></div>
+            
+            <!-- View: Manage Fixed Items -->
+            <div id="view-fixed" class="hidden">
+                <div class="bg-white p-6 rounded-lg shadow-lg border border-gray-200">
+                    <h2 class="text-2xl font-semibold mb-4">新增每月固定項目</h2>
+                    <form id="fixed-item-form" class="space-y-4 md:space-y-0 md:flex md:items-end md:gap-3">
+                        <div class="flex-1"><label for="fixed-type" class="block text-sm font-medium text-gray-700">類型</label><select id="fixed-type" class="form-select mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm appearance-none"></select></div>
+                        <div class="flex-1"><label for="fixed-category" class="block text-sm font-medium text-gray-700">分類</label><select id="fixed-category" class="form-select mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm appearance-none"></select></div>
+                        <div class="flex-1"><label for="fixed-description" class="block text-sm font-medium text-gray-700">項目</label><input type="text" id="fixed-description" placeholder="例如: 電話費" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                        <div class="flex-1"><label for="fixed-amount" class="block text-sm font-medium text-gray-700">金額</label><input type="number" id="fixed-amount" min="0" step="any" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></div>
+                        <button type="submit" id="add-fixed-item-btn" class="w-full md:w-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md transition">新增項目</button>
+                    </form>
+                </div>
+
+                <div class="mt-8 space-y-8">
+                    <div><h2 class="text-2xl font-semibold mb-4 text-green-600">每月固定收入列表</h2><div id="fixed-income-list" class="bg-white p-4 rounded-lg shadow"></div></div>
+                    <div><h2 class="text-2xl font-semibold mb-4 text-red-600">每月固定支出列表</h2><div id="fixed-expense-list" class="bg-white p-4 rounded-lg shadow"></div></div>
+                </div>
+            </div>
+
+            <div id="status-message" class="mt-6 text-center p-4 rounded-md text-sm hidden"></div>
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
+    const settingsSection = document.getElementById('settings-section');
+    const appSection = document.getElementById('app-section');
+    const appsScriptUrlInput = document.getElementById('apps-script-url');
+    const saveUrlBtn = document.getElementById('save-url-btn');
+    const changeUrlBtn = document.getElementById('change-url-btn');
+    const form = document.getElementById('transaction-form');
+    const dateInput = document.getElementById('date');
+    const typeInput = document.getElementById('type');
+    const categorySelect = document.getElementById('category');
+    const submitBtn = document.getElementById('submit-btn');
+    const spinner = document.getElementById('spinner');
+    const buttonText = document.getElementById('button-text');
+    const statusMessage = document.getElementById('status-message');
+    
+    // Tabs and Views
+    const tabs = Array.from(document.querySelectorAll('nav[aria-label="Tabs"] button'));
+    const views = Array.from(document.querySelectorAll('main > div[id^="view-"]'));
+    
+    // App Data View Elements
+    const appDataLoading = document.getElementById('app-data-loading');
+    const summaryContent = document.getElementById('summary-content');
+    const appDataError = document.getElementById('app-data-error');
+    const incomeContainer = document.getElementById('income-summary-container');
+    const expenseContainer = document.getElementById('expense-summary-container');
+    
+    // Category Management View Elements
+    const newIncomeCategoryInput = document.getElementById('new-income-category');
+    const addIncomeBtn = document.getElementById('add-income-btn');
+    const incomeCategoryList = document.getElementById('income-category-list');
+    const newExpenseCategoryInput = document.getElementById('new-expense-category');
+    const addExpenseBtn = document.getElementById('add-expense-btn');
+
+    // Fixed Items Management View Elements
+    const fixedItemForm = document.getElementById('fixed-item-form');
+    const fixedTypeSelect = document.getElementById('fixed-type');
+    const fixedCategorySelect = document.getElementById('fixed-category');
+    const fixedIncomeList = document.getElementById('fixed-income-list');
+    const fixedExpenseList = document.getElementById('fixed-expense-list');
+
+    // State
+    let categories = {};
+    let appData = { summary: null, fixedItems: null };
+    let appDataLoaded = false;
+    // IMPORTANT: A unique key for this new accounting book to avoid conflicts.
+    const CATEGORIES_STORAGE_KEY = 'xinjinAccountingCategories';
+
+    // --- Category Management ---
+    function loadCategoriesFromStorage() {
+        const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+        if (storedCategories) {
+            categories = JSON.parse(storedCategories);
+        } else {
+            categories = {
+                '支出': ['餐飲食品', '生活用品', '交通費', '娛樂旅遊', '小孩用品', '小孩教育', '醫療保健', '汽車相關', '家務支出', '保險費', '雜項支出'],
+                '收入': ['薪資', '育兒津貼', '獎金', '投資理財', '紅包', '其他收入']
+            };
+            saveCategoriesToStorage();
+        }
+    }
+
+    function saveCategoriesToStorage() {
+        localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(categories));
+    }
+    
+    function renderCategoryManagementLists() {
+        const renderList = (ulElement, type) => {
+            ulElement.innerHTML = '';
+            categories[type].forEach(cat => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center bg-gray-50 p-2 rounded';
+                li.innerHTML = `<span>${cat}</span><button data-category="${cat}" data-type="${type}" class="delete-btn" aria-label="刪除分類">&times;</button>`;
+                ulElement.appendChild(li);
+            });
+        };
+        renderList(document.getElementById('income-category-list'), '收入');
+        renderList(document.getElementById('expense-category-list'), '支出');
+    }
+    
+    function addCategory(type) {
+        const input = type === '收入' ? newIncomeCategoryInput : newExpenseCategoryInput;
+        const categoryName = input.value.trim();
+        if (categoryName && !categories[type].includes(categoryName)) {
+            categories[type].push(categoryName);
+            saveCategoriesToStorage();
+            renderCategoryManagementLists();
+            updateAllCategoryDropdowns();
+            input.value = '';
+        }
+    }
+
+    function deleteCategory(type, categoryName) {
+        categories[type] = categories[type].filter(cat => cat !== categoryName);
+        saveCategoriesToStorage();
+        renderCategoryManagementLists();
+        updateAllCategoryDropdowns();
+    }
+    
+    // --- Fixed Items Management ---
+    function renderFixedItemsLists() {
+        if (!appData.fixedItems) return;
+        renderFixedTable(fixedIncomeList, appData.fixedItems.income || []);
+        renderFixedTable(fixedExpenseList, appData.fixedItems.expense || []);
+    }
+
+    function renderFixedTable(container, data) {
+        if (data.length === 0) {
+            container.innerHTML = `<p class="text-gray-500">尚無固定項目</p>`;
+            return;
+        }
+        const table = document.createElement('table');
+        table.className = 'w-full text-left';
+        table.innerHTML = `
+            <thead class="border-b"><tr class="text-sm text-gray-600">
+                <th class="py-2 pr-2 font-medium">分類</th><th class="py-2 px-2 font-medium">項目</th>
+                <th class="py-2 pl-2 font-medium text-right">金額</th><th class="w-10"></th>
+            </tr></thead>
+            <tbody>
+                ${data.map(item => `
+                    <tr class="border-b border-gray-100 align-middle">
+                        <td class="py-3 pr-2">${item.category}</td><td class="py-3 px-2 text-gray-600">${item.description}</td>
+                        <td class="py-3 pl-2 text-right font-mono">${item.amount.toLocaleString()}</td>
+                        <td class="py-3 text-center">
+                            <button class="delete-fixed-item-btn delete-btn" 
+                                    data-type="${item.type}" data-category="${item.category}" 
+                                    data-description="${item.description}" data-amount="${item.amount}"
+                                    aria-label="刪除固定項目">&times;</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>`;
+        container.innerHTML = '';
+        container.appendChild(table);
+    }
+
+    async function handleAddFixedItem(e) {
+        e.preventDefault();
+        const data = {
+            type: fixedTypeSelect.value,
+            category: fixedCategorySelect.value,
+            description: document.getElementById('fixed-description').value.trim(),
+            amount: parseFloat(document.getElementById('fixed-amount').value)
+        };
+        if (!data.category || !data.description || isNaN(data.amount) || data.amount <= 0) {
+            showStatus('請填寫所有欄位，並確保金額有效。', 'error');
+            return;
+        }
+        
+        setLoading(true, document.getElementById('add-fixed-item-btn'), '新增中...');
+        const success = await postDataToBackend({ action: 'addFixedItem', data });
+        setLoading(false, document.getElementById('add-fixed-item-btn'), '新增項目');
+        
+        if(success) {
+            fixedItemForm.reset();
+            updateFixedCategoryOptions();
+            appDataLoaded = false; // Force reload
+            await loadAppData(); // Reload data to show new item
+        }
+    }
+
+    async function handleDeleteFixedItem(button) {
+        const data = { ...button.dataset }; // Clone dataset
+        data.amount = parseFloat(data.amount); // Convert amount back to number
+        
+        setLoading(true, document.getElementById('add-fixed-item-btn'), '新增項目');
+        const success = await postDataToBackend({ action: 'deleteFixedItem', data });
+        setLoading(false, document.getElementById('add-fixed-item-btn'), '新增項目');
+
+        if(success) {
+            appDataLoaded = false; // Force reload
+            await loadAppData(); // Reload data to reflect deletion
+        }
+    }
+
+    // --- App Initialization & Data Loading ---
+    function initializeApp() {
+        loadCategoriesFromStorage();
+        dateInput.value = new Date().toISOString().slice(0, 10);
+        setupTypeOptions(typeInput);
+        setupTypeOptions(fixedTypeSelect);
+        updateAllCategoryDropdowns();
+        renderCategoryManagementLists();
+
+        const savedUrl = localStorage.getItem('googleAppsScriptUrl');
+        if (savedUrl) {
+            appsScriptUrlInput.value = savedUrl;
+            settingsSection.classList.add('hidden');
+            appSection.classList.remove('hidden');
+        } else {
+            settingsSection.classList.remove('hidden');
+            appSection.classList.add('hidden');
+        }
+    }
+
+    async function loadAppData() {
+        if (appDataLoaded) return;
+        const scriptUrl = localStorage.getItem('googleAppsScriptUrl');
+        if (!scriptUrl) return;
+
+        appDataLoading.classList.remove('hidden');
+        summaryContent.classList.add('hidden');
+        appDataError.classList.add('hidden');
+        
+        // Hide fixed list content while loading too
+        fixedIncomeList.innerHTML = '';
+        fixedExpenseList.innerHTML = '';
+
+        try {
+            const response = await fetch(scriptUrl); // GET request
+            if (!response.ok) throw new Error(`伺服器錯誤: ${response.statusText}`);
+            const result = await response.json();
+            
+            if (result.status === 'success') {
+                appData = result.data;
+                renderSummaryTables();
+                renderFixedItemsLists();
+                appDataLoaded = true;
+                appDataLoading.classList.add('hidden');
+                summaryContent.classList.remove('hidden');
+            } else {
+                throw new Error(result.message || '讀取資料失敗');
+            }
+        } catch (error) {
+            appDataLoading.classList.add('hidden');
+            appDataError.textContent = `無法載入資料：${error.message}`;
+            appDataError.classList.remove('hidden');
+        }
+    }
+    
+    // --- Event Listeners ---
+    saveUrlBtn.addEventListener('click', () => {
+        const url = appsScriptUrlInput.value.trim();
+        if (url && url.startsWith('https://script.google.com/macros/s/')) {
+            localStorage.setItem('googleAppsScriptUrl', url);
+            initializeApp();
+        } else {
+            showStatus('請輸入一個有效的 Google Apps Script URL。', 'error');
+        }
+    });
+
+    changeUrlBtn.addEventListener('click', () => {
+        appSection.classList.add('hidden');
+        settingsSection.classList.remove('hidden');
+        window.scrollTo(0, 0);
+    });
+    
+    typeInput.addEventListener('change', () => updateCategoryOptions(categorySelect, typeInput.value));
+    fixedTypeSelect.addEventListener('change', () => updateCategoryOptions(fixedCategorySelect, fixedTypeSelect.value));
+    
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => switchView(tab.id.replace('tab-', 'view-')));
+    });
+    
+    form.addEventListener('submit', handleFormSubmit);
+
+    // Category Management events
+    addIncomeBtn.addEventListener('click', () => addCategory('收入'));
+    addExpenseBtn.addEventListener('click', () => addCategory('支出'));
+    document.getElementById('view-manage').addEventListener('click', e => {
+        if (e.target.classList.contains('delete-btn')) {
+            deleteCategory(e.target.dataset.type, e.target.dataset.category);
+        }
+    });
+
+    // Fixed Items Management events
+    fixedItemForm.addEventListener('submit', handleAddFixedItem);
+    document.getElementById('view-fixed').addEventListener('click', e => {
+        const button = e.target.closest('.delete-fixed-item-btn');
+        if (button) {
+            handleDeleteFixedItem(button);
+        }
+    });
+
+    // --- Core & Helper Functions ---
+    function switchView(viewToShowId) {
+        views.forEach(view => view.classList.add('hidden'));
+        document.getElementById(viewToShowId).classList.remove('hidden');
+        tabs.forEach(tab => {
+            const isTargetTab = `view-${tab.id.split('-')[1]}` === viewToShowId;
+            tab.classList.toggle('tab-active', isTargetTab);
+            tab.classList.toggle('text-blue-600', isTargetTab);
+            tab.classList.toggle('text-gray-500', !isTargetTab);
+        });
+        if (viewToShowId === 'view-summary' || viewToShowId === 'view-fixed') {
+            loadAppData();
+        }
+    }
+    
+    async function postDataToBackend(payload) {
+        const scriptUrl = localStorage.getItem('googleAppsScriptUrl');
+        if (!scriptUrl) {
+            showStatus('未設定 Google Apps Script URL。', 'error');
+            return false;
+        }
+        try {
+            await fetch(scriptUrl, {
+                method: 'POST', mode: 'no-cors', cache: 'no-cache',
+                headers: {'Content-Type': 'application/json'},
+                redirect: 'follow',
+                body: JSON.stringify(payload),
+            });
+            showStatus('操作請求已送出！資料將在 Google Sheets 更新。', 'success');
+            return true;
+        } catch (error) {
+            showStatus(`傳送失敗: ${error.message}`, 'error');
+            return false;
+        }
+    }
+
+    async function handleFormSubmit(e) {
+        e.preventDefault();
+        const transactionData = {
+            date: dateInput.value, type: typeInput.value, category: categorySelect.value,
+            description: document.getElementById('description').value,
+            amount: parseFloat(document.getElementById('amount').value)
+        };
+
+        setLoading(true, submitBtn, '儲存中...');
+        const success = await postDataToBackend({ action: 'addTransaction', data: transactionData });
+        setLoading(false, submitBtn, '儲存紀錄');
+        
+        if (success) {
+            form.reset();
+            dateInput.value = new Date().toISOString().slice(0, 10);
+            updateCategoryOptions(categorySelect, typeInput.value);
+            appDataLoaded = false; // Mark app data as needing refresh
+        }
+    }
+
+    function renderSummaryTables() {
+        if (!appData.summary) return;
+        renderSummaryTable(incomeContainer, appData.summary.income || []);
+        renderSummaryTable(expenseContainer, appData.summary.expense || []);
+    }
+    
+    function setupTypeOptions(selectElement) {
+        selectElement.innerHTML = '';
+        ['支出', '收入'].forEach(type => {
+            const option = document.createElement('option');
+            option.value = type;
+            option.textContent = type;
+            selectElement.appendChild(option);
+        });
+    }
+
+    function updateAllCategoryDropdowns() {
+        updateCategoryOptions(categorySelect, typeInput.value);
+        updateCategoryOptions(fixedCategorySelect, fixedTypeSelect.value);
+    }
+    
+    function updateCategoryOptions(selectElement, type) {
+        const currentCategories = categories[type] || [];
+        selectElement.innerHTML = '';
+        currentCategories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat; option.textContent = cat;
+            selectElement.appendChild(option);
+        });
+    }
+    
+    function renderSummaryTable(container, data) {
+        if (data.length === 0) {
+            container.innerHTML = `<p class="text-gray-500">尚無資料</p>`; return;
+        }
+        const table = document.createElement('table');
+        table.className = 'w-full text-left';
+        table.innerHTML = `<thead class="border-b"><tr><th class="py-2 pr-2 font-semibold">分類</th><th class="py-2 pl-2 font-semibold text-right">總金額</th></tr></thead>
+            <tbody>${data.map(item => `<tr class="border-b border-gray-100"><td class="py-3 pr-2">${item.category}</td><td class="py-3 pl-2 text-right font-mono">${item.total.toLocaleString()}</td></tr>`).join('')}</tbody>`;
+        container.innerHTML = ''; container.appendChild(table);
+    }
+
+    function setLoading(isLoading, button, loadingText) {
+        button.disabled = isLoading;
+        const textSpan = button.querySelector('span');
+        const spinnerIcon = button.querySelector('svg');
+        if(!button.dataset.originalText && textSpan) {
+            button.dataset.originalText = textSpan.textContent;
+        }
+        if (textSpan) textSpan.textContent = isLoading ? loadingText.replace('...', '') : button.dataset.originalText;
+        if (spinnerIcon) spinnerIcon.classList.toggle('hidden', !isLoading);
+    }
+
+    function showStatus(message, type) {
+        statusMessage.textContent = message;
+        statusMessage.className = `mt-6 text-center p-4 rounded-md text-sm ${type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`;
+        statusMessage.classList.remove('hidden');
+        setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+    }
+
+    // --- Start the app ---
+    initializeApp();
+});
+</script>
+</body>
+</html>
