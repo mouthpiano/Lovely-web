@@ -80,7 +80,30 @@
             </div>
 
             <!-- View: Summary -->
-            <div id="view-summary" class="hidden"><div id="app-data-loading" class="text-center py-10"><p class="text-gray-500">讀取資料中...</p></div><div id="summary-content" class="space-y-8 hidden"><div><h2 class="text-2xl font-semibold mb-4 text-green-600">收入總覽</h2><div id="income-summary-container" class="bg-white p-4 rounded-lg shadow"></div></div><div><h2 class="text-2xl font-semibold mb-4 text-red-600">支出總覽</h2><div id="expense-summary-container" class="bg-white p-4 rounded-lg shadow"></div></div></div><div id="app-data-error" class="hidden text-center p-4 rounded-md bg-red-100 text-red-800"></div></div>
+            <div id="view-summary" class="hidden">
+                <div id="app-data-loading" class="text-center py-10"><p class="text-gray-500">讀取資料中...</p></div>
+
+                <div id="totals-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 hidden">
+                    <div class="bg-white p-4 rounded-lg shadow-md text-center border">
+                        <p class="text-sm font-medium text-gray-500">總收入</p>
+                        <p id="total-income" class="text-2xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-md text-center border">
+                        <p class="text-sm font-medium text-gray-500">總支出</p>
+                        <p id="total-expense" class="text-2xl font-bold text-red-600">0</p>
+                    </div>
+                    <div class="bg-white p-4 rounded-lg shadow-md text-center border">
+                        <p class="text-sm font-medium text-gray-500">目前結餘</p>
+                        <p id="total-balance" class="text-2xl font-bold text-gray-800">0</p>
+                    </div>
+                </div>
+
+                <div id="summary-content" class="space-y-8 hidden">
+                    <div><h2 class="text-2xl font-semibold mb-4 text-green-600">收入總覽</h2><div id="income-summary-container" class="bg-white p-4 rounded-lg shadow"></div></div>
+                    <div><h2 class="text-2xl font-semibold mb-4 text-red-600">支出總覽</h2><div id="expense-summary-container" class="bg-white p-4 rounded-lg shadow"></div></div>
+                </div>
+                <div id="app-data-error" class="hidden text-center p-4 rounded-md bg-red-100 text-red-800"></div>
+            </div>
             
             <!-- View: Manage Categories -->
             <div id="view-manage" class="hidden"><div class="space-y-8"><div class="bg-white p-6 rounded-lg shadow-lg border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-green-600">收入分類管理</h2><div class="flex gap-2 mb-4"><input type="text" id="new-income-category" placeholder="新增收入分類" class="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"><button id="add-income-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-md transition">新增</button></div><ul id="income-category-list" class="space-y-2"></ul></div><div class="bg-white p-6 rounded-lg shadow-lg border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-red-600">支出分類管理</h2><div class="flex gap-2 mb-4"><input type="text" id="new-expense-category" placeholder="新增支出分類" class="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"><button id="add-expense-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md transition">新增</button></div><ul id="expense-category-list" class="space-y-2"></ul></div></div></div>
@@ -110,11 +133,9 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Unique Storage Keys for this Ledger ---
     const URL_STORAGE_KEY = 'xinjin_googleAppsScriptUrl';
     const CATEGORIES_STORAGE_KEY = 'xinjinAccountingCategories';
 
-    // DOM Elements
     const settingsSection = document.getElementById('settings-section');
     const appSection = document.getElementById('app-section');
     const appsScriptUrlInput = document.getElementById('apps-script-url');
@@ -125,41 +146,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const typeInput = document.getElementById('type');
     const categorySelect = document.getElementById('category');
     const submitBtn = document.getElementById('submit-btn');
-    const spinner = document.getElementById('spinner');
-    const buttonText = document.getElementById('button-text');
     const statusMessage = document.getElementById('status-message');
     
-    // Tabs and Views
     const tabs = Array.from(document.querySelectorAll('nav[aria-label="Tabs"] button'));
     const views = Array.from(document.querySelectorAll('main > div[id^="view-"]'));
     
-    // App Data View Elements
     const appDataLoading = document.getElementById('app-data-loading');
+    const totalsSummary = document.getElementById('totals-summary');
     const summaryContent = document.getElementById('summary-content');
     const appDataError = document.getElementById('app-data-error');
     const incomeContainer = document.getElementById('income-summary-container');
     const expenseContainer = document.getElementById('expense-summary-container');
     
-    // Category Management View Elements
     const newIncomeCategoryInput = document.getElementById('new-income-category');
     const addIncomeBtn = document.getElementById('add-income-btn');
-    const incomeCategoryList = document.getElementById('income-category-list');
     const newExpenseCategoryInput = document.getElementById('new-expense-category');
     const addExpenseBtn = document.getElementById('add-expense-btn');
 
-    // Fixed Items Management View Elements
     const fixedItemForm = document.getElementById('fixed-item-form');
     const fixedTypeSelect = document.getElementById('fixed-type');
     const fixedCategorySelect = document.getElementById('fixed-category');
     const fixedIncomeList = document.getElementById('fixed-income-list');
     const fixedExpenseList = document.getElementById('fixed-expense-list');
 
-    // State
     let categories = {};
-    let appData = { summary: null, fixedItems: null };
+    let appData = { summary: null, fixedItems: null, totals: null };
     let appDataLoaded = false;
 
-    // --- Category Management ---
     function loadCategoriesFromStorage() {
         const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
         if (storedCategories) {
@@ -210,7 +223,6 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAllCategoryDropdowns();
     }
     
-    // --- Fixed Items Management ---
     function renderFixedItemsLists() {
         if (!appData.fixedItems) return;
         renderFixedTable(fixedIncomeList, appData.fixedItems.income || []);
@@ -266,27 +278,26 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if(success) {
             fixedItemForm.reset();
-            updateFixedCategoryOptions();
-            appDataLoaded = false; // Force reload
-            await loadAppData(); // Reload data to show new item
+            updateCategoryOptions(fixedCategorySelect, fixedTypeSelect.value);
+            appDataLoaded = false;
+            await loadAppData();
         }
     }
 
     async function handleDeleteFixedItem(button) {
-        const data = { ...button.dataset }; // Clone dataset
-        data.amount = parseFloat(data.amount); // Convert amount back to number
+        const data = { ...button.dataset };
+        data.amount = parseFloat(data.amount);
         
         setLoading(true, document.getElementById('add-fixed-item-btn'), '新增項目');
         const success = await postDataToBackend({ action: 'deleteFixedItem', data });
         setLoading(false, document.getElementById('add-fixed-item-btn'), '新增項目');
 
         if(success) {
-            appDataLoaded = false; // Force reload
-            await loadAppData(); // Reload data to reflect deletion
+            appDataLoaded = false;
+            await loadAppData();
         }
     }
 
-    // --- App Initialization & Data Loading ---
     function initializeApp() {
         loadCategoriesFromStorage();
         dateInput.value = new Date().toISOString().slice(0, 10);
@@ -313,18 +324,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         appDataLoading.classList.remove('hidden');
         summaryContent.classList.add('hidden');
+        totalsSummary.classList.add('hidden');
         appDataError.classList.add('hidden');
         
         fixedIncomeList.innerHTML = '';
         fixedExpenseList.innerHTML = '';
 
         try {
-            const response = await fetch(scriptUrl); // GET request
+            const response = await fetch(scriptUrl);
             if (!response.ok) throw new Error(`伺服器錯誤: ${response.statusText}`);
             const result = await response.json();
             
             if (result.status === 'success') {
                 appData = result.data;
+                renderTotalsSummary(appData.totals);
                 renderSummaryTables();
                 renderFixedItemsLists();
                 appDataLoaded = true;
@@ -340,7 +353,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // --- Event Listeners ---
     saveUrlBtn.addEventListener('click', () => {
         const url = appsScriptUrlInput.value.trim();
         if (url && url.startsWith('https://script.google.com/macros/s/')) {
@@ -366,7 +378,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     form.addEventListener('submit', handleFormSubmit);
 
-    // Category Management events
     addIncomeBtn.addEventListener('click', () => addCategory('收入'));
     addExpenseBtn.addEventListener('click', () => addCategory('支出'));
     document.getElementById('view-manage').addEventListener('click', e => {
@@ -375,7 +386,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Fixed Items Management events
     fixedItemForm.addEventListener('submit', handleAddFixedItem);
     document.getElementById('view-fixed').addEventListener('click', e => {
         const button = e.target.closest('.delete-fixed-item-btn');
@@ -384,7 +394,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Core & Helper Functions ---
     function switchView(viewToShowId) {
         views.forEach(view => view.classList.add('hidden'));
         document.getElementById(viewToShowId).classList.remove('hidden');
@@ -438,6 +447,24 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCategoryOptions(categorySelect, typeInput.value);
             appDataLoaded = false;
         }
+    }
+
+    function renderTotalsSummary(totals) {
+        if (!totals) return;
+        document.getElementById('total-income').textContent = (totals.totalIncome || 0).toLocaleString();
+        document.getElementById('total-expense').textContent = (totals.totalExpense || 0).toLocaleString();
+        
+        const balanceEl = document.getElementById('total-balance');
+        const balance = totals.balance || 0;
+        balanceEl.textContent = balance.toLocaleString();
+
+        balanceEl.classList.remove('text-red-600', 'text-gray-800');
+        if (balance < 0) {
+            balanceEl.classList.add('text-red-600');
+        } else {
+            balanceEl.classList.add('text-gray-800');
+        }
+        totalsSummary.classList.remove('hidden');
     }
 
     function renderSummaryTables() {
