@@ -99,8 +99,10 @@
                 </div>
 
                 <div id="summary-content" class="space-y-8 hidden">
-                    <div><h2 class="text-2xl font-semibold mb-4 text-green-600">收入總覽</h2><div id="income-summary-container" class="bg-white p-4 rounded-lg shadow"></div></div>
-                    <div><h2 class="text-2xl font-semibold mb-4 text-red-600">支出總覽</h2><div id="expense-summary-container" class="bg-white p-4 rounded-lg shadow"></div></div>
+                     <div>
+                        <h2 class="text-2xl font-semibold mb-4 text-blue-600">收支結餘總覽</h2>
+                        <div id="summary-container" class="bg-white p-4 rounded-lg shadow"></div>
+                    </div>
                 </div>
                 <div id="app-data-error" class="hidden text-center p-4 rounded-md bg-red-100 text-red-800"></div>
             </div>
@@ -155,8 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const totalsSummary = document.getElementById('totals-summary');
     const summaryContent = document.getElementById('summary-content');
     const appDataError = document.getElementById('app-data-error');
-    const incomeContainer = document.getElementById('income-summary-container');
-    const expenseContainer = document.getElementById('expense-summary-container');
+    const summaryContainer = document.getElementById('summary-container');
     
     const newIncomeCategoryInput = document.getElementById('new-income-category');
     const addIncomeBtn = document.getElementById('add-income-btn');
@@ -338,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.status === 'success') {
                 appData = result.data;
                 renderTotalsSummary(appData.totals);
-                renderSummaryTables();
+                renderSummaryTable();
                 renderFixedItemsLists();
                 appDataLoaded = true;
                 appDataLoading.classList.add('hidden');
@@ -404,6 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.classList.toggle('text-gray-500', !isTargetTab);
         });
         if (viewToShowId === 'view-summary' || viewToShowId === 'view-fixed') {
+            appDataLoaded = false; // Always reload data for summary views
             loadAppData();
         }
     }
@@ -467,10 +469,37 @@ document.addEventListener('DOMContentLoaded', () => {
         totalsSummary.classList.remove('hidden');
     }
 
-    function renderSummaryTables() {
-        if (!appData.summary) return;
-        renderSummaryTable(incomeContainer, appData.summary.income || []);
-        renderSummaryTable(expenseContainer, appData.summary.expense || []);
+    function renderSummaryTable() {
+        const data = appData.summary || [];
+        if (data.length === 0) {
+            summaryContainer.innerHTML = `<p class="text-gray-500">尚無資料</p>`; return;
+        }
+        const table = document.createElement('table');
+        table.className = 'w-full text-left';
+        table.innerHTML = `
+            <thead class="border-b">
+                <tr class="text-sm text-gray-600">
+                    <th class="py-2 pr-2 font-medium">分類</th>
+                    <th class="py-2 px-2 font-medium text-right">總收入</th>
+                    <th class="py-2 px-2 font-medium text-right">總支出</th>
+                    <th class="py-2 pl-2 font-medium text-right">結餘</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${data.map(item => {
+                    const balanceClass = item.balance < 0 ? 'text-red-600' : 'text-gray-800';
+                    return `
+                    <tr class="border-b border-gray-100">
+                        <td class="py-3 pr-2 font-semibold">${item.category}</td>
+                        <td class="py-3 px-2 text-right font-mono text-green-600">${(item.income || 0).toLocaleString()}</td>
+                        <td class="py-3 px-2 text-right font-mono text-red-600">${(item.expense || 0).toLocaleString()}</td>
+                        <td class="py-3 pl-2 text-right font-mono font-semibold ${balanceClass}">${(item.balance || 0).toLocaleString()}</td>
+                    </tr>
+                    `;
+                }).join('')}
+            </tbody>`;
+        summaryContainer.innerHTML = ''; 
+        summaryContainer.appendChild(table);
     }
     
     function setupTypeOptions(selectElement) {
@@ -498,17 +527,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    function renderSummaryTable(container, data) {
-        if (data.length === 0) {
-            container.innerHTML = `<p class="text-gray-500">尚無資料</p>`; return;
-        }
-        const table = document.createElement('table');
-        table.className = 'w-full text-left';
-        table.innerHTML = `<thead class="border-b"><tr><th class="py-2 pr-2 font-semibold">分類</th><th class="py-2 pl-2 font-semibold text-right">總金額</th></tr></thead>
-            <tbody>${data.map(item => `<tr class="border-b border-gray-100"><td class="py-3 pr-2">${item.category}</td><td class="py-3 pl-2 text-right font-mono">${item.total.toLocaleString()}</td></tr>`).join('')}</tbody>`;
-        container.innerHTML = ''; container.appendChild(table);
-    }
-
     function setLoading(isLoading, button, loadingText) {
         button.disabled = isLoading;
         const textSpan = button.querySelector('span');
