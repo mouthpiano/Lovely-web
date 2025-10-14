@@ -110,6 +110,10 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Unique Storage Keys for this Ledger ---
+    const URL_STORAGE_KEY = 'xinjin_googleAppsScriptUrl';
+    const CATEGORIES_STORAGE_KEY = 'xinjinAccountingCategories';
+
     // DOM Elements
     const settingsSection = document.getElementById('settings-section');
     const appSection = document.getElementById('app-section');
@@ -154,8 +158,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let categories = {};
     let appData = { summary: null, fixedItems: null };
     let appDataLoaded = false;
-    // IMPORTANT: A unique key for this new accounting book to avoid conflicts.
-    const CATEGORIES_STORAGE_KEY = 'xinjinAccountingCategories';
 
     // --- Category Management ---
     function loadCategoriesFromStorage() {
@@ -293,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateAllCategoryDropdowns();
         renderCategoryManagementLists();
 
-        const savedUrl = localStorage.getItem('googleAppsScriptUrl');
+        const savedUrl = localStorage.getItem(URL_STORAGE_KEY);
         if (savedUrl) {
             appsScriptUrlInput.value = savedUrl;
             settingsSection.classList.add('hidden');
@@ -306,14 +308,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadAppData() {
         if (appDataLoaded) return;
-        const scriptUrl = localStorage.getItem('googleAppsScriptUrl');
+        const scriptUrl = localStorage.getItem(URL_STORAGE_KEY);
         if (!scriptUrl) return;
 
         appDataLoading.classList.remove('hidden');
         summaryContent.classList.add('hidden');
         appDataError.classList.add('hidden');
         
-        // Hide fixed list content while loading too
         fixedIncomeList.innerHTML = '';
         fixedExpenseList.innerHTML = '';
 
@@ -343,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveUrlBtn.addEventListener('click', () => {
         const url = appsScriptUrlInput.value.trim();
         if (url && url.startsWith('https://script.google.com/macros/s/')) {
-            localStorage.setItem('googleAppsScriptUrl', url);
+            localStorage.setItem(URL_STORAGE_KEY, url);
             initializeApp();
         } else {
             showStatus('請輸入一個有效的 Google Apps Script URL。', 'error');
@@ -399,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     async function postDataToBackend(payload) {
-        const scriptUrl = localStorage.getItem('googleAppsScriptUrl');
+        const scriptUrl = localStorage.getItem(URL_STORAGE_KEY);
         if (!scriptUrl) {
             showStatus('未設定 Google Apps Script URL。', 'error');
             return false;
@@ -435,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
             form.reset();
             dateInput.value = new Date().toISOString().slice(0, 10);
             updateCategoryOptions(categorySelect, typeInput.value);
-            appDataLoaded = false; // Mark app data as needing refresh
+            appDataLoaded = false;
         }
     }
 
@@ -499,9 +500,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => statusMessage.classList.add('hidden'), 5000);
     }
 
-    // --- Start the app ---
     initializeApp();
 });
 </script>
 </body>
 </html>
+
