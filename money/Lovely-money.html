@@ -172,7 +172,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let categories = {};
     let appData = { summary: null, fixedItems: null, totals: null };
-    let appDataLoaded = false;
 
     function loadCategoriesFromStorage() {
         const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
@@ -246,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 ${data.map(item => `
                     <tr class="border-b border-gray-100 align-middle">
                         <td class="py-3 pr-2">${item.category}</td><td class="py-3 px-2 text-gray-600">${item.description}</td>
-                        <td class="py-3 pl-2 text-right font-mono">${item.amount.toLocaleString()}</td>
+                        <td class="py-3 pl-2 text-right font-mono">${(item.amount || 0).toLocaleString()}</td>
                         <td class="py-3 text-center">
                             <button class="delete-fixed-item-btn delete-btn" 
                                     data-type="${item.type}" data-category="${item.category}" 
@@ -280,8 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(success) {
             fixedItemForm.reset();
             updateCategoryOptions(fixedCategorySelect, fixedTypeSelect.value);
-            appDataLoaded = false;
-            await loadAppData();
+            loadAppData(true); // Force reload
         }
     }
 
@@ -294,8 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoading(false, document.getElementById('add-fixed-item-btn'), '新增項目');
 
         if(success) {
-            appDataLoaded = false;
-            await loadAppData();
+            loadAppData(true); // Force reload
         }
     }
 
@@ -318,8 +315,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loadAppData() {
-        if (appDataLoaded) return;
+    async function loadAppData(forceReload = false) {
+        if (!forceReload && appData.summary) return;
         const scriptUrl = localStorage.getItem(URL_STORAGE_KEY);
         if (!scriptUrl) return;
 
@@ -328,20 +325,17 @@ document.addEventListener('DOMContentLoaded', () => {
         totalsSummary.classList.add('hidden');
         appDataError.classList.add('hidden');
         
-        fixedIncomeList.innerHTML = '';
-        fixedExpenseList.innerHTML = '';
-
         try {
             const response = await fetch(scriptUrl);
             if (!response.ok) throw new Error(`伺服器錯誤: ${response.statusText}`);
             const result = await response.json();
             
-            if (result.status === 'success') {
+            if (result.status === 'success' && result.data) {
                 appData = result.data;
+                console.log("從後端接收到的資料:", appData); // 用於偵錯
                 renderTotalsSummary(appData.totals);
                 renderSummaryTable();
                 renderFixedItemsLists();
-                appDataLoaded = true;
                 appDataLoading.classList.add('hidden');
                 summaryContent.classList.remove('hidden');
             } else {
@@ -405,8 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.classList.toggle('text-gray-500', !isTargetTab);
         });
         if (viewToShowId === 'view-summary' || viewToShowId === 'view-fixed') {
-            appDataLoaded = false;
-            loadAppData();
+            loadAppData(true); // Always force reload for summary views
         }
     }
     
@@ -447,38 +440,24 @@ document.addEventListener('DOMContentLoaded', () => {
             form.reset();
             dateInput.value = new Date().toISOString().slice(0, 10);
             updateCategoryOptions(categorySelect, typeInput.value);
-            appDataLoaded = false;
+            appData.summary = null; // Invalidate summary data
         }
     }
 
     function renderTotalsSummary(totals) {
-        if (!totals) {
-            ['total-income', 'total-expense', 'total-balance'].forEach(id => {
-                const el = document.getElementById(id);
-                if(el) el.textContent = 'N/A';
-            });
-            totalsSummary.classList.remove('hidden');
-            return;
-        }
+        totals = totals || { totalIncome: 0, totalExpense: 0, balance: 0 };
 
-        const formatNumber = (num) => {
-            const parsed = parseFloat(num);
-            return isNaN(parsed) ? 'N/A' : parsed.toLocaleString();
-        };
+        const formatNumber = (num) => (num || 0).toLocaleString();
 
         document.getElementById('total-income').textContent = formatNumber(totals.totalIncome);
         document.getElementById('total-expense').textContent = formatNumber(totals.totalExpense);
         
         const balanceEl = document.getElementById('total-balance');
-        const balance = parseFloat(totals.balance);
-        balanceEl.textContent = isNaN(balance) ? 'N/A' : balance.toLocaleString();
+        const balance = totals.balance || 0;
+        balanceEl.textContent = formatNumber(balance);
 
         balanceEl.classList.remove('text-red-600', 'text-gray-800');
-        if (!isNaN(balance) && balance < 0) {
-            balanceEl.classList.add('text-red-600');
-        } else {
-            balanceEl.classList.add('text-gray-800');
-        }
+        balanceEl.classList.add(balance < 0 ? 'text-red-600' : 'text-gray-800');
         totalsSummary.classList.remove('hidden');
     }
 
@@ -488,10 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
             summaryContainer.innerHTML = `<p class="text-gray-500">尚無資料</p>`; return;
         }
 
-        const formatCell = (num) => {
-            const parsed = parseFloat(num);
-            return isNaN(parsed) ? '-' : parsed.toLocaleString();
-        };
+        const formatCell = (num) => (num || 0) === 0 ? '-' : (num || 0).toLocaleString();
 
         const table = document.createElement('table');
         table.className = 'w-full text-left';
@@ -506,14 +482,14 @@ document.addEventListener('DOMContentLoaded', () => {
             </thead>
             <tbody>
                 ${data.map(item => {
-                    const balance = parseFloat(item.balance);
-                    const balanceClass = isNaN(balance) || balance >= 0 ? 'text-gray-800' : 'text-red-600';
+                    const balance = item.balance || 0;
+                    const balanceClass = balance < 0 ? 'text-red-600' : 'text-gray-800';
                     return `
                     <tr class="border-b border-gray-100">
                         <td class="py-3 pr-2 font-semibold">${item.category}</td>
                         <td class="py-3 px-2 text-right font-mono text-green-600">${formatCell(item.income)}</td>
                         <td class="py-3 px-2 text-right font-mono text-red-600">${formatCell(item.expense)}</td>
-                        <td class="py-3 pl-2 text-right font-mono font-semibold ${balanceClass}">${formatCell(item.balance)}</td>
+                        <td class="py-3 pl-2 text-right font-mono font-semibold ${balanceClass}">${formatCell(balance)}</td>
                     </tr>
                     `;
                 }).join('')}
