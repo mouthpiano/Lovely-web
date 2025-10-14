@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
             tab.classList.toggle('text-gray-500', !isTargetTab);
         });
         if (viewToShowId === 'view-summary' || viewToShowId === 'view-fixed') {
-            appDataLoaded = false; // Always reload data for summary views
+            appDataLoaded = false;
             loadAppData();
         }
     }
@@ -452,16 +452,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderTotalsSummary(totals) {
-        if (!totals) return;
-        document.getElementById('total-income').textContent = (totals.totalIncome || 0).toLocaleString();
-        document.getElementById('total-expense').textContent = (totals.totalExpense || 0).toLocaleString();
+        if (!totals) {
+            ['total-income', 'total-expense', 'total-balance'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.textContent = 'N/A';
+            });
+            totalsSummary.classList.remove('hidden');
+            return;
+        }
+
+        const formatNumber = (num) => {
+            const parsed = parseFloat(num);
+            return isNaN(parsed) ? 'N/A' : parsed.toLocaleString();
+        };
+
+        document.getElementById('total-income').textContent = formatNumber(totals.totalIncome);
+        document.getElementById('total-expense').textContent = formatNumber(totals.totalExpense);
         
         const balanceEl = document.getElementById('total-balance');
-        const balance = totals.balance || 0;
-        balanceEl.textContent = balance.toLocaleString();
+        const balance = parseFloat(totals.balance);
+        balanceEl.textContent = isNaN(balance) ? 'N/A' : balance.toLocaleString();
 
         balanceEl.classList.remove('text-red-600', 'text-gray-800');
-        if (balance < 0) {
+        if (!isNaN(balance) && balance < 0) {
             balanceEl.classList.add('text-red-600');
         } else {
             balanceEl.classList.add('text-gray-800');
@@ -474,6 +487,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data.length === 0) {
             summaryContainer.innerHTML = `<p class="text-gray-500">尚無資料</p>`; return;
         }
+
+        const formatCell = (num) => {
+            const parsed = parseFloat(num);
+            return isNaN(parsed) ? '-' : parsed.toLocaleString();
+        };
+
         const table = document.createElement('table');
         table.className = 'w-full text-left';
         table.innerHTML = `
@@ -487,13 +506,14 @@ document.addEventListener('DOMContentLoaded', () => {
             </thead>
             <tbody>
                 ${data.map(item => {
-                    const balanceClass = item.balance < 0 ? 'text-red-600' : 'text-gray-800';
+                    const balance = parseFloat(item.balance);
+                    const balanceClass = isNaN(balance) || balance >= 0 ? 'text-gray-800' : 'text-red-600';
                     return `
                     <tr class="border-b border-gray-100">
                         <td class="py-3 pr-2 font-semibold">${item.category}</td>
-                        <td class="py-3 px-2 text-right font-mono text-green-600">${(item.income || 0).toLocaleString()}</td>
-                        <td class="py-3 px-2 text-right font-mono text-red-600">${(item.expense || 0).toLocaleString()}</td>
-                        <td class="py-3 pl-2 text-right font-mono font-semibold ${balanceClass}">${(item.balance || 0).toLocaleString()}</td>
+                        <td class="py-3 px-2 text-right font-mono text-green-600">${formatCell(item.income)}</td>
+                        <td class="py-3 px-2 text-right font-mono text-red-600">${formatCell(item.expense)}</td>
+                        <td class="py-3 pl-2 text-right font-mono font-semibold ${balanceClass}">${formatCell(item.balance)}</td>
                     </tr>
                     `;
                 }).join('')}
