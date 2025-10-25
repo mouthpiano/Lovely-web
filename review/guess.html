@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動猜謎遊戲：日環食之謎</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Tone.js (用於音效) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+            background-color: #1a1a2e; /* 深藍色背景 */
+            color: #ffffff;
+            padding: 1rem;
+        }
+        #app-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 讓內容從頂部開始，而不是完全置中 */
+            min-height: 100vh; /* 確保佔滿整個視窗高度 */
+            padding-top: 2rem; /* 增加頂部間距 */
+        }
+        .card {
+            background-color: #2e1a47; /* 紫色卡片背板 */
+            border: 3px solid #f97316; /* 橘色邊框 */
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+            transition: transform 0.6s, box-shadow 0.6s;
+            transform-style: preserve-3d;
+            position: relative;
+            cursor: pointer;
+            width: 100%;
+            max-width: 250px;
+            height: 200px;
+        }
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-face, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+        }
+        .card-back {
+            background-color: #4a2d6d;
+            font-size: 1.5rem;
+            font-weight: bold;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .card-face {
+            background-color: #fca311; /* 金黃色正面 */
+            color: #1a1a2e;
+            transform: rotateY(180deg);
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        .emoji-icon {
+            font-size: 2.5rem; /* 增大表情符號大小 */
+            line-height: 1; /* 確保不佔用多餘空間 */
+        }
+
+        /* 響應式調整卡片大小 */
+        @media (min-width: 640px) {
+            .card {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-wrapper" class="w-full">
+        <div id="app" class="w-full max-w-4xl mx-auto flex flex-col items-center">
+            
+            <!-- 初始點擊提示層 (解決音效自動播放問題) -->
+            <div id="start-overlay" class="absolute inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50 transition-opacity duration-500">
+                <div class="bg-indigo-700 p-8 rounded-xl shadow-2xl text-center cursor-pointer hover:bg-indigo-600 active:scale-95 transition-all">
+                    <h2 class="text-3xl font-bold text-white mb-3">點擊任意處開始遊戲</h2>
+                    <p class="text-gray-300">並啟用音效</p>
+                </div>
+            </div>
+
+            <!-- 標題 -->
+            <h1 class="text-3xl sm:text-4xl font-extrabold mb-4 text-[#eeb30b] drop-shadow-lg text-center">
+                翻牌猜謎：神秘的四個提示
+            </h1>
+            <p id="instruction" class="text-lg text-gray-300 mb-8 text-center">
+                點擊第一張牌來獲得第一個提示，然後猜出最終答案！
+            </p>
+
+            <!-- 提示卡片區 -->
+            <div id="card-container" class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mb-8 justify-items-center">
+                <!-- Cards will be injected here by JavaScript -->
+            </div>
+
+            <!-- 猜題區 -->
+            <div id="guess-area" class="w-full max-w-md bg-gray-800 p-6 rounded-xl shadow-2xl transition-all duration-300 border-t-4 border-b-4 border-purple-500/70 opacity-0" style="display: none;">
+                <p id="clue-info" class="text-center text-xl font-bold mb-3 text-yellow-300">
+                    目前提示：-
+                </p>
+                <p id="guess-attempts" class="text-center text-sm mb-4 text-red-400">
+                    剩餘猜題機會：3
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="guess-input" placeholder="請輸入您的答案 (例如：日環食)" class="flex-grow p-3 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-400 focus:border-transparent outline-none transition-shadow" maxlength="10">
+                    <button id="guess-button" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md active:scale-95 disabled:bg-gray-500" disabled>
+                        送出猜測
+                    </button>
+                </div>
+                
+            </div>
+
+            <!-- 訊息/結果區 -->
+            <div id="message-area" class="mt-6 w-full max-w-lg text-center">
+                <div id="result-box" class="p-4 rounded-xl font-semibold transition-all duration-500 min-h-[4rem] flex items-center justify-center">
+                    <!-- Messages appear here -->
+                </div>
+            </div>
+
+            <!-- 最終答案區 -->
+            <div id="final-reveal" class="mt-8 p-8 bg-green-900 border-4 border-green-400 rounded-2xl shadow-2xl text-center opacity-0 transition-opacity duration-1000" style="display: none;">
+                <h2 class="text-2xl sm:text-3xl font-bold text-green-300 mb-4">
+                    🏆 恭喜您！最終的謎底是...
+                </h2>
+                <p id="final-answer-text" class="text-5xl sm:text-6xl font-extrabold text-white animate-pulse">
+                    日環食
+                </p>
+            </div>
+
+            <!-- 重置按鈕 -->
+            <button id="reset-button" class="mt-8 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-full transition-all shadow-lg active:scale-95 disabled:bg-gray-500" style="display: none;">
+                重新開始遊戲
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 全局狀態和配置
+        const GAME_CONFIG = {
+            clues: [
+                { id: 0, backText: '提示一', icon: '🤔', clue: '后羿' },
+                { id: 1, backText: '提示二', icon: '🧐', clue: '嫦娥' },
+                { id: 2, backText: '提示三', icon: '🤭', clue: '遠' },
+                { id: 3, backText: '提示四', icon: '🤓', clue: '上帝的戒指' }
+            ],
+            correctAnswer: '日環食',
+            maxGuesses: 3
+        };
+
+        let gameState = {
+            currentClueIndex: 0,
+            guessesRemaining: GAME_CONFIG.maxGuesses,
+            isFinished: false,
+            isToneReady: false
+        };
+
+        // DOM 元素引用
+        const appWrapper = document.getElementById('app-wrapper');
+        const startOverlay = document.getElementById('start-overlay');
+        const cardContainer = document.getElementById('card-container');
+        const guessArea = document.getElementById('guess-area');
+        const guessInput = document.getElementById('guess-input');
+        const guessButton = document.getElementById('guess-button');
+        const guessAttempts = document.getElementById('guess-attempts');
+        const clueInfo = document.getElementById('clue-info');
+        const resultBox = document.getElementById('result-box');
+        const finalReveal = document.getElementById('final-reveal');
+        const resetButton = document.getElementById('reset-button');
+        const instruction = document.getElementById('instruction');
+
+        // --- Tone.js 音效設定 ---
+
+        // 成功音效：更熱鬧、多層次的和弦琶音
+        const successSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.05, decay: 0.4, sustain: 0.2, release: 0.8 },
+            volume: -8
+        }).toDestination();
+        
+        // 失敗音效：更具戲劇性的不和諧和弦
+        const failSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'sawtooth' },
+            envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.5 },
+            volume: -10
+        }).toDestination();
+        
+        // 翻牌音效：簡單的 click
+        const flipTone = new Tone.Synth({
+            oscillator: { type: 'square' },
+            envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 },
+            volume: -15
+        }).toDestination();
+
+
+        function playSuccessSound() {
+            // 確保 Tone.js 已經啟動，如果還沒，就忽略音效
+            if (!gameState.isToneReady) return;
+            // 更豐富的和弦琶音
+            successSynth.triggerAttackRelease(['C5', 'E5', 'G5', 'C6'], '4n', Tone.now());
+            successSynth.triggerAttackRelease(['D5', 'F#5', 'A5', 'D6'], '4n', Tone.now() + 0.2); // 加入一些錯落感
+        }
+
+        function playFailSound() {
+            if (!gameState.isToneReady) return;
+            // 不和諧和弦
+            failSynth.triggerAttackRelease(['C4', 'C#4', 'F4', 'G#4'], '0.5'); // 更長的持續時間和不和諧感
+        }
+
+        function playFlipSound() {
+            if (!gameState.isToneReady) return;
+            flipTone.triggerAttackRelease('G4', '32n');
+        }
+
+        /**
+         * 處理音訊上下文的啟動
+         */
+        function startAudioContext() {
+            if (gameState.isToneReady) return;
+            Tone.start().then(() => {
+                gameState.isToneReady = true;
+                // 隱藏啟動層
+                startOverlay.classList.add('opacity-0');
+                setTimeout(() => { startOverlay.style.display = 'none'; }, 500);
+            }).catch(e => {
+                console.error("無法啟動音訊上下文:", e);
+                // 即使失敗，也繼續遊戲流程，只是沒有音效
+                startOverlay.classList.add('opacity-0');
+                setTimeout(() => { startOverlay.style.display = 'none'; }, 500);
+            });
+        }
+
+
+        // --- 遊戲邏輯函數 ---
+
+        /**
+         * 渲染卡片到 DOM
+         */
+        function renderCards() {
+            cardContainer.innerHTML = '';
+            GAME_CONFIG.clues.forEach((clue, index) => {
+                const cardWrapper = document.createElement('div');
+                cardWrapper.className = `card rounded-xl ${index >= gameState.currentClueIndex && !document.getElementById(`card-${index}`)?.classList.contains('flipped') ? 'hover:shadow-xl hover:scale-[1.02]' : ''}`;
+                cardWrapper.id = `card-${index}`;
+                cardWrapper.dataset.index = index;
+
+                // 只有當前可翻開的卡片才可點擊
+                if (index === gameState.currentClueIndex) {
+                    cardWrapper.onclick = (e) => {
+                        // 確保 Tone.js 啟動
+                        startAudioContext(); 
+                        flipCard(index);
+                    };
+                } else if (index > gameState.currentClueIndex) {
+                    // 未輪到的卡片
+                    cardWrapper.classList.add('opacity-70', 'cursor-not-allowed');
+                }
+
+                cardWrapper.innerHTML = `
+                    <div class="card-inner">
+                        <!-- 背面 (未翻開) -->
+                        <div class="card-back">
+                            <span class="emoji-icon">${clue.icon}</span>
+                            <span>${clue.backText}</span>
+                        </div>
+                        <!-- 正面 (已翻開的提示) -->
+                        <div class="card-face">
+                            <span class="text-2xl">${clue.clue}</span>
+                        </div>
+                    </div>
+                `;
+                cardContainer.appendChild(cardWrapper);
+            });
+        }
+
+        /**
+         * 處理卡片翻轉
+         * @param {number} index - 要翻轉的卡片索引
+         */
+        function flipCard(index) {
+            if (gameState.isFinished) return;
+
+            const cardElement = document.getElementById(`card-${index}`);
+            if (cardElement && !cardElement.classList.contains('flipped')) {
+                playFlipSound();
+                cardElement.classList.add('flipped');
+                cardElement.onclick = null; // 翻開後不能再點擊
+
+                // 更新遊戲狀態
+                gameState.currentClueIndex = index;
+                gameState.guessesRemaining = GAME_CONFIG.maxGuesses;
+                
+                // 更新 UI
+                updateGuessArea(GAME_CONFIG.clues[index]);
+                showMessage(`提示 ${index + 1} 已翻開！你有 ${GAME_CONFIG.maxGuesses} 次猜題機會。`, 'bg-blue-600');
+                
+                // 啟用猜題區
+                guessArea.style.display = 'flex';
+                setTimeout(() => guessArea.classList.add('opacity-100'), 10);
+                guessButton.disabled = false;
+                guessInput.focus();
+            }
+        }
+        
+        /**
+         * 處理用戶猜測
+         */
+        function handleGuess() {
+            if (gameState.isFinished) return;
+            startAudioContext(); // 再次嘗試啟動音效，確保猜題時音效可用
+
+            const guess = guessInput.value.trim();
+            guessInput.value = ''; // 清空輸入框
+
+            if (!guess) {
+                showMessage('請輸入您的猜測！', 'bg-yellow-600');
+                return;
+            }
+
+            // 檢查答案是否正確
+            if (guess.toLowerCase() === GAME_CONFIG.correctAnswer.toLowerCase()) {
+                // 猜對了！
+                gameState.isFinished = true;
+                playSuccessSound();
+                showMessage(`🎉 恭喜！您猜對了！答案就是 "${GAME_CONFIG.correctAnswer}"。`, 'bg-green-600');
+                showFinalAnswer(true);
+            } else {
+                // 猜錯了
+                gameState.guessesRemaining--;
+                
+                if (gameState.guessesRemaining > 0) {
+                    // 還有機會
+                    playFailSound();
+                    showMessage(`❌ 猜錯了！剩餘機會：${gameState.guessesRemaining} 次。`, 'bg-red-600');
+                } else {
+                    // 機會用盡
+                    playFailSound();
+                    
+                    if (gameState.currentClueIndex < GAME_CONFIG.clues.length - 1) {
+                        // 進入下一回合
+                        showMessage(`機會用盡！請翻開下一張提示牌。`, 'bg-orange-600');
+                        gameState.currentClueIndex++;
+                        
+                        // 重置猜題區狀態並禁用按鈕，直到下一張牌被翻開
+                        updateGuessArea({ clue: '-' });
+                        guessButton.disabled = true;
+                        guessArea.classList.remove('opacity-100');
+                        guessArea.style.display = 'none';
+
+                        // 讓下一張牌可以點擊，並重新渲染以更新點擊事件
+                        renderCards(); 
+                        instruction.textContent = `請點擊 ${GAME_CONFIG.clues[gameState.currentClueIndex].backText} 來獲得更多提示。`;
+                        
+                    } else {
+                        // 所有提示都用完，仍然猜錯
+                        gameState.isFinished = true;
+                        showMessage(`❌ 抱歉，四個提示都用完了，最終答案是：${GAME_CONFIG.correctAnswer}`, 'bg-red-800');
+                        showFinalAnswer(false);
+                    }
+                }
+            }
+            updateGuessAttemptsUI();
+        }
+
+        /**
+         * 更新猜題區的提示和剩餘次數
+         * @param {Object} clueObj - 當前提示物件
+         */
+        function updateGuessArea(clueObj) {
+            clueInfo.textContent = `目前提示：${clueObj.clue}`;
+            updateGuessAttemptsUI();
+        }
+
+        /**
+         * 僅更新猜題次數 UI
+         */
+        function updateGuessAttemptsUI() {
+            guessAttempts.textContent = `剩餘猜題機會：${gameState.guessesRemaining}`;
+            // 根據次數改變顏色
+            if (gameState.guessesRemaining === 1) {
+                guessAttempts.classList.replace('text-red-400', 'text-red-600');
+            } else {
+                guessAttempts.classList.replace('text-red-600', 'text-red-400');
+            }
+        }
+
+        /**
+         * 顯示訊息框
+         * @param {string} message - 訊息內容
+         * @param {string} bgColor - Tailwind 背景色類別
+         */
+        function showMessage(message, bgColor) {
+            resultBox.textContent = message;
+            resultBox.className = `mt-6 w-full text-center p-4 rounded-xl font-semibold transition-all duration-500 min-h-[4rem] flex items-center justify-center ${bgColor}`;
+        }
+
+        /**
+         * 揭曉最終答案
+         * @param {boolean} isWin - 是否是贏家
+         */
+        function showFinalAnswer(isWin) {
+            // 確保所有卡片都翻開
+            for (let i = 0; i < GAME_CONFIG.clues.length; i++) {
+                const card = document.getElementById(`card-${i}`);
+                if (card && !card.classList.contains('flipped')) {
+                    playFlipSound(); // 每翻一張牌都播放音效
+                    card.classList.add('flipped');
+                }
+            }
+
+            // 隱藏猜題區
+            guessArea.classList.remove('opacity-100');
+            guessArea.style.display = 'none';
+            
+            // 顯示最終答案區
+            finalReveal.style.display = 'block';
+            setTimeout(() => finalReveal.classList.add('opacity-100'), 100);
+
+            if (isWin) {
+                finalReveal.querySelector('h2').textContent = '🎉 恭喜您！最終的謎底是...';
+                finalReveal.classList.remove('bg-red-900', 'border-red-400');
+                finalReveal.classList.add('bg-green-900', 'border-green-400');
+            } else {
+                finalReveal.querySelector('h2').textContent = '遊戲結束！最終的謎底是...';
+                finalReveal.classList.remove('bg-green-900', 'border-green-400');
+                finalReveal.classList.add('bg-red-900', 'border-red-400');
+            }
+            
+            resetButton.style.display = 'block';
+        }
+
+        /**
+         * 初始化遊戲狀態和 UI
+         */
+        function initGame() {
+            gameState.currentClueIndex = 0;
+            gameState.guessesRemaining = GAME_CONFIG.maxGuesses;
+            gameState.isFinished = false;
+            
+            // UI 重置
+            guessInput.value = '';
+            guessButton.disabled = true;
+            guessArea.classList.remove('opacity-100');
+            guessArea.style.display = 'none';
+            finalReveal.classList.remove('opacity-100');
+            finalReveal.style.display = 'none';
+            resetButton.style.display = 'none';
+            resultBox.className = 'mt-6 w-full text-center p-4 rounded-xl font-semibold transition-all duration-500 min-h-[4rem] flex items-center justify-center';
+            resultBox.textContent = '';
+            instruction.textContent = '點擊第一張牌來獲得第一個提示，然後猜出最終答案！';
+
+            // 渲染卡片
+            renderCards();
+
+            // 確保啟動層是可見的，直到點擊
+            if (!gameState.isToneReady) {
+                 startOverlay.classList.remove('opacity-0');
+                 startOverlay.style.display = 'flex';
+            }
+        }
+
+        // --- 事件監聽器 ---
+
+        guessButton.addEventListener('click', handleGuess);
+        guessInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleGuess();
+            }
+        });
+        resetButton.addEventListener('click', initGame);
+
+        // 監聽點擊事件來啟動音訊上下文
+        appWrapper.addEventListener('click', startAudioContext);
+        // 點擊啟動層時，也視為點擊，並啟動音訊
+        startOverlay.addEventListener('click', startAudioContext);
+
+        // 頁面載入完成後初始化遊戲
+        window.onload = () => {
+            initGame();
+        };
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動猜謎遊戲：多組自訂謎題 (1 次猜測)</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Tone.js (用於音效) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Sans+TC:wght@400;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+            background-color: #1a1a2e;
+            color: #ffffff;
+            padding: 1rem;
+        }
+        #app-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding-top: 1rem;
+        }
+        .card {
+            background-color: #2e1a47;
+            border: 3px solid #f97316;
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.5);
+            transition: transform 0.6s, box-shadow 0.6s;
+            transform-style: preserve-3d;
+            position: relative;
+            cursor: pointer;
+            width: 100%;
+            max-width: 250px;
+            height: 200px;
+        }
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-face, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+        }
+        .card-back {
+            background-color: #4a2d6d;
+            font-size: 1.5rem;
+            font-weight: bold;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .card-face {
+            background-color: #fca311;
+            color: #1a1a2e;
+            transform: rotateY(180deg);
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        .emoji-icon {
+            font-size: 2.5rem;
+            line-height: 1;
+        }
+        .input-clue-set {
+            border: 2px solid #3b82f6;
+        }
+
+        /* 響應式調整卡片大小 */
+        @media (min-width: 640px) {
+            .card {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-wrapper" class="w-full">
+        <div id="app" class="w-full max-w-4xl mx-auto flex flex-col items-center pb-10">
+            
+            <h1 class="text-3xl sm:text-4xl font-extrabold mb-8 text-[#eeb30b] drop-shadow-lg text-center">
+                翻牌猜謎：多組自訂謎題 (1 次機會)
+            </h1>
+
+            <!-- 初始點擊提示層 (解決音效自動播放問題) -->
+            <div id="start-overlay" class="absolute inset-0 bg-gray-900 bg-opacity-95 flex items-center justify-center z-50 transition-opacity duration-500">
+                <div class="bg-indigo-700 p-8 rounded-xl shadow-2xl text-center cursor-pointer hover:bg-indigo-600 active:scale-95 transition-all">
+                    <h2 class="text-3xl font-bold text-white mb-3">點擊任意處開始設定</h2>
+                    <p class="text-gray-300">並啟用音效</p>
+                </div>
+            </div>
+
+            <!-- 謎題設定區 (Setup Mode) -->
+            <div id="setup-area" class="w-full">
+                <p class="text-lg text-gray-300 mb-4 text-center">
+                    請輸入 **5 組** 完整的謎題內容 (每組 4 個提示 + 1 個答案)。
+                </p>
+                <div id="riddle-input-container" class="space-y-8 mb-8">
+                    <!-- Riddles input fields will be rendered here -->
+                </div>
+                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                    <button id="save-and-start-button" class="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-full transition-colors shadow-lg active:scale-95 disabled:bg-gray-500">
+                        儲存並開始遊戲 (第一組)
+                    </button>
+                    <button id="fill-default-button" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-8 rounded-full transition-colors shadow-lg active:scale-95">
+                        填入範例謎題
+                    </button>
+                </div>
+                <div id="setup-message" class="text-center mt-4 font-semibold text-red-400"></div>
+            </div>
+
+            <!-- 猜謎遊戲區 (Game Mode) -->
+            <div id="game-area" class="w-full" style="display: none;">
+                <p id="riddle-set-info" class="text-xl font-bold mb-4 text-center text-yellow-400">
+                    當前謎題組：
+                </p>
+                <p id="instruction" class="text-lg text-gray-300 mb-8 text-center">
+                    點擊第一張牌來獲得第一個提示，然後猜出最終答案！
+                </p>
+                
+                <!-- 提示卡片區 -->
+                <div id="card-container" class="grid grid-cols-2 md:grid-cols-4 gap-4 w-full mb-8 justify-items-center">
+                    <!-- Cards will be injected here by JavaScript -->
+                </div>
+
+                <!-- 猜題區 -->
+                <div id="guess-area" class="w-full max-w-md mx-auto bg-gray-800 p-6 rounded-xl shadow-2xl transition-all duration-300 border-t-4 border-b-4 border-purple-500/70 opacity-0" style="display: none;">
+                    <p id="clue-info" class="text-center text-xl font-bold mb-3 text-yellow-300">
+                        目前提示：-
+                    </p>
+                    <p id="guess-attempts" class="text-center text-sm mb-4 text-red-400">
+                        剩餘猜題機會：1
+                    </p>
+                    
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="guess-input" placeholder="請輸入您的答案" class="flex-grow p-3 rounded-lg bg-gray-700 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-400 focus:border-transparent outline-none transition-shadow" maxlength="15">
+                        <button id="guess-button" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md active:scale-95 disabled:bg-gray-500" disabled>
+                            送出猜測
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 訊息/結果區 -->
+                <div id="message-area" class="mt-6 w-full max-w-lg mx-auto text-center">
+                    <div id="result-box" class="p-4 rounded-xl font-semibold transition-all duration-500 min-h-[4rem] flex items-center justify-center">
+                        <!-- Messages appear here -->
+                    </div>
+                </div>
+
+                <!-- 最終答案區 -->
+                <div id="final-reveal" class="mt-8 p-8 border-4 rounded-2xl shadow-2xl text-center opacity-0 transition-opacity duration-1000" style="display: none;">
+                    <h2 class="text-2xl sm:text-3xl font-bold mb-4" id="final-reveal-title">
+                        
+                    </h2>
+                    <p id="final-answer-text" class="text-5xl sm:text-6xl font-extrabold text-white animate-pulse">
+                        
+                    </p>
+                </div>
+
+                <!-- 遊戲結束/切換謎題按鈕 -->
+                <button id="next-riddle-button" class="mt-8 bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-8 rounded-full transition-all shadow-lg active:scale-95 disabled:bg-gray-500" style="display: none;">
+                    
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 遊戲配置和狀態 ---
+        const CLUE_EMOJIS = ['🤔', '🧐', '🤭', '🤓'];
+        const NUM_RIDDLE_SETS = 5;
+        const MAX_GUESSES_PER_CLUE = 1; // **新版本：每個提示只有 1 次機會**
+
+        let customRiddleSets = [];
+        let gameState = {
+            currentRiddleSetIndex: 0,
+            currentClueIndex: 0,
+            guessesRemaining: MAX_GUESSES_PER_CLUE,
+            isFinished: false,
+            isToneReady: false
+        };
+
+        const DEFAULT_RIDDLES = [
+            {
+                clues: [{ clue: '能量' }, { clue: '平行' }, { clue: '音調很高' }, { clue: '聽不到' }],
+                answer: '超音波'
+            },
+            {
+                clues: [{ clue: '天然形成' }, { clue: '硬' }, { clue: '很漂亮' }, { clue: '石英' }],
+                answer: '水晶'
+            },
+             {
+                clues: [{ clue: '純物質' }, { clue: '光合作用' }, { clue: '180' }, { clue: '單醣' }],
+                answer: '葡萄糖'
+            },
+            {
+                clues: [{ clue: '網狀' }, { clue: '環狀' }, { clue: '4或5' }, { clue: '有形成層' }],
+                answer: '雙子葉植物'
+            },
+            {
+                clues: [{ clue: '白色' }, { clue: '完全解離' }, { clue: 'pH>7' }, { clue: '燒鹼' }],
+                answer: '氫氧化鈉'
+            }
+        ];
+
+        // --- DOM 元素引用 (與原版相同) ---
+        const appWrapper = document.getElementById('app-wrapper');
+        const startOverlay = document.getElementById('start-overlay');
+        const setupArea = document.getElementById('setup-area');
+        const gameArea = document.getElementById('game-area');
+        const riddleInputContainer = document.getElementById('riddle-input-container');
+        const setupMessage = document.getElementById('setup-message');
+        const saveAndStartButton = document.getElementById('save-and-start-button');
+        const fillDefaultButton = document.getElementById('fill-default-button');
+
+        const riddleSetInfo = document.getElementById('riddle-set-info');
+        const cardContainer = document.getElementById('card-container');
+        const guessArea = document.getElementById('guess-area');
+        const guessInput = document.getElementById('guess-input');
+        const guessButton = document.getElementById('guess-button');
+        const guessAttempts = document.getElementById('guess-attempts');
+        const clueInfo = document.getElementById('clue-info');
+        const resultBox = document.getElementById('result-box');
+        const finalReveal = document.getElementById('final-reveal');
+        const finalRevealTitle = document.getElementById('final-reveal-title');
+        const finalAnswerText = document.getElementById('final-answer-text');
+        const nextRiddleButton = document.getElementById('next-riddle-button');
+        const instruction = document.getElementById('instruction');
+
+        // --- Tone.js 音效設定 (與原版相同) ---
+
+        // 成功音效：頒獎樂
+        const successSynth = new Tone.PolySynth(Tone.Synth, {
+            oscillator: { type: 'sine' },
+            envelope: { attack: 0.05, decay: 0.4, sustain: 0.2, release: 1.0 },
+            volume: -8
+        }).toDestination();
+        
+        // 失敗音效：Sad Slide
+        const failSynth = new Tone.Synth({
+            oscillator: { type: 'triangle' },
+            envelope: { attack: 0.01, decay: 0.5, sustain: 0, release: 0.8 },
+            portamento: 0.2, 
+            volume: -8
+        }).toDestination();
+        
+        // 翻牌音效：簡單的 click
+        const flipTone = new Tone.Synth({
+            oscillator: { type: 'square' },
+            envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 },
+            volume: -15
+        }).toDestination();
+
+
+        function playSuccessSound() {
+            if (!gameState.isToneReady) return;
+            const now = Tone.now();
+            // 歡樂的頒獎樂
+            successSynth.triggerAttackRelease(['C5', 'E5', 'G5'], '4n', now);
+            successSynth.triggerAttackRelease(['F5', 'A5', 'C6'], '4n', now + 0.3);
+            successSynth.triggerAttackRelease(['G5', 'B5', 'D6'], '2n', now + 0.6);
+        }
+
+        function playFailSound() {
+            if (!gameState.isToneReady) return;
+            // 短暫的悲傷下滑音 (Babe 效果)
+            failSynth.triggerAttackRelease('C4', '8n', Tone.now());
+            failSynth.triggerAttackRelease('A3', '8n', Tone.now() + 0.2);
+            failSynth.triggerAttackRelease('F#3', '4n', Tone.now() + 0.4);
+        }
+
+        function playFlipSound(time = Tone.now()) {
+            if (!gameState.isToneReady) return;
+            // 此函數應只用於單次呼叫，例如單個卡片翻轉
+            flipTone.triggerAttackRelease('G4', '32n', time);
+        }
+
+        /**
+         * 處理音訊上下文的啟動
+         */
+        function startAudioContext() {
+            if (gameState.isToneReady) return;
+            Tone.start().then(() => {
+                gameState.isToneReady = true;
+                // 隱藏啟動層
+                startOverlay.classList.add('opacity-0');
+                setTimeout(() => { startOverlay.style.display = 'none'; }, 500);
+            }).catch(e => {
+                console.error("無法啟動音訊上下文:", e);
+                // 即使失敗，也繼續遊戲流程
+                startOverlay.classList.add('opacity-0');
+                setTimeout(() => { startOverlay.style.display = 'none'; }, 500);
+            });
+        }
+
+
+        // --- 設置區邏輯 (與原版相同) ---
+        function renderSetupInputs() {
+            riddleInputContainer.innerHTML = '';
+            for (let i = 0; i < NUM_RIDDLE_SETS; i++) {
+                // 嘗試從 customRiddleSets 載入，否則使用預設或空值
+                const currentSet = customRiddleSets[i] || DEFAULT_RIDDLES[i] || { clues: Array(4).fill({ clue: '' }), answer: '' };
+                let clueInputs = '';
+                for (let j = 0; j < 4; j++) {
+                    const clueContent = currentSet.clues[j] ? currentSet.clues[j].clue : '';
+                    clueInputs += `
+                        <div class="flex items-center gap-2">
+                            <span class="emoji-icon w-8 text-xl">${CLUE_EMOJIS[j]}</span>
+                            <input type="text" id="clue-${i}-${j}" value="${clueContent}" placeholder="提示 ${j + 1} 內容" class="p-2 flex-grow rounded-md bg-gray-700 text-white placeholder-gray-400">
+                        </div>
+                    `;
+                }
+                
+                const setHtml = `
+                    <div class="input-clue-set p-4 rounded-xl shadow-xl bg-gray-800">
+                        <h3 class="text-xl font-bold mb-3 text-blue-300">謎題組 ${i + 1}</h3>
+                        <div class="space-y-2 mb-4">
+                            ${clueInputs}
+                        </div>
+                        <div class="flex items-center gap-2 mt-4">
+                            <span class="font-bold text-lg text-yellow-300 w-12 shrink-0">答案:</span>
+                            <input type="text" id="answer-${i}" value="${currentSet.answer}" placeholder="最終答案" class="p-2 flex-grow rounded-md bg-gray-700 text-white font-bold">
+                        </div>
+                    </div>
+                `;
+                riddleInputContainer.innerHTML += setHtml;
+            }
+        }
+
+        function saveRiddles() {
+            const newRiddleSets = [];
+            let isValid = true;
+            for (let i = 0; i < NUM_RIDDLE_SETS; i++) {
+                const newSet = { clues: [], answer: '' };
+                for (let j = 0; j < 4; j++) {
+                    const clueInput = document.getElementById(`clue-${i}-${j}`);
+                    const clueValue = clueInput.value.trim();
+                    if (!clueValue) {
+                         setupMessage.textContent = `錯誤：謎題組 ${i + 1} 的提示 ${j + 1} 不得為空！`;
+                         clueInput.focus();
+                         isValid = false;
+                         return false;
+                    }
+                    newSet.clues.push({ clue: clueValue, icon: CLUE_EMOJIS[j] });
+                }
+                const answerInput = document.getElementById(`answer-${i}`);
+                const answerValue = answerInput.value.trim();
+                if (!answerValue) {
+                    setupMessage.textContent = `錯誤：謎題組 ${i + 1} 的答案不得為空！`;
+                    answerInput.focus();
+                    isValid = false;
+                    return false;
+                }
+                newSet.answer = answerValue;
+                newRiddleSets.push(newSet);
+            }
+            if (isValid) {
+                customRiddleSets = newRiddleSets;
+                setupMessage.textContent = '';
+            }
+            return isValid;
+        }
+
+        function switchToGameMode(startIndex = 0) {
+            // 在開始遊戲前，確保謎題已經儲存
+            if (customRiddleSets.length === 0 && !saveRiddles()) return;
+            
+            gameState.currentRiddleSetIndex = startIndex;
+            setupArea.style.display = 'none';
+            gameArea.style.display = 'block';
+            initGame();
+        }
+
+        // --- 遊戲邏輯 (修改點) ---
+
+        /** 渲染卡片到 DOM (與原版相同) */
+        function renderCards(currentSet) {
+            cardContainer.innerHTML = '';
+            currentSet.clues.forEach((clue, index) => {
+                const cardWrapper = document.createElement('div');
+                const isFlipped = index < gameState.currentClueIndex; 
+
+                cardWrapper.className = `card rounded-xl ${index >= gameState.currentClueIndex && !isFlipped ? 'hover:shadow-xl hover:scale-[1.02]' : ''} ${isFlipped ? 'flipped' : ''}`;
+                cardWrapper.id = `card-${index}`;
+                cardWrapper.dataset.index = index;
+
+                if (index === gameState.currentClueIndex && !gameState.isFinished) {
+                    cardWrapper.onclick = () => {
+                        startAudioContext(); 
+                        flipCard(index, currentSet);
+                    };
+                } else {
+                    cardWrapper.classList.add('opacity-70', 'cursor-not-allowed');
+                    cardWrapper.onclick = null;
+                }
+
+                cardWrapper.innerHTML = `
+                    <div class="card-inner">
+                        <!-- 背面 (未翻開) -->
+                        <div class="card-back">
+                            <span class="emoji-icon">${clue.icon}</span>
+                            <span>提示 ${index + 1}</span>
+                        </div>
+                        <!-- 正面 (已翻開的提示) -->
+                        <div class="card-face">
+                            <span class="text-2xl">${clue.clue}</span>
+                        </div>
+                    </div>
+                `;
+                cardContainer.appendChild(cardWrapper);
+            });
+        }
+
+        /** 處理卡片翻轉 */
+        function flipCard(index, currentSet) {
+            if (gameState.isFinished) return;
+
+            const cardElement = document.getElementById(`card-${index}`);
+            if (cardElement && !cardElement.classList.contains('flipped')) {
+                playFlipSound();
+                cardElement.classList.add('flipped');
+                cardElement.onclick = null;
+
+                gameState.currentClueIndex = index;
+                gameState.guessesRemaining = MAX_GUESSES_PER_CLUE; // **設置為 1**
+                
+                updateGuessArea(currentSet.clues[index]);
+                showMessage(`提示 ${index + 1} 已翻開！你只有 1 次猜題機會。`, 'bg-blue-600'); // **修改提示訊息**
+                
+                guessArea.style.display = 'flex';
+                setTimeout(() => guessArea.classList.add('opacity-100'), 10);
+                guessButton.disabled = false;
+                guessInput.focus();
+            }
+        }
+        
+        /** 處理用戶猜測 */
+        function handleGuess() {
+            if (gameState.isFinished) return;
+            startAudioContext();
+
+            const currentSet = customRiddleSets[gameState.currentRiddleSetIndex];
+            const guess = guessInput.value.trim();
+            guessInput.value = '';
+
+            if (!guess) {
+                showMessage('請輸入您的猜測！', 'bg-yellow-600');
+                return;
+            }
+
+            // 檢查答案是否正確
+            if (guess.toLowerCase() === currentSet.answer.toLowerCase()) {
+                gameState.isFinished = true;
+                playSuccessSound();
+                showMessage(`🎉 恭喜！您猜對了！答案就是 "${currentSet.answer}"。`, 'bg-green-600');
+                showFinalAnswer(true, currentSet.answer);
+            } else {
+                gameState.guessesRemaining = 0; // **猜錯立即歸零**
+                playFailSound();
+                
+                if (gameState.currentClueIndex < currentSet.clues.length - 1) {
+                    // 進入下一回合
+                    showMessage(`❌ 猜錯了！機會用盡，請翻開下一張提示牌。`, 'bg-orange-600'); // **修改提示訊息**
+                    gameState.currentClueIndex++;
+                    
+                    updateGuessArea({ clue: '-' });
+                    guessButton.disabled = true;
+                    guessArea.classList.remove('opacity-100');
+                    guessArea.style.display = 'none';
+
+                    renderCards(currentSet); // 重新渲染以更新點擊事件
+                    instruction.textContent = `請點擊 提示 ${gameState.currentClueIndex + 1} 來獲得更多提示。`;
+                    
+                } else {
+                    // 所有提示都用完，仍然猜錯
+                    gameState.isFinished = true;
+                    showMessage(`❌ 抱歉，四個提示都用完了！`, 'bg-red-800');
+                    showFinalAnswer(false, currentSet.answer);
+                }
+            }
+            updateGuessAttemptsUI();
+        }
+
+        function updateGuessArea(clueObj) {
+            clueInfo.textContent = `目前提示：${clueObj.clue || '-'}`;
+            updateGuessAttemptsUI();
+        }
+
+        function updateGuessAttemptsUI() {
+            // **顯示剩餘機會為 1 或 0**
+            guessAttempts.textContent = `剩餘猜題機會：${gameState.guessesRemaining}`;
+            if (gameState.guessesRemaining === 0) {
+                guessAttempts.classList.replace('text-red-400', 'text-red-600');
+                guessButton.disabled = true; // 猜錯後禁用按鈕
+            } else {
+                guessAttempts.classList.replace('text-red-600', 'text-red-400');
+                guessButton.disabled = false;
+            }
+        }
+
+        function showMessage(message, bgColor) {
+            resultBox.textContent = message;
+            resultBox.className = `mt-6 w-full text-center p-4 rounded-xl font-semibold transition-all duration-500 min-h-[4rem] flex items-center justify-center ${bgColor}`;
+        }
+
+        /** 揭曉最終答案 (與原版相同) */
+        function showFinalAnswer(isWin, finalAnswer) {
+            const currentSet = customRiddleSets[gameState.currentRiddleSetIndex]; 
+            
+            const flipDelay = 0.15; 
+            let flipTimeOffset = 0;
+
+            for (let i = 0; i < currentSet.clues.length; i++) {
+                const card = document.getElementById(`card-${i}`);
+                if (card && !card.classList.contains('flipped')) {
+                    
+                    if(isWin && gameState.isToneReady) {
+                        playFlipSound(Tone.now() + flipTimeOffset);
+                        flipTimeOffset += flipDelay;
+                    }
+
+                    card.classList.add('flipped');
+                }
+            }
+
+            guessArea.classList.remove('opacity-100');
+            guessArea.style.display = 'none';
+            
+            finalReveal.style.display = 'block';
+            setTimeout(() => finalReveal.classList.add('opacity-100'), 100);
+            finalAnswerText.textContent = finalAnswer;
+
+            if (isWin) {
+                finalRevealTitle.textContent = '🏆 恭喜您！最終的謎底是...';
+                finalReveal.classList.remove('bg-red-900', 'border-red-400');
+                finalReveal.classList.add('bg-green-900', 'border-green-400');
+            } else {
+                finalRevealTitle.textContent = '遊戲結束！最終的謎底是...';
+                finalReveal.classList.remove('bg-green-900', 'border-green-400');
+                finalReveal.classList.add('bg-red-900', 'border-red-400');
+            }
+            
+            if (gameState.currentRiddleSetIndex < customRiddleSets.length - 1) {
+                nextRiddleButton.textContent = `開始謎題組 ${gameState.currentRiddleSetIndex + 2}`;
+                nextRiddleButton.onclick = () => switchToGameMode(gameState.currentRiddleSetIndex + 1); 
+            } else {
+                nextRiddleButton.textContent = '返回設定頁面 (已完成全部)';
+                nextRiddleButton.onclick = () => switchToSetupMode();
+            }
+            nextRiddleButton.style.display = 'block';
+        }
+
+        /** 進入設定模式 (與原版相同) */
+        function switchToSetupMode() {
+            gameArea.style.display = 'none';
+            setupArea.style.display = 'block';
+            renderSetupInputs();
+            setupMessage.textContent = '已返回設定頁面，可編輯或重新開始遊戲。';
+        }
+
+
+        /** 初始化當前謎題組的遊戲 */
+        function initGame() {
+            
+            // 確保狀態完全重設
+            gameState.currentClueIndex = 0;
+            gameState.guessesRemaining = MAX_GUESSES_PER_CLUE; // **1 次機會**
+            gameState.isFinished = false;
+            
+            const currentSet = customRiddleSets[gameState.currentRiddleSetIndex];
+
+            // UI 重置
+            riddleSetInfo.textContent = `當前謎題組：${gameState.currentRiddleSetIndex + 1} / ${customRiddleSets.length}`;
+            guessInput.value = '';
+            guessButton.disabled = true;
+            guessArea.classList.remove('opacity-100');
+            guessArea.style.display = 'none';
+            finalReveal.classList.remove('opacity-100');
+            finalReveal.style.display = 'none';
+            nextRiddleButton.style.display = 'none';
+            resultBox.className = 'mt-6 w-full text-center p-4 rounded-xl font-semibold transition-all duration-500 min-h-[4rem] flex items-center justify-center';
+            resultBox.textContent = '';
+            instruction.textContent = '點擊第一張牌來獲得第一個提示，然後猜出最終答案！';
+
+            // 渲染卡片
+            renderCards(currentSet);
+        }
+
+        // --- 事件監聽器和初始化 (與原版相同) ---
+
+        guessButton.addEventListener('click', handleGuess);
+        guessInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !guessButton.disabled) {
+                handleGuess();
+            }
+        });
+        
+        saveAndStartButton.addEventListener('click', () => {
+            if (saveRiddles()) {
+                switchToGameMode(0);
+            }
+        });
+
+        fillDefaultButton.addEventListener('click', () => {
+            DEFAULT_RIDDLES.forEach((set, i) => {
+                for (let j = 0; j < 4; j++) {
+                    document.getElementById(`clue-${i}-${j}`).value = set.clues[j].clue;
+                }
+                document.getElementById(`answer-${i}`).value = set.answer;
+            });
+            setupMessage.textContent = '範例謎題已填入！請記得點擊「儲存並開始遊戲」來啟動遊戲。';
+        });
+
+
+        // 監聽點擊事件來啟動音訊上下文
+        appWrapper.addEventListener('click', startAudioContext);
+        startOverlay.addEventListener('click', startAudioContext);
+
+        // 頁面載入完成後初始化設定區
+        window.onload = () => {
+            renderSetupInputs();
+        };
+
+    </script>
+</body>
+</html>
