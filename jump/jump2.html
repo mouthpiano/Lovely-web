@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>瑜伽跳格子互動遊戲</title>
+    <!-- 載入 Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- 設定 Tailwind 配置和字體 --><script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    },
+                    colors: {
+                        'primary': '#059669', // Emerald 600
+                        'secondary': '#facc15', // Amber 400
+                        'accent': '#fb7185', // Rose 400
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* 自定義動畫和樣式 */
+        .game-grid {
+            grid-template-columns: repeat(2, 1fr); /* 確保手機上有兩欄 */
+        }
+        .pose-cell {
+            transition: all 0.1s ease-in-out;
+            cursor: pointer;
+            user-select: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            position: relative; /* 為了圖片能正確顯示 */
+            overflow: hidden; /* 確保圖片不溢出 */
+            height: 200px; /* 固定高度，讓圖片顯示一致 */
+        }
+        .pose-cell:hover:not(.active) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        /* 圖片樣式 */
+        .pose-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 讓圖片填滿空間並裁剪 */
+            position: absolute;
+            top: 0;
+            left: 0;
+            filter: brightness(0.8); /* 讓文字更清晰 */
+            transition: filter 0.3s ease;
+        }
+        .pose-cell.highlight .pose-image,
+        .pose-cell.active .pose-image {
+            filter: brightness(1); /* 高亮時亮度恢復 */
+        }
+        .pose-name {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(0, 0, 0, 0.6); /* 半透明背景讓文字更突出 */
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            white-space: nowrap; /* 防止文字換行 */
+        }
+
+        /* 正在跳動/選取中的高亮效果 */
+        .highlight {
+            border-color: #facc15; /* Amber 400 */
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(250, 204, 20, 0.6);
+        }
+        /* 最終選定結果的高亮效果 */
+        .active {
+            border-color: #10b981; /* Emerald 500 */
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.8);
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from {
+                transform: scale(1.03);
+                opacity: 1;
+            }
+            to {
+                transform: scale(1.05);
+                opacity: 0.9;
+            }
+        }
+
+        .start-button {
+            transition: all 0.2s ease;
+        }
+        .start-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background-color: #a7f3d0; /* Emerald 200 */
+            transform: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans min-h-screen flex items-center justify-center p-4">
+
+    <div class="w-full max-w-lg bg-white p-6 rounded-3xl shadow-2xl border border-gray-100">
+        <h1 class="text-3xl font-bold text-center text-primary mb-2">瑜伽跳格子挑戰！</h1>
+        <p class="text-center text-gray-500 mb-6">點擊按鈕，看看你必須完成哪種瑜伽動作！</p>
+
+        <!-- 遊戲訊息區域 --><div id="message-box" class="bg-emerald-100 border-l-4 border-primary text-emerald-800 p-4 mb-6 rounded-lg shadow-inner text-center font-medium">
+            點擊下方按鈕開始遊戲。
+        </div>
+
+        <!-- 遊戲格子區域 (使用圖片) --><div id="game-container" class="game-grid grid gap-4 mb-8">
+            <!-- 格子會由 JavaScript 填充 --></div>
+
+        <!-- 控制按鈕 --><div class="flex justify-center">
+            <button id="start-button" onclick="startGame()" class="start-button bg-primary hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition duration-300 ease-in-out">
+                開始跳格子！
+            </button>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        // 1. 定義瑜伽動作圖片和名稱列表
+        const yogaPoses = [
+            { name: "金雞獨立", imageUrl: "02.jpg" }, // Image 1
+            { name: "給你好柚", imageUrl: "06.jpg" }, // Image 2
+            { name: "嫦娥奔柚", imageUrl: "07.jpg" }, // Image 3
+            { name: "少背柚", imageUrl: "01.jpg" }, // Image 4
+            { name: "肚肚柚柚", imageUrl: "03.jpg" }, // Image 5
+            { name: "柚柚高升", imageUrl: "05.jpg" }, // Image 6
+            { name: "台灣加油", imageUrl: "04.jpg" }  // Image 7
+                   ];
+
+        let intervalId = null;
+        let running = false;
+        const gameContainer = document.getElementById('game-container');
+        const startButton = document.getElementById('start-button');
+        const messageBox = document.getElementById('message-box');
+
+        // 2. 初始化遊戲格子 (使用圖片)
+        function renderGrid() {
+            gameContainer.innerHTML = '';
+            yogaPoses.forEach((pose, index) => {
+                const cell = document.createElement('div');
+                cell.id = `pose-${index}`;
+                cell.className = 'pose-cell flex flex-col items-center justify-center p-4 bg-white rounded-xl border-2 border-gray-200';
+                
+                cell.innerHTML = `
+                    <img src="${pose.imageUrl}" alt="${pose.name}" class="pose-image">
+                    <span class="pose-name">${pose.name}</span>
+                `;
+                gameContainer.appendChild(cell);
+            });
+        }
+
+        // 3. 遊戲主邏輯：開始跳格子
+        function startGame() {
+            if (running) return;
+            running = true;
+            startButton.disabled = true;
+            messageBox.className = 'bg-yellow-100 border-l-4 border-secondary text-yellow-800 p-4 mb-6 rounded-lg shadow-inner text-center font-medium';
+            messageBox.textContent = '格子正在跳動中... 準備好了嗎？';
+            
+            // 清除上次的結果高亮
+            document.querySelectorAll('.pose-cell').forEach(cell => {
+                cell.classList.remove('highlight', 'active');
+            });
+
+            const totalCells = yogaPoses.length;
+            let currentIndex = 0;
+            const speed = 100; // 毫秒，初始跳動速度
+
+            // 啟動跳動效果
+            intervalId = setInterval(() => {
+                // 移除前一個的高亮
+                if (currentIndex > 0) {
+                    document.getElementById(`pose-${currentIndex - 1}`).classList.remove('highlight');
+                } else if (currentIndex === 0 && totalCells > 0) {
+                    // 如果是第一個格子，需要移除上一個（也就是最後一個）的高亮
+                    document.getElementById(`pose-${totalCells - 1}`).classList.remove('highlight');
+                }
+
+                // 添加當前格子的高亮
+                const currentCell = document.getElementById(`pose-${currentIndex}`);
+                currentCell.classList.add('highlight');
+
+                // 循環到下一個格子
+                currentIndex = (currentIndex + 1) % totalCells;
+            }, speed);
+
+            // 隨機決定停止時間 (2 到 4 秒)
+            const stopTime = Math.random() * 2000 + 2000; // 2000ms to 4000ms
+
+            setTimeout(stopGame, stopTime);
+        }
+
+        // 4. 停止遊戲並顯示結果
+        function stopGame() {
+            clearInterval(intervalId);
+            
+            // 隨機選取最終結果
+            const finalIndex = Math.floor(Math.random() * yogaPoses.length);
+            const finalPose = yogaPoses[finalIndex];
+
+            // 確保最終結果被高亮顯示
+            // 由於 setInterval 可能停在中間，需要手動設定最終結果的高亮
+            document.querySelectorAll('.pose-cell').forEach(cell => {
+                cell.classList.remove('highlight', 'active');
+            });
+            
+            const finalCell = document.getElementById(`pose-${finalIndex}`);
+            finalCell.classList.add('active');
+
+            // 顯示結果訊息
+            messageBox.className = 'bg-green-100 border-l-4 border-green-500 text-green-800 p-4 mb-6 rounded-lg shadow-inner text-center font-medium';
+            messageBox.innerHTML = `
+                <span class="text-2xl font-extrabold">🎉 恭喜你！被選中的瑜伽動作是：${finalPose.name}</span>
+                <br>
+                <span class="text-lg">跟著圖片示範，一起完成這個動作吧！</span>
+            `;
+
+            // 重置狀態
+            running = false;
+            startButton.disabled = false;
+        }
+
+        // 頁面載入完成後執行
+        window.onload = renderGrid;
+    </script>
+</body>
+</html>
