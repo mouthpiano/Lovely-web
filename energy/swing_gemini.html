@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單擺與力學能守恆 (電腦版)</title>
+    
+    
+
+<script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 'Inter' 字體 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* 能量條的平滑過渡效果 */
+        .energy-bar-fill {
+            transition: width 0.1s linear;
+        }
+        /* 確保畫布高度能正確計算 (修改為 16:9) */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-7xl">
+        <h1 class="text-3xl font-bold text-center text-gray-900 mb-6">單擺力學能守恆模擬</h1>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+
+            <!-- 左側: 模擬畫布與控制 -->
+            <div class="lg:w-2/3 bg-white rounded-xl shadow-2xl p-4 overflow-hidden">
+                <!-- 能量顯示區 -->
+                <div class="mb-4 space-y-2">
+                    <div class="bg-gray-200 rounded-full h-8 flex items-center p-1 shadow-inner">
+                        <span class="text-xs font-medium text-gray-700 w-24 text-right pr-2 shrink-0">總力學能</span>
+                        <div id="total-energy-bar" class="flex-grow h-6 bg-red-100 rounded-full overflow-hidden relative">
+                            <div id="total-energy-fill" class="energy-bar-fill h-full bg-red-500 rounded-full" style="width: 100%;"></div>
+                            <span id="total-energy-text" class="absolute inset-0 text-center text-xs font-bold text-white leading-6" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);"></span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-200 rounded-full h-6 flex items-center p-1 shadow-inner">
+                        <span class="text-xs font-medium text-gray-700 w-24 text-right pr-2 shrink-0">動能 ($K$)</span>
+                        <div id="kinetic-energy-bar" class="flex-grow h-4 bg-blue-100 rounded-full overflow-hidden relative">
+                            <div id="kinetic-energy-fill" class="energy-bar-fill h-full bg-blue-500 rounded-full" style="width: 0%;"></div>
+                            <span id="kinetic-energy-text" class="absolute inset-0 text-center text-xs font-medium text-white leading-4" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);"></span>
+                        </div>
+                    </div>
+                    <div class="bg-gray-200 rounded-full h-6 flex items-center p-1 shadow-inner">
+                        <span class="text-xs font-medium text-gray-700 w-24 text-right pr-2 shrink-0">位能 ($U$)</span>
+                        <div id="potential-energy-bar" class="flex-grow h-4 bg-green-100 rounded-full overflow-hidden relative">
+                            <div id="potential-energy-fill" class="energy-bar-fill h-full bg-green-500 rounded-full" style="width: 100%;"></div>
+                            <span id="potential-energy-text" class="absolute inset-0 text-center text-xs font-medium text-white leading-4" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 畫布容器 -->
+                <div id="canvas-container" class="canvas-container rounded-xl border border-gray-300 shadow-inner">
+                    <canvas id="pendulum-canvas"></canvas>
+                </div>
+
+                <!-- 模擬控制按鈕 -->
+                <div class="flex justify-center items-center mt-6 space-x-3">
+                    <button id="btn-play" class="flex items-center justify-center px-6 py-2 bg-indigo-600 text-white font-semibold rounded-full shadow-lg hover:bg-indigo-700 transition duration-150 transform hover:scale-105">
+                        <svg id="play-icon" class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                        </svg>
+                        <span id="play-text">開始</span>
+                    </button>
+                    <button id="btn-pause" class="flex items-center justify-center px-6 py-2 bg-gray-300 text-gray-700 font-semibold rounded-full shadow-lg hover:bg-gray-400 transition duration-150 transform hover:scale-105">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1H8a1 1 0 01-1-1V8z" clip-rule="evenodd" />
+                        </svg>
+                        暫停
+                    </button>
+                    <button id="btn-reset" class="flex items-center justify-center px-6 py-2 bg-red-500 text-white font-semibold rounded-full shadow-lg hover:bg-red-600 transition duration-150 transform hover:scale-105">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.101 7H7a1 1 0 010 2H3a1 1 0 01-1-1V4a1 1 0 011-1h1zm12 11a1 1 0 01-1 1h-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 011.885-.666A5.002 5.002 0 0014.899 13H13a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-1 1h-1z" clip-rule="evenodd" />
+                        </svg>
+                        重置
+                    </button>
+                </div>
+            </div>
+
+            <!-- 右側: 參數設定與模式切換 -->
+            <div class="lg:w-1/3 space-y-6">
+                
+                <!-- 初始狀態設定 -->
+                <div class="p-4 bg-white rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-3 text-gray-800">單擺初始角度設定</h2> 
+                    <p class="text-sm text-gray-600 mb-4">拖曳擺錘或使用滑桿設定初始角度 $\theta_0$。</p>
+                    
+                    <div class="mb-4">
+                        <label for="initial-angle" class="block text-sm font-medium text-gray-700">初始角度 ($\theta_0$, 度): <span id="angle-value" class="font-bold text-indigo-600">60</span></label>
+                        <input type="range" id="initial-angle" min="0" max="80" step="0.1" value="60" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer range-lg">
+                    </div>
+                </div>
+
+                <!-- 參數設定 -->
+                <div class="p-4 bg-white rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-3 text-gray-800">模擬參數設定</h2>
+                    
+                    <div class="mb-4">
+                        <label for="pendulum-length" class="block text-sm font-medium text-gray-700">擺長 ($L$, 公尺): <span id="length-value" class="font-bold text-indigo-600">2.0</span></label>
+                        <input type="range" id="pendulum-length" min="1.0" max="4.0" step="0.1" value="2.0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="pendulum-mass" class="block text-sm font-medium text-gray-700">擺錘質量 ($m$, 公斤): <span id="mass-value" class="font-bold text-indigo-600">1.0</span></label>
+                        <input type="range" id="pendulum-mass" min="0.1" max="5.0" step="0.1" value="1.0" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="gravity" class="block text-sm font-medium text-gray-700">重力加速度 ($g$, $\text{m/s}^2$): <span id="gravity-value" class="font-bold text-indigo-600">9.8</span></label>
+                        <input type="range" id="gravity" min="1.0" max="20.0" step="0.1" value="9.8" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+                
+                <!-- 模式切換 -->
+                <div class="p-4 bg-white rounded-xl shadow-lg">
+                    <h2 class="text-xl font-semibold mb-3 text-gray-800">操作模式</h2>
+                    <div class="flex space-x-3">
+                        <button id="btn-mode-continuous" class="flex-1 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md transition duration-150 opacity-100">連續</button>
+                        <button id="btn-mode-step" class="flex-1 px-4 py-2 bg-gray-300 text-gray-700 font-semibold rounded-lg transition duration-150 opacity-70">分段</button>
+                    </div>
+                    <p class="mt-3 text-sm text-gray-600" id="mode-info">
+                        **連續模式**：模擬自動運行，點擊「播放」或「繼續」。
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 註釋 -->
+        <div class="mt-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 rounded-lg">
+            <p class="font-semibold">力學能守恆說明:</p>
+            <p class="text-sm">本模擬忽略空氣阻力，總力學能 ($E = K + U$) 應為定值。位能 $U$ 的零點設定在擺錘最低點。</p>
+        </div>
+
+    </div>
+
+<script type="module">
+    // 必要的 DOM 元素
+    const canvas = document.getElementById('pendulum-canvas');
+    const canvasContainer = document.getElementById('canvas-container');
+    const ctx = canvas.getContext('2d');
+    
+    // 控制面板元素
+    const initialAngleInput = document.getElementById('initial-angle');
+    const angleValueSpan = document.getElementById('angle-value');
+    const lengthInput = document.getElementById('pendulum-length');
+    const lengthValueSpan = document.getElementById('length-value');
+    const massInput = document.getElementById('pendulum-mass');
+    const massValueSpan = document.getElementById('mass-value');
+    const gravityInput = document.getElementById('gravity');
+    const gravityValueSpan = document.getElementById('gravity-value');
+    
+    const btnPlay = document.getElementById('btn-play');
+    const btnPause = document.getElementById('btn-pause');
+    const btnReset = document.getElementById('btn-reset');
+    const playText = document.getElementById('play-text');
+    const btnModeContinuous = document.getElementById('btn-mode-continuous');
+    const btnModeStep = document.getElementById('btn-mode-step');
+    const modeInfo = document.getElementById('mode-info');
+
+    // 能量顯示元素
+    const totalEnergyFill = document.getElementById('total-energy-fill');
+    const totalEnergyText = document.getElementById('total-energy-text');
+    const kineticEnergyFill = document.getElementById('kinetic-energy-fill');
+    const kineticEnergyText = document.getElementById('kinetic-energy-text');
+    const potentialEnergyFill = document.getElementById('potential-energy-fill');
+    const potentialEnergyText = document.getElementById('potential-energy-text');
+    
+    // --- 模擬參數 ---
+    let L = parseFloat(lengthInput.value); // 擺長 (m)
+    let m = parseFloat(massInput.value);   // 質量 (kg)
+    let g = parseFloat(gravityInput.value); // 重力加速度 (m/s^2)
+    let initialAngleDeg = parseFloat(initialAngleInput.value); // 初始角度 (度)
+    let initialAngleRad = (initialAngleDeg * Math.PI) / 180; // 初始角度 (弧度)
+
+    // --- 模擬狀態變數 ---
+    let theta = initialAngleRad;    // 當前角度 (弧度)
+    let omega = 0;              // 當前角速度 (rad/s)
+    let totalEnergy = 0;        // 總力學能 (J)
+    let potentialMax = 0;       // 最大位能 (用於能量條比例尺)
+    
+    let simulationState = 'preview'; // 'preview', 'running', 'paused', 'stopped'
+    let isStepping = false;          // 是否為分段模式
+    
+    // --- 繪圖參數 ---
+    let centerX; // 懸掛點 X 座標
+    let centerY; // 懸掛點 Y 座標
+    let pixelsPerMeter; // 像素/公尺 比例尺
+    const ballRadius = 15; // 擺錘半徑 (像素)
+    
+    let lastTime = 0;
+    const dt = 0.01; // 模擬時間步長 (s)
+    const renderRate = 1/60; // 渲染頻率 (s)
+    let timeAccumulator = 0;
+    
+    // --- 拖曳控制 ---
+    let isDragging = false;
+    
+    // --- 單位轉換與幾何計算 ---
+    
+    /**
+     * 重新計算畫布尺寸、中心點及比例尺。
+     * 應在載入時和 L 改變時呼叫。
+     */
+    function calculateGeometry() {
+        // 確保畫布尺寸為容器尺寸
+        const containerWidth = canvasContainer.clientWidth;
+        const containerHeight = canvasContainer.clientHeight;
+        canvas.width = containerWidth;
+        canvas.height = containerHeight;
+
+        centerX = canvas.width / 2;
+        
+        // 確保擺錘在最高點時 (theta=maxAngle) 不會超出畫布頂部
+        // 最高點 Y 座標: L - L * cos(maxAngle) + ballRadius
+        // 最低點 Y 座標: L + ballRadius
+        
+        // L 的最大長度為 4.0m
+        // 最小 L 為 1.0m
+        const maxL = 4.0;
+        const requiredHeight = maxL + ballRadius / 30; // 稍微多一點空間
+        
+        // 設置比例尺: maxL 佔畫布高度的 80%
+        pixelsPerMeter = (canvas.height * 0.8) / maxL;
+        
+        // 懸掛點 Y 座標: 留白 10%
+        centerY = canvas.height * 0.1;
+    }
+
+    /**
+     * 從極座標 (theta) 轉換為螢幕座標 (x, y)
+     * @param {number} angleRad - 角度 (弧度)
+     * @returns {{x: number, y: number}} 螢幕座標
+     */
+    function getBallCoords(angleRad) {
+        const x = centerX + L * pixelsPerMeter * Math.sin(angleRad);
+        const y = centerY + L * pixelsPerMeter * Math.cos(angleRad);
+        return { x, y };
+    }
+    
+    /**
+     * 從螢幕座標 (x, y) 轉換為極座標 (theta)
+     * @param {number} px - X 像素座標
+     * @param {number} py - Y 像素座標
+     * @returns {number} 角度 (弧度)
+     */
+    function getAngleFromCoords(px, py) {
+        const dx = px - centerX;
+        const dy = py - centerY;
+        // 使用 atan2 確保角度在正確的象限 (-PI/2 到 PI/2, 垂直向下為 0)
+        let angle = Math.atan2(dx, dy); 
+        // 限制角度在最大振幅內 (80度)
+        const maxAngleRad = (80 * Math.PI) / 180;
+        angle = Math.max(-maxAngleRad, Math.min(maxAngleRad, angle));
+        return angle;
+    }
+    
+    // --- 物理計算 ---
+    
+    /**
+     * 計算當前狀態的動能
+     * @returns {number} 動能 (J)
+     */
+    function calculateKineticEnergy() {
+        // 線速度 v = L * omega
+        const v = L * omega;
+        return 0.5 * m * v * v;
+    }
+
+    /**
+     * 計算當前狀態的位能
+     * 位能零點設定在最低點 (theta = 0)
+     * @returns {number} 位能 (J)
+     */
+    function calculatePotentialEnergy(angleRad) {
+        // 最低點高度: L * cos(0) = L
+        // 當前高度 (以懸點為原點): L * cos(theta)
+        // 相對高度 h = L * cos(0) - L * cos(theta) = L * (1 - cos(theta))
+        const h = L * (1 - Math.cos(angleRad));
+        return m * g * h;
+    }
+
+    /**
+     * 計算並設定總力學能
+     */
+    function calculateTotalEnergy() {
+        const K = calculateKineticEnergy();
+        const U = calculatePotentialEnergy(theta);
+        totalEnergy = K + U;
+        
+        // 計算最大位能，用於能量條比例尺
+        potentialMax = m * g * L * (1 - Math.cos(initialAngleRad));
+        
+        // 如果初始動能不為零，總能量將更高
+        if (totalEnergy > potentialMax) {
+             potentialMax = totalEnergy;
+        }
+        
+        // 確保 potentialMax 不為零
+        if (potentialMax < 1e-6) potentialMax = 1.0; 
+    }
+    
+    // --- 繪圖功能 ---
+    
+    /**
+     * 繪製擺錘
+     */
+    function drawPendulum(angleRad, x, y) {
+        // 繪製懸掛點
+        ctx.fillStyle = '#374151'; // 灰色
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 繪製繩索
+        ctx.strokeStyle = '#6B7280'; // 深灰色
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        // 繪製擺錘
+        ctx.fillStyle = '#EF4444'; // 紅色
+        ctx.beginPath();
+        ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 繪製擺錘邊框
+        ctx.strokeStyle = '#B91C1C';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // 繪製當前角度標記
+        ctx.fillStyle = '#10B981'; // 綠色
+        ctx.font = '14px Arial';
+        const angleDeg = (angleRad * 180 / Math.PI).toFixed(1);
+        ctx.fillText(`θ = ${angleDeg}°`, x + ballRadius + 5, y);
+    }
+    
+    /**
+     * 繪製參考線
+     */
+    function drawReferenceLines() {
+        // 繪製最低點參考線 (位能零點)
+        ctx.strokeStyle = '#4B5563'; // 深灰
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]); // 虛線
+        ctx.beginPath();
+        const lowestY = centerY + L * pixelsPerMeter;
+        ctx.moveTo(centerX - canvas.width / 2.5, lowestY);
+        ctx.lineTo(centerX + canvas.width / 2.5, lowestY);
+        ctx.stroke();
+        ctx.setLineDash([]); // 恢復實線
+        
+        // 標註位能零點
+        ctx.fillStyle = '#4B5563';
+        ctx.font = '14px Arial';
+        ctx.fillText('U = 0', centerX + canvas.width / 2.5 - 50, lowestY - 5);
+        
+        // 繪製平衡位置
+        ctx.strokeStyle = '#9CA3AF'; // 淺灰
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(centerX, lowestY);
+        ctx.stroke();
+    }
+    
+    /**
+     * 更新能量條顯示
+     */
+    function updateEnergyBars() {
+        const K = calculateKineticEnergy();
+        const U = calculatePotentialEnergy(theta);
+
+        // 總能量保持不變
+        const totalE = totalEnergy; 
+        
+        // 比例尺使用 potentialMax
+        const maxScale = potentialMax;
+
+        // 更新總能量
+        let totalE_ratio = (totalE / maxScale) * 100;
+        totalE_ratio = Math.min(100, totalE_ratio); // 限制在 100% 以內
+        totalEnergyFill.style.width = `${totalE_ratio}%`;
+        totalEnergyText.textContent = `${totalE.toFixed(3)} J`;
+
+        // 更新動能
+        const K_ratio = (K / maxScale) * 100;
+        kineticEnergyFill.style.width = `${K_ratio}%`;
+        kineticEnergyText.textContent = `${K.toFixed(3)} J`;
+        
+        // 更新位能
+        const U_ratio = (U / maxScale) * 100;
+        potentialEnergyFill.style.width = `${U_ratio}%`;
+        potentialEnergyText.textContent = `${U.toFixed(3)} J`;
+    }
+    
+    /**
+     * 主繪圖函式
+     */
+    function draw() {
+        // 清除畫布
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        drawReferenceLines();
+
+        // 取得當前擺錘位置
+        const { x, y } = getBallCoords(theta);
+        drawPendulum(theta, x, y);
+        
+        // 繪製最大振幅線 (初始位置)
+        const { x: initialX, y: initialY } = getBallCoords(initialAngleRad);
+        ctx.strokeStyle = 'rgba(16, 185, 129, 0.5)'; // 綠色半透明
+        ctx.lineWidth = 2;
+        ctx.setLineDash([2, 4]);
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(initialX, initialY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+    
+    // --- 模擬核心 ---
+    
+    /**
+     * 進行一步物理模擬 (使用歐拉法)
+     */
+    function stepSimulation() {
+        // 角加速度: alpha = - (g / L) * sin(theta)
+        const alpha = - (g / L) * Math.sin(theta);
+        
+        // 更新角速度: omega = omega + alpha * dt
+        omega = omega + alpha * dt;
+        
+        // 更新角度: theta = theta + omega * dt
+        theta = theta + omega * dt;
+        
+        // 確保角度不超過最大設定角度，但由於擺動模擬是自然限制的，這個限制主要用於拖曳
+        // 這裡不需要額外限制，讓物理自己運行
+        
+        // 更新能量顯示
+        updateEnergyBars();
+    }
+
+    /**
+     * 渲染迴圈
+     * @param {number} currentTime - 當前時間 (ms)
+     */
+    function animate(currentTime = 0) {
+        if (!lastTime) lastTime = currentTime;
+        const elapsed = (currentTime - lastTime) / 1000; // 逝去時間 (s)
+        lastTime = currentTime;
+        
+        // 累積時間，以固定步長更新物理
+        timeAccumulator += elapsed;
+        
+        if (simulationState === 'running') {
+            const numSteps = Math.floor(timeAccumulator / dt);
+            for (let i = 0; i < numSteps; i++) {
+                stepSimulation();
+            }
+            timeAccumulator -= numSteps * dt;
+            
+        } else if (simulationState === 'paused' && isStepping) {
+            // 分段模式下，每次點擊「下一步」才執行一次 stepSimulation
+            // 這裡的 animate 只是為了維持渲染，物理更新在 handlePlayPause 裡
+            timeAccumulator = 0; 
+        } else {
+            // 'preview' 或 'stopped'
+            timeAccumulator = 0; 
+        }
+        
+        // 渲染繪圖
+        draw();
+        
+        // 請求下一幀
+        requestAnimationFrame(animate);
+    }
+    
+    // --- 狀態/控制邏輯 ---
+    
+    /**
+     * 重置模擬狀態到初始設定
+     */
+    function resetSimulation() {
+        initialAngleDeg = parseFloat(initialAngleInput.value);
+        initialAngleRad = (initialAngleDeg * Math.PI) / 180;
+
+        L = parseFloat(lengthInput.value);
+        m = parseFloat(massInput.value);
+        g = parseFloat(gravityInput.value);
+        
+        theta = initialAngleRad;
+        omega = 0;
+        
+        calculateGeometry(); // 重新計算幾何 (L 可能改變)
+        calculateTotalEnergy(); // 重新計算總能量
+
+        simulationState = 'preview'; // 重置為預覽狀態
+        
+        // 更新按鈕狀態
+        btnPlay.disabled = false;
+        playText.textContent = isStepping ? "下一步" : "開始";
+        btnPause.disabled = true;
+
+        // 立即更新繪圖和能量條
+        draw();
+        updateEnergyBars();
+    }
+    
+    /**
+     * 處理播放/暫停/下一步邏輯
+     */
+    function handlePlayPause() {
+        if (isStepping) {
+            // 分段模式
+            if (simulationState === 'preview' || simulationState === 'stopped' || simulationState === 'paused') {
+                // 從靜止狀態開始或繼續
+                stepSimulation();
+                simulationState = 'paused'; // 執行一步後仍保持暫停狀態
+                btnPause.disabled = true; // 分段模式下，暫停按鈕無意義
+            }
+        } else {
+            // 連續模式
+            if (simulationState === 'preview' || simulationState === 'stopped') {
+                // 從靜止開始
+                simulationState = 'running';
+                playText.textContent = "播放中...";
+                btnPause.disabled = false;
+                lastTime = 0; // 重置時間，防止第一幀時間過長
+            } else if (simulationState === 'paused') {
+                // 繼續
+                simulationState = 'running';
+                playText.textContent = "播放中...";
+                btnPause.disabled = false;
+                lastTime = 0;
+            } else {
+                // 暫停 (連點播放按鈕時)
+                pauseContinuous();
+            }
+        }
+        updateButtonText();
+    }
+    
+    /**
+     * 連續模式下的暫停
+     */
+    function pauseContinuous() {
+        if (simulationState === 'running') {
+            simulationState = 'paused';
+            btnPause.disabled = true; // 暫停後不能再按暫停
+        }
+    }
+    
+    /**
+     * 更新播放按鈕文字
+     */
+    function updateButtonText() {
+        if (isStepping) {
+             playText.textContent = "下一步";
+        } else {
+            if (simulationState === 'paused') {
+                playText.textContent = "繼續";
+            } else if (simulationState === 'running') {
+                playText.textContent = "播放中...";
+            } else { // preview 或 stopped
+                playText.textContent = "開始";
+            }
+        }
+    }
+    
+    // --- 拖曳事件處理 ---
+
+    /**
+     * 拖曳時更新預覽狀態
+     * @param {number} newAngleRad - 新的角度 (弧度)
+     */
+    function updatePreviewFromDrag(newAngleRad) {
+        // 限制角度在 [0, 80度] 或 [-80, 80度]，取決於拖曳點
+        const maxAngleRad = (80 * Math.PI) / 180;
+        newAngleRad = Math.max(-maxAngleRad, Math.min(maxAngleRad, newAngleRad));
+
+        // 如果是 preview 或 stopped 狀態，才允許拖曳
+        if (simulationState === 'preview' || simulationState === 'stopped') {
+            theta = newAngleRad;
+            omega = 0; // 拖曳時角速度為零
+            
+            // 更新滑桿 (以絕對值顯示)
+            const newAngleDeg = Math.abs(newAngleRad) * 180 / Math.PI;
+            initialAngleInput.value = newAngleDeg.toFixed(1);
+            angleValueSpan.textContent = newAngleDeg.toFixed(1);
+            
+            // 更新初始角度參數
+            initialAngleDeg = newAngleDeg;
+            initialAngleRad = Math.abs(newAngleRad); 
+
+            // 重新計算總能量 (K=0, U由新角度決定)
+            calculateTotalEnergy();
+        }
+    }
+
+    function handleDragStart(event) {
+        event.preventDefault();
+        
+        if (simulationState === 'running') return; // 模擬運行時不允許拖曳
+
+        let rect = canvas.getBoundingClientRect();
+        let clientX = event.clientX || event.touches[0].clientX;
+        let clientY = event.clientY || event.touches[0].clientY;
+
+        const mx = clientX - rect.left;
+        const my = clientY - rect.top;
+
+        // 檢查是否點擊在擺錘上 (使用當前 theta 座標)
+        const { x: ballX, y: ballY } = getBallCoords(theta);
+        const distance = Math.sqrt((mx - ballX) ** 2 + (my - ballY) ** 2);
+
+        if (distance < ballRadius * 1.5) { // 允許稍微寬鬆的點擊範圍
+            isDragging = true;
+            canvasContainer.classList.add('dragging');
+            // 如果從暫停狀態拖曳，要確保回到 preview 狀態 (靜態初始設定)
+            simulationState = 'preview'; 
+            updateButtonText();
+        }
+    }
+
+    function handleDragMove(event) {
+        if (!isDragging) return;
+        event.preventDefault();
+        
+        let rect = canvas.getBoundingClientRect();
+        let clientX = event.clientX || event.touches[0].clientX;
+        let clientY = event.clientY || event.touches[0].clientY;
+
+        const mx = clientX - rect.left;
+        const my = clientY - rect.top;
+        
+        // 從像素座標轉換為角度
+        const newAngleRad = getAngleFromCoords(mx, my);
+        
+        // 僅更新初始角度的絕對值，並將 theta 設為該值的正或負
+        // 為了模擬擺動，我們應允許負角度 (左側)
+        
+        updatePreviewFromDrag(newAngleRad);
+    }
+
+    function handleDragEnd(event) {
+        if (!isDragging) return;
+        isDragging = false;
+        canvasContainer.classList.remove('dragging');
+        // 狀態已在 move 時更新，這裡不需要再做 setPreviewState
+    }
+
+    // 綁定滑鼠事件
+    canvas.addEventListener('mousedown', handleDragStart);
+    canvas.addEventListener('mousemove', handleDragMove);
+    canvas.addEventListener('mouseup', handleDragEnd);
+    canvas.addEventListener('mouseleave', handleDragEnd); 
+
+    // 綁定觸控事件
+    canvas.addEventListener('touchstart', handleDragStart);
+    canvas.addEventListener('touchmove', handleDragMove);
+    canvas.addEventListener('touchend', handleDragEnd);
+    canvas.addEventListener('touchcancel', handleDragEnd);
+
+    
+    // --- 事件監聽 ---
+    
+    // 參數變化
+    initialAngleInput.addEventListener('input', (e) => {
+        angleValueSpan.textContent = e.target.value;
+        resetSimulation(); // 角度變化，重置模擬
+    });
+    
+    lengthInput.addEventListener('input', (e) => {
+        lengthValueSpan.textContent = e.target.value;
+        resetSimulation(); // 擺長變化，重置模擬
+    });
+    
+    massInput.addEventListener('input', (e) => {
+        massValueSpan.textContent = e.target.value;
+        // 質量變化只影響 K, U, E 的絕對值，不影響擺動，但需要重算能量
+        // 由於 K=0, U由角度決定，只需重算總能量即可
+        L = parseFloat(lengthInput.value);
+        m = parseFloat(massInput.value);
+        g = parseFloat(gravityInput.value);
+        calculateTotalEnergy();
+    });
+    
+    gravityInput.addEventListener('input', (e) => {
+        gravityValueSpan.textContent = e.target.value;
+        // 重力變化影響擺動和能量，重置模擬
+        resetSimulation();
+    });
+    
+    // 控制按鈕
+    btnPlay.addEventListener('click', handlePlayPause);
+    btnPause.addEventListener('click', pauseContinuous);
+    btnReset.addEventListener('click', resetSimulation);
+    
+    // 模式切換
+    btnModeContinuous.addEventListener('click', () => {
+        isStepping = false;
+        // 更新按鈕樣式
+        btnModeContinuous.classList.replace('bg-gray-300', 'bg-indigo-600');
+        btnModeContinuous.classList.replace('text-gray-700', 'text-white');
+        btnModeContinuous.classList.replace('opacity-70', 'opacity-100');
+        btnModeContinuous.classList.add('shadow-md');
+
+        btnModeStep.classList.replace('bg-indigo-600', 'bg-gray-300');
+        btnModeStep.classList.replace('text-white', 'text-gray-700');
+        btnModeStep.classList.replace('opacity-100', 'opacity-70');
+        btnModeStep.classList.remove('shadow-md');
+        
+        // 更新資訊
+        modeInfo.innerHTML = `**連續模式**：模擬自動運行，點擊「播放」或「繼續」。`;
+
+        // 如果不是運行狀態，更新 Play 按鈕文字
+        if (simulationState !== 'running') {
+            updateButtonText();
+        }
+    });
+
+    btnModeStep.addEventListener('click', () => {
+        isStepping = true;
+        // 更新按鈕樣式
+        btnModeStep.classList.replace('bg-gray-300', 'bg-indigo-600');
+        btnModeStep.classList.replace('text-gray-700', 'text-white');
+        btnModeStep.classList.replace('opacity-70', 'opacity-100');
+        btnModeStep.classList.add('shadow-md');
+
+        btnModeContinuous.classList.replace('bg-indigo-600', 'bg-gray-300');
+        btnModeContinuous.classList.replace('text-white', 'text-gray-700');
+        btnModeContinuous.classList.replace('opacity-100', 'opacity-70');
+        btnModeContinuous.classList.remove('shadow-md');
+        
+        // 更新資訊
+        modeInfo.innerHTML = `**分段模式**：每次點擊「下一步」，模擬前進一個時間步 ($\Delta t=${dt}\text{s}$)。`;
+
+        // 更新 Play 按鈕文字
+        playText.textContent = "下一步";
+        // 切換到分段模式時，如果不是停止狀態，則自動暫停
+        if (simulationState === 'running') {
+            pauseContinuous();
+        }
+    });
+
+
+    // (修改) 延遲執行，確保畫布尺寸正確
+    window.addEventListener('load', () => {
+        calculateGeometry();
+        resetSimulation(); // 初始化所有狀態
+        window.addEventListener('resize', () => {
+            calculateGeometry();
+            draw(); // 視窗大小改變時重繪
+        });
+        animate(); // 開始渲染迴圈
+    });
+</script>
+</body>
+</html>

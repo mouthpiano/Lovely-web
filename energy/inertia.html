@@ -1,0 +1,1034 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>伽利略慣性實驗</title>
+    
+    
+
+<script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 'Inter' 字體 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* 能量條的平滑過渡效果 */
+        .energy-bar-fill {
+            transition: width 0.1s linear;
+        }
+        /* 確保畫布高度能正確計算 (修改為 16:9) */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            /* (修改) 增加游標樣式 */
+            cursor: grab;
+        }
+        .canvas-container.dragging {
+             cursor: grabbing;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* 用於切換按鈕的樣式 */
+        .mode-btn-active {
+            @apply bg-indigo-600 text-white shadow-md opacity-100;
+        }
+        .mode-btn-inactive {
+            @apply bg-gray-300 text-gray-700 hover:bg-indigo-200 opacity-70;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4 md:p-8">
+
+    
+
+<div class="w-full max-w-6xl bg-white rounded-2xl shadow-xl p-6 md:p-8">
+        
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">
+            伽利略慣性實驗與力學能守恆
+        </h1>
+
+        
+
+<div class="grid grid-cols-1 md:grid-cols-10 gap-6">
+
+            
+
+<div class="md:col-span-2 p-4 bg-gray-50 rounded-lg order-2 md:order-1">
+                
+                
+
+<!-- 移除模式選擇 -->
+
+                
+
+<h2 id="position-title" class="text-lg font-semibold text-center mb-4">選擇釋放高度 (左斜面)</h2>
+                
+                
+
+<div id="release-buttons" class="flex flex-col gap-2">
+                    <!-- 按鈕文字稍後用 JS 更新 -->
+                    <button id="btn-rel-h10" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">h ≈ 10.0m (對應 85°)</button>
+                    <button id="btn-rel-h5_5" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">h = 5.5m (對應 60°)</button>
+                    <button id="btn-rel-h1_5" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">h ≈ 1.5m (對應 30°)</button>
+                    <button id="btn-rel-h0" class="w-full text-sm bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition">h = 0m (最低點)</button>
+                 </div>
+            </div>
+
+            
+
+<div class="md:col-span-6 order-1 md:order-2">
+                <div class="canvas-container bg-gray-50 rounded-lg overflow-hidden border border-gray-200" id="canvasContainer">
+                    <canvas id="simulationCanvas"></canvas>
+                </div>
+                
+                
+
+<div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <div class="space-y-5">
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="font-medium text-blue-600">重力位能 (PE)</span>
+                                    <span id="peValue" class="font-mono text-blue-600">0.00 J</span>
+                                </div>
+                                <div class="w-full bg-blue-100 rounded-full h-3">
+                                    <div id="peBar" class="energy-bar-fill bg-blue-500 h-3 rounded-full" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="font-medium text-green-600">動能 (KE)</span>
+                                    <span id="keValue" class="font-mono text-green-600">0.00 J</span>
+                                </div>
+                                <div class="w-full bg-green-100 rounded-full h-3">
+                                    <div id="keBar" class="energy-bar-fill bg-green-500 h-3 rounded-full" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="font-bold text-gray-700">總力學能 (E)</span>
+                                    <span id="totalValue" class="font-mono font-bold text-gray-700">0.00 J</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-3">
+                                    <div class="bg-gray-700 h-3 rounded-full" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <hr class="my-4">
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                                <div class="text-sm text-gray-500">目前高度</div>
+                                <div id="heightValue" class="text-2xl font-bold font-mono text-gray-800">0.00 m</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-500">目前速度</div>
+                                <div id="velocityValue" class="text-2xl font-bold font-mono text-gray-800">0.00 m/s</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            
+
+<div class="md:col-span-2 p-4 bg-gray-50 rounded-lg order-3 md:order-3">
+                <div class="flex flex-col gap-4">
+                    
+                    
+
+<!-- 新增: 右斜面角度控制 -->
+                    <div>
+                        <h2 class="text-lg font-semibold text-center mb-4">設定右斜面角度</h2>
+                        <div class="flex flex-col gap-2 mb-4">
+                            <button id="btn-angle-85" class="text-sm py-2 px-4 rounded-lg transition mode-btn-inactive">85°</button>
+                            <button id="btn-angle-60" class="text-sm py-2 px-4 rounded-lg transition mode-btn-inactive">60°</button>
+                            <button id="btn-angle-30" class="text-sm py-2 px-4 rounded-lg transition mode-btn-inactive">30°</button>
+                            <button id="btn-angle-0" class="text-sm py-2 px-4 rounded-lg transition mode-btn-inactive">0° (水平)</button>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    
+
+<div>
+                        <h2 class="text-lg font-semibold text-center mb-4">播放控制</h2>
+                        <div class="flex flex-col gap-2 mb-4">
+                            <button id="btn-play" class="text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1"><path fill-rule="evenodd" d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm6.39-2.908a.75.75 0 0 1 .766.027l3.5 2.25a.75.75 0 0 1 0 1.262l-3.5 2.25A.75.75 0 0 1 8 12.25v-4.5a.75.75 0 0 1 .39-.658Z" clip-rule="evenodd" /></svg>
+                                <span id="play-text">開始</span>
+                            </button>
+                            <button id="btn-pause" class="text-sm bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1"><path fill-rule="evenodd" d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm5-2.25A.75.75 0 0 1 7.75 7h.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-4.5Zm4 0A.75.75 0 0 1 11.75 7h.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-4.5Z" clip-rule="evenodd" /></svg>
+                                <span>暫停</span>
+                            </button>
+                            <button id="btn-stop" class="text-sm bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1"><path fill-rule="evenodd" d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm5.25-1.75A.75.75 0 0 1 8 7.5h4a.75.75 0 0 1 .75.75v4a.75.75 0 0 1-.75.75H8a.75.75 0 0 1-.75-.75v-4Z" clip-rule="evenodd" /></svg>
+                                <span>停止 (歸零)</span>
+                            </button>
+                        </div>
+                    </div>
+            
+                    
+
+<div>
+                        <h2 class="text-lg font-semibold text-center mb-4">播放模式</h2>
+                        <div class="flex flex-col gap-2 mb-4">
+                            <button id="btn-mode-continuous" class="text-sm py-2 px-4 rounded-lg transition bg-indigo-600 text-white shadow-md opacity-100">
+                                連續擺動
+                            </button>
+                            <button id="btn-mode-step" class="text-sm py-2 px-4 rounded-lg transition bg-gray-300 text-gray-700 hover:bg-indigo-200 opacity-70">
+                                分段移動
+                            </button>
+                        </div>
+                    </div>
+
+                    
+
+</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // --- DOM 元素 ---
+        const canvasContainer = document.getElementById('canvasContainer');
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const peValueEl = document.getElementById('peValue');
+        const keValueEl = document.getElementById('keValue');
+        const totalValueEl = document.getElementById('totalValue');
+        const peBarEl = document.getElementById('peBar');
+        const keBarEl = document.getElementById('keBar');
+        const heightValueEl = document.getElementById('heightValue');
+        const velocityValueEl = document.getElementById('velocityValue');
+
+        // --- 播放控制元素 ---
+        const btnPlay = document.getElementById('btn-play');
+        const playText = document.getElementById('play-text');
+        const btnPause = document.getElementById('btn-pause');
+        const btnStop = document.getElementById('btn-stop');
+        const btnModeContinuous = document.getElementById('btn-mode-continuous');
+        const btnModeStep = document.getElementById('btn-mode-step');
+
+        // --- (新增) 右斜面角度控制按鈕 ---
+        const btnAngle85 = document.getElementById('btn-angle-85');
+        const btnAngle60 = document.getElementById('btn-angle-60');
+        const btnAngle30 = document.getElementById('btn-angle-30');
+        const btnAngle0 = document.getElementById('btn-angle-0');
+        const angleButtons = [btnAngle85, btnAngle60, btnAngle30, btnAngle0]; // 方便管理
+
+        // --- 物理常數與設定 ---
+        const m = 1;      // 質量 (kg)
+        const g = 10;     // 重力加速度 (m/s^2)
+        const L_meters = 11; // 參考擺長，用於計算高度
+        const degToRad = (deg) => (deg * Math.PI) / 180; 
+        const radToDeg = (rad) => (rad * 180) / Math.PI; 
+        const slowMotionFactor = 0.3; // (減更慢)
+        
+        const ballRadius = 15; // 小球半徑 (像素)
+        const leftSlopeAngleRad = degToRad(85); // 左斜面固定角度
+        let rightSlopeAngleRad = degToRad(85); // 右斜面角度 (可變)
+        let rightSlopeAngleDeg = 85; // 記錄度數用於按鈕狀態
+
+        // --- 關鍵高度點 (來自單擺) ---
+        const keyHeights = [
+            { h: L_meters * (1 - Math.cos(degToRad(85))), label: 'h≈10.0m' }, // ~10.0
+            { h: L_meters * (1 - Math.cos(degToRad(60))), label: 'h=5.5m' },  // 5.5
+            { h: L_meters * (1 - Math.cos(degToRad(30))), label: 'h≈1.5m' },  // ~1.5
+            { h: 0, label: 'h=0m' } // 0
+        ];
+        // 轉換成方便使用的左右兩側點
+        let keyPoints = []; // 結構: { x, y, h, label, side: 'left'/'right' }
+
+        // --- 動畫狀態變數 ---
+        let animationFrameId = null; 
+        let E_total = 0;             
+        let lastTimestamp = 0; // 上一幀的「真實時間戳」(ms)
+        let simulationState = 'stopped'; // 'stopped', 'preview', 'running', 'paused'
+        let isStepping = false;          
+        let currentKeyPointIndex = -1; // -1 表示不在關鍵點上
+        let stepDirection = 1;         // +1 往右 (x 增加), -1 往左 (x 減少)
+        let ball = { x: 0, y: 0, h: 0, v: 0, onSlope: 'left' }; // 小球狀態
+
+        let maxReachableHeight = 0; // 小球能達到的最大高度
+        let isDragging = false; // (新增) 拖曳狀態
+
+        // --- (新增) 像素比例尺 ---
+        let pixelsPerMeterY = 1; // 預設值
+
+        // --- 樣式切換輔助函數 ---
+        const activeClasses = ['bg-indigo-600', 'text-white', 'shadow-md', 'opacity-100'];
+        const inactiveClasses = ['bg-gray-300', 'text-gray-700', 'hover:bg-indigo-200', 'opacity-70'];
+
+        function setButtonActive(btn) {
+            btn.classList.remove(...inactiveClasses);
+            btn.classList.add(...activeClasses);
+        }
+        function setButtonInactive(btn) {
+            btn.classList.remove(...activeClasses);
+            btn.classList.add(...inactiveClasses);
+        }
+
+        // --- 畫布設定 ---
+        let canvasWidth, canvasHeight;
+        let vertexX, vertexY; // V 型谷底座標
+        let leftEndX, leftEndY, rightEndX, rightEndY; // 斜面端點
+
+        // 更新 UI 顯示 (格式化數字)
+        function updateUI(h, v, pe, ke, E_total) {
+            // ... (此函數不需修改) ...
+            heightValueEl.textContent = `${h.toFixed(1)} m`;
+            velocityValueEl.textContent = `${v.toFixed(1)} m/s`;
+            peValueEl.textContent = `${pe.toFixed(1)} J`;
+            keValueEl.textContent = `${ke.toFixed(1)} J`;
+            totalValueEl.textContent = `${E_total.toFixed(1)} J (守恆!)`;
+            const pePercent = E_total > 0 ? (pe / E_total) * 100 : 0;
+            const kePercent = E_total > 0 ? (ke / E_total) * 100 : 0;
+            peBarEl.style.width = `${pePercent}%`;
+            keBarEl.style.width = `${kePercent}%`;
+        }
+        
+        // --- (修改) 繪製軌道與標示點 ---
+        function drawTrackAndLabels() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            // 繪製斜面
+            ctx.beginPath();
+            ctx.moveTo(leftEndX, leftEndY);
+            ctx.lineTo(vertexX, vertexY);
+            ctx.lineTo(rightEndX, rightEndY);
+            ctx.strokeStyle = '#374151'; // gray-700
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // 如果右邊是水平
+            if (rightSlopeAngleRad < degToRad(0.1)) {
+                ctx.beginPath();
+                ctx.moveTo(vertexX, vertexY);
+                ctx.lineTo(canvasWidth, vertexY); // 畫一條水平線到底
+                ctx.strokeStyle = '#374151'; 
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+
+            // 繪製標示點和文字
+            ctx.font = 'bold 15px "Inter", "Noto Sans TC", sans-serif'; 
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#1f2937'; // gray-900
+
+            keyPoints.forEach(p => {
+                // 畫點
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 4, 0, 2 * Math.PI);
+                ctx.fillStyle = '#9ca3af'; // gray-400
+                ctx.fill();
+
+                // 計算速度
+                const pe_point = m * g * p.h;
+                let ke_point = E_total - pe_point;
+                if (ke_point < 0.05) ke_point = 0; 
+                const v_point = Math.sqrt(ke_point * 2 / m);
+
+                // 調整文字位置
+                let textX = p.x;
+                let textY_h = p.y - 25; // 預設在點上方
+                let textY_v = p.y - 10;
+                const verticalOffset = 15;
+
+                if (p.side === 'left') {
+                    textX = p.x - 40;
+                     ctx.textAlign = 'right'; 
+                } else if (p.side === 'right') {
+                    // (修改) 標示移到下方
+                    textX = p.x + 40; // 往右移
+                    ctx.textAlign = 'left'; 
+                    textY_h = p.y + 20; 
+                    textY_v = p.y + 35; 
+                } else { // 最低點
+                    textY_h = p.y + 20;
+                    textY_v = p.y + 35;
+                    ctx.textAlign = 'center';
+                }
+                 // 防止文字超出邊界
+                 textX = Math.max(30, Math.min(canvasWidth - 40, textX)); // 右邊界再縮一點
+
+                // 顯示文字
+                ctx.fillStyle = '#1f2937'; 
+                ctx.fillText(`h: ${p.h.toFixed(1)}m`, textX, textY_h);
+                ctx.fillText(`v: ${v_point.toFixed(1)}m/s`, textX, textY_v);
+            });
+        }
+        
+        // --- (修改) 繪製小球 ---
+        function drawBall(x, y) {
+             // 先畫軌道和標籤 (作為背景)
+            drawTrackAndLabels();
+            
+            // 畫小球
+            ctx.beginPath();
+            ctx.arc(x, y, ballRadius, 0, 2 * Math.PI);
+            ctx.fillStyle = 'royalblue';
+            ctx.fill();
+            ctx.strokeStyle = 'darkblue';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        // --- (修改) 計算軌道幾何 ---
+        function calculateTrackGeometry() {
+            canvasWidth = canvas.clientWidth;
+            canvasHeight = canvas.clientHeight;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+
+            // (修改) 谷底 X 移到 20%, Y 移到 90%
+            vertexX = canvasWidth * 0.2; 
+            vertexY = canvasHeight * 0.9; 
+
+            // (修改) 斜坡高度改為 75%
+            const leftSlopePixelHeight = canvasHeight * 0.75; 
+            const leftSlopeLength = leftSlopePixelHeight / Math.sin(leftSlopeAngleRad); 
+            
+            leftEndX = Math.max(0 + ballRadius, vertexX - leftSlopeLength * Math.cos(leftSlopeAngleRad));
+            leftEndY = vertexY - leftSlopePixelHeight; // 頂點 Y (canvasHeight * 0.15)
+
+
+            // 計算像素比例尺
+            if (keyHeights[0].h > 0) {
+                 pixelsPerMeterY = (vertexY - leftEndY) / keyHeights[0].h; 
+            } else {
+                 pixelsPerMeterY = canvasHeight * 0.75 / 10; // 備用比例尺
+            }
+
+
+            // 右斜面端點 (可變角度)
+            let rightSlopeLength;
+            if (rightSlopeAngleRad < degToRad(0.1)) { // 水平
+                rightEndX = canvasWidth; // 延伸到畫布邊緣
+                rightEndY = vertexY;
+            } else {
+                 // 讓左右最高點視覺上同高
+                 const targetPixelHeight = vertexY - leftEndY; 
+                 rightSlopeLength = targetPixelHeight / Math.sin(rightSlopeAngleRad);
+                 // 限制長度避免超出畫布右側
+                 const maxHorizontal = canvasWidth - vertexX;
+                 const maxLengthByWidth = maxHorizontal / Math.cos(rightSlopeAngleRad);
+                 // (修改) 確保有足夠空間
+                 rightSlopeLength = Math.min(rightSlopeLength, maxLengthByWidth * 0.98); 
+
+                 rightEndX = vertexX + rightSlopeLength * Math.cos(rightSlopeAngleRad);
+                 rightEndY = vertexY - rightSlopeLength * Math.sin(rightSlopeAngleRad);
+            }
+             
+             // 計算關鍵點座標
+            keyPoints = [];
+            keyHeights.forEach(kh => {
+                 const h_pixels = kh.h * pixelsPerMeterY; 
+                 // 左側點
+                 if (kh.h > 1e-6) { 
+                     const sLeft_pixels = h_pixels / Math.sin(leftSlopeAngleRad);
+                     const pX = vertexX - sLeft_pixels * Math.cos(leftSlopeAngleRad);
+                     const pY = vertexY - h_pixels;
+                     if (pX >= leftEndX - 5 && pY >= leftEndY - 5) { // 修正 y 檢查
+                         keyPoints.push({
+                             x: pX, y: pY, 
+                             h: kh.h, label: kh.label, side: 'left'
+                         });
+                     }
+                 } 
+                 // h=0 點 (最低點)
+                 if (kh.h < 1e-6) { 
+                    keyPoints.push({ x: vertexX, y: vertexY, h: 0, label: kh.label, side: 'center' });
+                 }
+                 // 右側點 
+                 if (rightSlopeAngleRad > degToRad(0.1) && kh.h > 1e-6) {
+                     const sRight_pixels = h_pixels / Math.sin(rightSlopeAngleRad);
+                     const xRight = vertexX + sRight_pixels * Math.cos(rightSlopeAngleRad);
+                     const yRight = vertexY - h_pixels; 
+                      // (修改) 放寬邊界檢查，確保 85 度點能被繪製
+                      if (xRight <= rightEndX + 5 && yRight >= rightEndY - 5) { 
+                           keyPoints.push({
+                             x: xRight, y: yRight, h: kh.h, label: kh.label, side: 'right'
+                         });
+                      }
+                 }
+            });
+             keyPoints.sort((a, b) => a.x - b.x); 
+        }
+
+        // 處理畫布響應式
+        function resizeCanvas() {
+            calculateTrackGeometry(); 
+            if (simulationState === 'preview' || simulationState === 'stopped') {
+                 setPreviewState(ball.h); 
+            } else if (simulationState === 'paused' || simulationState === 'stepping'){
+                 drawBall(ball.x, ball.y);
+                 updateUI(ball.h, ball.v, m*g*ball.h, E_total - m*g*ball.h, E_total);
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+
+        // --- (修改) 統一的預覽更新函數 ---
+        function updatePreviewState(h, x, y, slope) {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            simulationState = 'preview';
+
+            maxReachableHeight = h; 
+            E_total = m * g * h; 
+            
+            ball.x = x;
+            ball.y = y;
+            ball.h = h;
+            ball.v = 0;
+            ball.onSlope = slope;
+
+            // 尋找對應的關鍵點 index
+            let closestIndex = -1;
+            let minDist = Infinity;
+            keyPoints.forEach((p, i) => {
+                const dist = Math.sqrt((p.x - ball.x)**2 + (p.y - ball.y)**2); 
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestIndex = i;
+                }
+            });
+            currentKeyPointIndex = closestIndex;
+            
+            // 設定初始方向
+            if (h < 1e-6) {
+                stepDirection = 1; // 在最低點，預設往右
+            } else if (slope === 'left') {
+                stepDirection = 1; // 在左坡，往右滾
+            } else {
+                stepDirection = -1; // 在右坡，往左滾
+            }
+
+            lastTimestamp = 0; 
+            drawBall(ball.x, ball.y); 
+            updateUI(h, 0, E_total, 0, E_total);
+
+            playText.textContent = "開始";
+            btnPlay.classList.remove('bg-green-600');
+        }
+
+        // --- (修改) 按鈕的 setPreviewState ---
+        function setPreviewState(startHeight) {
+             let startX, startY;
+             if (startHeight < 1e-6) { 
+                 startX = vertexX;
+                 startY = vertexY;
+             } else {
+                 const h_pixels = startHeight * pixelsPerMeterY;
+                 const s_pixels = h_pixels / Math.sin(leftSlopeAngleRad);
+                 startX = vertexX - s_pixels * Math.cos(leftSlopeAngleRad);
+                 startY = vertexY - h_pixels; 
+             }
+             updatePreviewState(startHeight, startX, startY, 'left');
+        }
+
+
+        // --- (修改) 動畫循環 - 重構版 v14 (最終修正) ---
+         function animate(timestamp) {
+            if (simulationState !== 'running') return;
+
+            // --- 1. Time Calculation ---
+            if (!lastTimestamp) { // 第一次呼叫 animate 時
+                lastTimestamp = timestamp;
+                animationFrameId = requestAnimationFrame(animate);
+                return;
+            }
+            const elapsedRealTime = (timestamp - lastTimestamp) / 1000;
+            const dt = Math.max(1e-5, Math.min(0.05, elapsedRealTime * slowMotionFactor)); 
+            lastTimestamp = timestamp; 
+            // console.log(`ts:${timestamp.toFixed(0)} dt:${dt.toFixed(5)}`);
+
+
+            // --- 2. Calculate Speed ---
+            ball.h = Math.max(0, (vertexY - ball.y) / pixelsPerMeterY);
+            const currentPE = m * g * ball.h;
+            let currentKE = E_total - currentPE;
+            let currentSpeed;
+            
+            // (*** 關鍵修復 ***)
+            // 避免浮點數誤差導致 KE < 0，並在最高點給予一個微小的初始速度
+             if (currentKE < 0.01) { // 簡化：如果 KE 小於 0.01
+                 if (E_total > 0.01 && Math.abs(ball.h - maxReachableHeight) < 0.1 && ball.v < 0.1) { // 且在最高點附近且速度已接近 0
+                     currentKE = 0.01; // 給予一個微小的動能
+                     currentSpeed = Math.sqrt(currentKE * 2 / m);
+                     // console.log("Applying nudge!");
+                 } else {
+                     currentKE = 0;
+                     currentSpeed = 0;
+                 }
+             } else {
+                 currentSpeed = Math.sqrt(currentKE * 2 / m);
+             }
+            ball.v = currentSpeed; 
+            // console.log(`  h:${ball.h.toFixed(2)} v:${ball.v.toFixed(2)} dir:${stepDirection} slope:${ball.onSlope}`);
+
+            
+            // --- 3. Calculate Displacement ---
+            const ds_pixels = currentSpeed * pixelsPerMeterY * dt; 
+            if (ds_pixels < 1e-4) { 
+                 // console.log("ds_pixels too small, skipping position update.");
+                 // 檢查是否因為速度為0而卡住
+                 if (currentSpeed < 0.01 && ball.h < maxReachableHeight - 0.1 && E_total > 0.01) {
+                      // 速度為0，但不在最高點 (例如在谷底)
+                      // 這種情況不應該發生，但作為保險，我們強制給一點速度
+                      // console.log("Stuck at bottom? Forcing small speed.");
+                      currentSpeed = 0.1; // 強制給一個小速度
+                 } else {
+                      animationFrameId = requestAnimationFrame(animate); 
+                      return;
+                 }
+            }
+
+
+            // --- 4. Update Position (Direct Application) ---
+            let currentSlopeAngle;
+            let dx_component, dy_component; 
+            let tentativeX = ball.x;
+            let tentativeY = ball.y;
+
+            if (ball.onSlope === 'left') {
+                currentSlopeAngle = leftSlopeAngleRad;
+                dx_component = Math.cos(currentSlopeAngle);
+                dy_component = Math.sin(currentSlopeAngle);
+                
+                tentativeX += dx_component * ds_pixels * stepDirection;
+                tentativeY += dy_component * ds_pixels * stepDirection; 
+
+                // Check vertex crossing
+                if (stepDirection === 1 && tentativeX >= vertexX) {
+                    ball.x = vertexX; ball.y = vertexY; ball.onSlope = 'right';
+                } 
+                // Check left end
+                else if (stepDirection === -1 && tentativeX <= leftEndX) {
+                     ball.x = leftEndX; ball.y = leftEndY; ball.h = maxReachableHeight; ball.v = 0;
+                     stepDirection = 1; // Bounce
+                     pauseContinuous(); drawBall(ball.x,ball.y); updateUI(ball.h, 0, 0, E_total, E_total); return;
+                } else {
+                     ball.x = tentativeX; ball.y = tentativeY;
+                }
+            } else { // onSlope === 'right'
+                currentSlopeAngle = rightSlopeAngleRad;
+                if (currentSlopeAngle < degToRad(0.1)) { // Horizontal
+                     tentativeX += ds_pixels * stepDirection; // Direction should be 1
+                     tentativeY = vertexY;
+                     if (tentativeX > canvasWidth + ballRadius) { stopSimulation(); return; }
+                     ball.x = tentativeX; ball.y = tentativeY; ball.h = 0;
+                     stepDirection = 1;
+                } else { // Sloped right
+                    dx_component = Math.cos(currentSlopeAngle);
+                    dy_component = Math.sin(currentSlopeAngle);
+                    
+                    tentativeX += dx_component * ds_pixels * stepDirection;
+                    tentativeY -= dy_component * ds_pixels * stepDirection; // +1 up(y-), -1 down(y+)
+
+                    // Check vertex crossing
+                    if (stepDirection === -1 && tentativeX <= vertexX) { 
+                         ball.x = vertexX; ball.y = vertexY; ball.onSlope = 'left';
+                    } 
+                    // Check right end
+                    else if (stepDirection === 1 && (tentativeX >= rightEndX || tentativeY <= rightEndY)) {
+                         ball.x = rightEndX; ball.y = rightEndY; ball.h = Math.max(0, (vertexY - ball.y) / pixelsPerMeterY); ball.v = 0;
+                         stepDirection = -1; // Bounce
+                         pauseContinuous(); drawBall(ball.x,ball.y); updateUI(ball.h, 0, 0, E_total, E_total); return;
+                    } else {
+                         ball.x = tentativeX; ball.y = tentativeY;
+                    }
+                }
+            }
+
+            // --- 5. Final Recalculation & Drawing ---
+            ball.h = Math.max(0, (vertexY - ball.y) / pixelsPerMeterY);
+            // 檢查是否因為浮點誤差稍微超過了最大高度
+            if (ball.h > maxReachableHeight) {
+                 ball.h = maxReachableHeight;
+                 ball.y = vertexY - ball.h * pixelsPerMeterY;
+                 // 根據 y 修正 x
+                 if (ball.onSlope === 'left') ball.x = vertexX - (vertexY - ball.y) / Math.tan(leftSlopeAngleRad);
+                 else if (rightSlopeAngleRad > degToRad(0.1)) ball.x = vertexX + (vertexY - ball.y) / Math.tan(rightSlopeAngleRad);
+            }
+
+            const finalPE = m * g * ball.h;
+            let finalKE = E_total - finalPE;
+            if (finalKE < 0.01) finalKE = 0; 
+            ball.v = Math.sqrt(finalKE * 2 / m); 
+
+            drawBall(ball.x, ball.y);
+            updateUI(ball.h, ball.v, finalPE, finalKE, E_total);
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // --- 播放控制功能 ---
+        function playContinuous() {
+            if (simulationState === 'running') return; 
+            if (E_total < 0.01 && Math.abs(ball.y - vertexY) < 1) return; 
+
+            // (修改) 確保 lastTimestamp 被正確初始化，並設定初始方向
+            lastTimestamp = 0; // 重置時間戳，將在 animate 第一幀設定
+            if (simulationState !== 'paused') { // Starting fresh (stopped, preview)
+                 // 設定初始方向
+                 if (Math.abs(ball.y - vertexY) < 1) { // At vertex
+                      stepDirection = 1; // Default right
+                 } else if (ball.onSlope === 'left') {
+                      stepDirection = 1; // Start down/right
+                 } else { // onSlope === 'right'
+                      stepDirection = -1; // Start down/left
+                 }
+            } 
+            // If resuming from paused, keep the current stepDirection
+
+            simulationState = 'running'; 
+            playText.textContent = "播放";
+            btnPlay.classList.add('bg-green-600');
+            animationFrameId = requestAnimationFrame(animate); 
+        }
+
+        function pauseContinuous() {
+             if (simulationState !== 'running') return; 
+             simulationState = 'paused';
+             cancelAnimationFrame(animationFrameId);
+             lastTimestamp = 0; // Reset timestamp
+             playText.textContent = "繼續";
+             btnPlay.classList.remove('bg-green-600');
+             // console.log("Paused.");
+        }
+
+        function stopSimulation() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            simulationState = 'stopped';
+            lastTimestamp = 0; // Clear timestamp
+            setPreviewState(0); // Reset to 0m
+            btnPlay.classList.remove('bg-green-600');
+            // console.log("Stopped and reset.");
+        }
+
+        // --- (修改) 分步前進 ---
+        function stepForward() {
+            if (simulationState === 'running') {
+                 pauseContinuous(); 
+            }
+            if (E_total === 0 && ball.h < 1e-6) return; // 沒能量且在谷底不移動
+
+            simulationState = 'stepping'; 
+            playText.textContent = "下一步";
+            btnPlay.classList.remove('bg-green-600');
+
+            // 找到所有能量允許到達的點
+            const reachablePoints = keyPoints.filter(p => p.h <= maxReachableHeight + 0.01); 
+            if (reachablePoints.length === 0) return; 
+
+            // 找到當前點在 reachablePoints 中的 index (基於像素距離)
+             let currentIndexInReachable = -1;
+             let minDist = Infinity;
+             reachablePoints.forEach((p, i) => {
+                 const dist = Math.sqrt((p.x - ball.x)**2 + (p.y - ball.y)**2);
+                 if (dist < minDist) {
+                     minDist = dist;
+                     currentIndexInReachable = i;
+                 }
+             });
+              // 容錯處理：如果非常接近某點，就認定為該點
+              let nextIndexInReachable;
+             if(minDist > 5) { // 如果距離任何點都太遠 (可能是動畫中途暫停)
+                  // 嘗試根據目前在哪個斜坡和 stepDirection 猜測下一個點
+                  const centerIndex = reachablePoints.findIndex(p => p.side === 'center');
+                   if (centerIndex === -1) { centerIndex = Math.floor(reachablePoints.length / 2); } // Fallback
+
+                  if (stepDirection === 1) { // Moving right
+                      // Find the first reachable point to the right of current ball.x
+                      nextIndexInReachable = reachablePoints.findIndex(p => p.x > ball.x + 1);
+                      if (nextIndexInReachable === -1) { // If none found, must be at the rightmost point or beyond
+                          nextIndexInReachable = reachablePoints.length - 1;
+                          stepDirection = -1; // Turn back
+                      }
+                  } else { // Moving left
+                       // Find the last reachable point to the left of current ball.x
+                       let foundIdx = -1;
+                       for(let i = reachablePoints.length - 1; i >= 0; i--) {
+                           if(reachablePoints[i].x < ball.x - 1) {
+                               foundIdx = i;
+                               break;
+                           }
+                       }
+                        if (foundIdx === -1) { // If none found, must be at leftmost point or beyond
+                           nextIndexInReachable = 0;
+                           stepDirection = 1; // Turn back
+                        } else {
+                            nextIndexInReachable = foundIdx;
+                        }
+                  }
+
+             } else { // Close to a key point, proceed normally
+                  // 正常判斷方向
+                 if (currentIndexInReachable === 0 && stepDirection === -1) {
+                     stepDirection = 1; // 到最左邊，反彈
+                 } else if (currentIndexInReachable === reachablePoints.length - 1 && stepDirection === 1) {
+                     stepDirection = -1; // 到最右邊，反彈
+                 }
+                 // 計算下一個 index
+                 nextIndexInReachable = currentIndexInReachable + stepDirection;
+             }
+
+              // 確保 index 在範圍內
+              nextIndexInReachable = Math.max(0, Math.min(reachablePoints.length - 1, nextIndexInReachable));
+
+
+            // 取得目標點
+            const targetPoint = reachablePoints[nextIndexInReachable];
+
+             // 更新球的狀態
+             ball.x = targetPoint.x;
+             ball.y = targetPoint.y;
+             ball.h = targetPoint.h;
+             const pe = m * g * ball.h;
+             let ke = E_total - pe;
+             if (ke < 0.05) ke = 0;
+             ball.v = Math.sqrt(ke * 2 / m);
+              // 更新 onSlope (根據目標點)
+              ball.onSlope = targetPoint.side === 'center' ? (stepDirection === 1 ? 'right' : 'left') : targetPoint.side;
+              currentKeyPointIndex = keyPoints.findIndex(p => p.x === targetPoint.x && p.y === targetPoint.y); // 更新全域 index
+
+
+            // 繪製並更新 UI
+            drawBall(ball.x, ball.y);
+            updateUI(ball.h, ball.v, pe, ke, E_total);
+        }
+
+        // --- 綁定釋放按鈕事件 ---
+        document.getElementById('btn-rel-h10').addEventListener('click', () => setPreviewState(keyHeights[0].h));
+        document.getElementById('btn-rel-h5_5').addEventListener('click', () => setPreviewState(keyHeights[1].h));
+        document.getElementById('btn-rel-h1_5').addEventListener('click', () => setPreviewState(keyHeights[2].h));
+        document.getElementById('btn-rel-h0').addEventListener('click', () => setPreviewState(0));
+
+
+        // --- 綁定播放控制事件 ---
+        btnPlay.addEventListener('click', () => {
+            if (isStepping) {
+                stepForward();
+            } else {
+                playContinuous();
+            }
+        });
+        btnPause.addEventListener('click', pauseContinuous);
+        btnStop.addEventListener('click', stopSimulation);
+
+        // --- 綁定播放模式切換 ---
+        btnModeContinuous.addEventListener('click', () => {
+            isStepping = false;
+            setButtonActive(btnModeContinuous);
+            setButtonInactive(btnModeStep);
+            if (simulationState === 'paused') playText.textContent = "繼續";
+            else if (simulationState === 'running') playText.textContent = "播放";
+            else playText.textContent = "開始";
+        });
+        btnModeStep.addEventListener('click', () => {
+            isStepping = true;
+            setButtonActive(btnModeStep);
+            setButtonInactive(btnModeContinuous);
+            playText.textContent = "下一步";
+            if (simulationState === 'running') pauseContinuous();
+        });
+
+        // --- (新增) 綁定右斜面角度切換 ---
+        function setRightSlope(deg) {
+            // 記錄當前高度，以便稍後恢復
+            const currentPreviewHeight = ball.h; 
+            
+            rightSlopeAngleDeg = deg;
+            rightSlopeAngleRad = degToRad(deg);
+            // 更新按鈕狀態
+            angleButtons.forEach(btn => {
+                if (parseInt(btn.id.split('-')[2]) === deg) {
+                    setButtonActive(btn);
+                } else {
+                    setButtonInactive(btn);
+                }
+            });
+            
+            // 停止模擬，重新計算軌道，然後重設預覽
+            stopSimulation(); // 這會將球重置到 h=0
+            calculateTrackGeometry(); // 使用新角度計算軌道
+            setPreviewState(currentPreviewHeight); // 用之前的高度重新設定預覽狀態
+
+        }
+
+        btnAngle85.addEventListener('click', () => setRightSlope(85));
+        btnAngle60.addEventListener('click', () => setRightSlope(60));
+        btnAngle30.addEventListener('click', () => setRightSlope(30));
+        btnAngle0.addEventListener('click', () => setRightSlope(0));
+
+
+        // --- (新增) 拖曳功能 ---
+        // (isDragging 在最上面宣告了)
+        
+        function getRelativeCoords(event) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (event.touches) {
+                 // 阻止頁面滾動
+                event.preventDefault();
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        // (新增) 統一的預覽更新函數
+        function updatePreviewFromDrag(h, x, y, slope) {
+             if (animationFrameId) cancelAnimationFrame(animationFrameId);
+             simulationState = 'preview';
+
+             maxReachableHeight = h; 
+             E_total = m * g * h; 
+            
+             ball.x = x;
+             ball.y = y;
+             ball.h = h;
+             ball.v = 0;
+             ball.onSlope = slope;
+
+             // 尋找對應的關鍵點 index
+             let closestIndex = -1;
+             let minDist = Infinity;
+             keyPoints.forEach((p, i) => {
+                 const dist = Math.sqrt((p.x - ball.x)**2 + (p.y - ball.y)**2); 
+                 if (dist < minDist) {
+                     minDist = dist;
+                     closestIndex = i;
+                 }
+             });
+             currentKeyPointIndex = closestIndex;
+            
+             // 設定初始方向
+             if (h < 1e-6) {
+                 stepDirection = 1; // 在最低點，預設往右
+             } else if (slope === 'left') {
+                 stepDirection = 1; // 在左坡，往右滾
+             } else {
+                 stepDirection = -1; // 在右坡，往左滾
+             }
+
+             lastTimestamp = 0; 
+             drawBall(ball.x, ball.y); 
+             updateUI(h, 0, E_total, 0, E_total);
+
+             playText.textContent = "開始";
+             btnPlay.classList.remove('bg-green-600');
+        }
+
+
+        function handleDragStart(event) {
+            const coords = getRelativeCoords(event);
+            const dx = coords.x - ball.x;
+            const dy = coords.y - ball.y;
+
+            if (dx * dx + dy * dy < ballRadius * ballRadius * 4) { // 放大點擊範圍
+                isDragging = true;
+                if (simulationState === 'running') {
+                     pauseContinuous(); // 暫停動畫
+                }
+                simulationState = 'preview'; // 進入拖曳預覽
+                cancelAnimationFrame(animationFrameId);
+                canvasContainer.classList.add('dragging');
+            }
+        }
+
+        function handleDragMove(event) {
+            if (!isDragging) return;
+            event.preventDefault(); // 阻止觸控時的頁面滾動
+            const coords = getRelativeCoords(event);
+            const mx = coords.x;
+            const my = coords.y;
+
+            let newX, newY, newH, newSlope;
+
+            // 判斷滑鼠在哪個斜坡
+            if (mx < vertexX) { // Left slope
+                newSlope = 'left';
+                let tentativeY = vertexY - (vertexX - mx) * Math.tan(leftSlopeAngleRad);
+                newY = Math.max(leftEndY, Math.min(vertexY, tentativeY));
+                newX = vertexX - (vertexY - newY) / Math.tan(leftSlopeAngleRad);
+            } else { // Right slope or horizontal
+                newSlope = 'right';
+                if (rightSlopeAngleRad < degToRad(0.1)) { // Horizontal
+                    newX = Math.max(vertexX, Math.min(rightEndX, mx));
+                    newY = vertexY;
+                } else { // Sloped right
+                    let tentativeY = vertexY - (mx - vertexX) * Math.tan(rightSlopeAngleRad);
+                    newY = Math.max(rightEndY, Math.min(vertexY, tentativeY));
+                    newX = vertexX + (vertexY - newY) / Math.tan(rightSlopeAngleRad);
+                }
+            }
+            
+            // 確保球在軌道上
+             newX = Math.max(leftEndX, Math.min(rightEndX, newX));
+             if (newSlope === 'left') newY = vertexY - (vertexX - newX) * Math.tan(leftSlopeAngleRad);
+             else if (rightSlopeAngleRad > degToRad(0.1)) newY = vertexY - (newX - vertexX) * Math.tan(rightSlopeAngleRad);
+             else newY = vertexY;
+
+            newH = Math.max(0, (vertexY - newY) / pixelsPerMeterY);
+
+            updatePreviewFromDrag(newH, newX, newY, newSlope);
+        }
+
+        function handleDragEnd(event) {
+            if (!isDragging) return;
+            isDragging = false;
+            canvasContainer.classList.remove('dragging');
+            // 狀態已在 move 時更新，這裡不需要再做 setPreviewState
+        }
+
+        // 綁定滑鼠事件
+        canvas.addEventListener('mousedown', handleDragStart);
+        canvas.addEventListener('mousemove', handleDragMove);
+        canvas.addEventListener('mouseup', handleDragEnd);
+        canvas.addEventListener('mouseleave', handleDragEnd); 
+
+        // 綁定觸控事件
+        canvas.addEventListener('touchstart', handleDragStart);
+        canvas.addEventListener('touchmove', handleDragMove);
+        canvas.addEventListener('touchend', handleDragEnd);
+        canvas.addEventListener('touchcancel', handleDragEnd);
+
+
+        // --- 初始設定 ---
+        setTimeout(() => {
+            calculateTrackGeometry(); // 先計算一次軌道
+            setPreviewState(0); // 預設從 0 開始
+            setRightSlope(85); // 預設右邊 85 度
+            // 預設連續播放模式
+            setButtonActive(btnModeContinuous); 
+            setButtonInactive(btnModeStep); 
+        }, 0);
+    </script>
+</body>
+</html>
+

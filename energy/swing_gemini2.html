@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單擺與力學能守恆 (精簡版)</title>
+    
+<script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 'Inter' 字體 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* 能量條的平滑過渡效果 */
+        .energy-bar-fill {
+            transition: width 0.1s linear;
+        }
+        /* 確保畫布高度能正確計算 (16:9) */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 sm:p-6 min-h-screen">
+
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-extrabold text-indigo-700 border-b-4 border-indigo-200 pb-2 mb-6">同步力學能守恆比較實驗 (單擺精簡版)</h1>
+
+        <!-- 畫布容器 -->
+        <div id="canvasContainer" class="canvas-container rounded-lg border-4 border-gray-300 shadow-inner mb-6">
+            <canvas id="pendulumCanvas"></canvas>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
+            
+            <!-- 播放/暫停/停止 控制 -->
+            <div class="flex space-x-3 w-full sm:w-auto">
+                <button id="btnPlayPause" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transition duration-150 transform hover:scale-105 flex items-center justify-center min-w-[100px]">
+                    <span id="playText" class="text-lg">開始</span>
+                </button>
+                <button id="btnStop" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transition duration-150 transform hover:scale-105 flex items-center justify-center min-w-[100px]">
+                    <span class="text-lg">停止</span>
+                </button>
+            </div>
+
+            <!-- 速度控制 -->
+            <div class="flex items-center space-x-3 bg-gray-100 p-3 rounded-xl shadow-md w-full sm:w-auto">
+                <label for="speedSlider" class="text-md font-semibold text-gray-700 min-w-[40px]">速度:</label>
+                <input type="range" id="speedSlider" min="0.1" max="2.0" value="1.0" step="0.1" class="w-full sm:w-40 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+                <span id="speedValue" class="text-md font-mono text-indigo-700 min-w-[40px]">1.0x</span>
+            </div>
+        </div>
+
+        <!-- 能量條與數值顯示 -->
+        <div class="mt-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-3">力學能分析 (J)</h2>
+            
+            <!-- 總力學能 (ME) 標籤 -->
+            <div class="bg-indigo-100 p-3 rounded-lg shadow-inner mb-4">
+                <p class="text-lg font-bold text-indigo-700 flex justify-between">
+                    <span>總力學能 (ME):</span>
+                    <span id="meValue" class="font-mono">0.00 J</span>
+                </p>
+            </div>
+
+            <div class="flex flex-col space-y-4">
+                
+                <!-- 動能 (KE) 條 -->
+                <div class="flex items-center space-x-3">
+                    <span class="text-md font-semibold w-12 text-right text-red-600 min-w-[60px]">KE:</span>
+                    <!-- 灰色地帶 (Green Circle Request) -->
+                    <div class="h-6 flex-grow bg-gray-300 rounded-full shadow-inner relative overflow-hidden">
+                        <div id="keBar" class="energy-bar-fill h-full bg-red-500 rounded-full absolute top-0 left-0" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- 重力位能 (GPE) 條 -->
+                <div class="flex items-center space-x-3">
+                    <span class="text-md font-semibold w-12 text-right text-green-600 min-w-[60px]">GPE:</span>
+                    <!-- 灰色地帶 (Green Circle Request) -->
+                    <div class="h-6 flex-grow bg-gray-300 rounded-full shadow-inner relative overflow-hidden">
+                        <div id="gpeBar" class="energy-bar-fill h-full bg-green-500 rounded-full absolute top-0 left-0" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        
+    </div>
+
+
+<script type="module">
+    // --- 參數設定 (物理量) ---
+    const g = 9.8;         // 重力加速度 (m/s^2)
+    let L = 1.0;           // 擺繩長度 (m)
+    let m = 0.5;           // 擺錘質量 (kg)
+    let initialTheta = Math.PI / 4; // 初始最大擺角 (45度)
+    
+    // --- 模擬狀態 ---
+    let simulationTime = 0; // 模擬時間 (秒)
+    let simulationState = 'preview'; // 'preview', 'running', 'paused', 'stopped'
+    let animationFrameId = null; // 儲存 requestAnimationFrame 的 ID
+    let lastTime = 0; // 上次繪製的時間戳
+    let timeScale = 1.0; // 速度倍率
+    
+    // --- 畫布與尺寸設定 ---
+    const canvas = document.getElementById('pendulumCanvas');
+    const ctx = canvas.getContext('2d');
+    const canvasContainer = document.getElementById('canvasContainer');
+    let W, H; // 畫布寬高
+    let originX, originY; // 擺錘懸掛點的畫布座標
+    let pixelsPerMeter; // 像素/米 的比例尺
+
+    // --- UI 元素 ---
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const btnStop = document.getElementById('btnStop');
+    const playText = document.getElementById('playText');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValueSpan = document.getElementById('speedValue');
+    const meValueSpan = document.getElementById('meValue');
+    const gpeBar = document.getElementById('gpeBar');
+    const keBar = document.getElementById('keBar');
+
+    // --- 初始計算 ---
+    let maxGPE, totalEnergy; // 最大重力位能 和 總力學能
+    let currentTheta, currentAngularVelocity, currentAngularAcceleration;
+    let maxAngularVelocity;
+
+    // --- 座標轉換與幾何計算 ---
+    function calculateGeometry() {
+        W = canvasContainer.clientWidth;
+        H = W * 0.5625; // 保持 16:9 比例
+        canvas.width = W;
+        canvas.height = H;
+
+        // 設定懸掛點
+        originX = W / 2;
+        originY = H * 0.1;
+
+        // 擺繩長度 L=1.0m 佔畫布高度的 70% 
+        pixelsPerMeter = (H * 0.7) / L; 
+        
+        // 重新計算物理常數
+        maxGPE = m * g * L * (1 - Math.cos(initialTheta)); // 最大 GPE (設定參考點在最低點)
+        totalEnergy = maxGPE; // 總力學能等於最大 GPE
+        maxAngularVelocity = Math.sqrt(2 * g / L * (1 - Math.cos(initialTheta)));
+
+        // 更新預覽狀態
+        setPreviewState(initialTheta);
+    }
+    window.addEventListener('resize', calculateGeometry);
+
+    // --- 模擬核心函數 ---
+
+    /**
+     * 計算當前狀態的物理量
+     * @param {number} theta - 當前角度 (弧度)
+     */
+    function calculatePhysics(theta) {
+        // 重力位能 (參考點設在最低點)
+        const h = L * (1 - Math.cos(theta));
+        const GPE = m * g * h; 
+        
+        // 角速度 (從能量守恆計算)
+        // KE + GPE = ME => 0.5 * m * (L*omega)^2 = ME - GPE 
+        const KE = totalEnergy - GPE;
+        let angularVelocity = 0;
+        if (KE >= 0) {
+            // omega = sqrt(2 * KE / (m * L^2))
+            angularVelocity = Math.sqrt(2 * KE / (m * L * L));
+        }
+        
+        // 切線速度 (v = L * omega)
+        const velocity = L * angularVelocity;
+
+        // 角加速度 (只考慮切線方向的重力分量)
+        const angularAcceleration = - (g / L) * Math.sin(theta);
+
+        // 數值更新
+        currentTheta = theta;
+        currentAngularAcceleration = angularAcceleration;
+
+        // 返回所有能量數據
+        return {
+            GPE: GPE,
+            KE: KE,
+            ME: totalEnergy,
+            omega: angularVelocity,
+            a: angularAcceleration,
+            v: velocity
+        };
+    }
+
+    /**
+     * 使用 Euler-Cromer 法進行數值積分
+     * @param {number} dt - 時間步長 (秒)
+     */
+    function stepSimulation(dt) {
+        const theta_prev = currentTheta;
+        const omega_prev = currentAngularVelocity;
+        
+        // 計算當前狀態的角加速度
+        const alpha = -(g / L) * Math.sin(theta_prev);
+
+        // 1. 更新角速度 (Euler-Cromer)
+        const omega_new = omega_prev + alpha * dt;
+        
+        // 2. 更新角度
+        let theta_new = theta_prev + omega_new * dt;
+
+        // 3. 檢查並處理邊界
+        // 由於我們使用能量守恆繪製，這裡的數值積分主要用於時間推進，確保角度不超過最大值
+        if (Math.abs(theta_new) > initialTheta * 1.01) { 
+            // 如果超過最大角度，則反轉角速度
+            currentAngularVelocity = -omega_new; 
+            currentTheta = theta_prev; // 保持角度在邊界
+        } else {
+            currentTheta = theta_new;
+            currentAngularVelocity = omega_new;
+        }
+
+        // 4. 更新模擬時間
+        simulationTime += dt;
+        
+        // 由於數值誤差會導致能量不守恆，我們在繪圖時依舊使用能量守恆公式來計算速度和能量
+        const physics = calculatePhysics(currentTheta);
+        
+        // 繪圖與 UI 更新
+        draw(physics);
+        updateEnergyDisplay(physics);
+    }
+
+    // --- 繪圖函數 ---
+
+    /**
+     * 繪製畫布內容
+     * @param {object} physics - 當前的物理狀態數據
+     */
+    function draw(physics) {
+        // 1. 清除畫布
+        ctx.clearRect(0, 0, W, H);
+
+        // 2. 計算擺錘位置
+        const x = originX + L * Math.sin(currentTheta) * pixelsPerMeter;
+        const y = originY + L * Math.cos(currentTheta) * pixelsPerMeter;
+        
+        const bobRadius = 18;
+
+        // 3. 繪製懸掛點 (O)
+        ctx.beginPath();
+        ctx.arc(originX, originY, 6, 0, 2 * Math.PI);
+        ctx.fillStyle = '#333';
+        ctx.fill();
+
+        // 4. 繪製擺繩
+        ctx.beginPath();
+        ctx.moveTo(originX, originY);
+        ctx.lineTo(x, y);
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // 5. 繪製擺錘
+        ctx.beginPath();
+        ctx.arc(x, y, bobRadius, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.9)'; // 紅色
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.strokeStyle = '#999';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.shadowBlur = 0; // 重置陰影
+
+        // 6. 標註平衡點和最大振幅點
+        const y_max = originY + L * Math.cos(0) * pixelsPerMeter;
+        ctx.beginPath();
+        ctx.arc(originX, y_max, 4, 0, 2 * Math.PI);
+        ctx.fillStyle = '#0f766e'; // 綠色
+        ctx.fill();
+        
+        const x_max = originX + L * Math.sin(initialTheta) * pixelsPerMeter;
+        ctx.beginPath();
+        ctx.arc(x_max, y, 4, 0, 2 * Math.PI);
+        ctx.fillStyle = '#94a3b8'; // 灰色
+        ctx.fill();
+        
+        const x_min = originX - L * Math.sin(initialTheta) * pixelsPerMeter;
+        ctx.beginPath();
+        ctx.arc(x_min, y, 4, 0, 2 * Math.PI);
+        ctx.fillStyle = '#94a3b8'; // 灰色
+        ctx.fill();
+
+        // 7. 顯示當前時間
+        ctx.fillStyle = '#1e3a8a';
+        ctx.font = 'bold 16px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`時間: ${simulationTime.toFixed(2)} s`, 10, 30);
+    }
+
+    // --- UI 更新函數 ---
+
+    /**
+     * 更新能量條和數值顯示
+     * @param {object} physics - 當前的物理狀態數據
+     */
+    function updateEnergyDisplay(physics) {
+        const { GPE, KE, ME } = physics;
+        
+        // 總力學能數值
+        meValueSpan.textContent = `${ME.toFixed(2)} J`;
+
+        // 計算百分比 (基於總力學能 ME)
+        // 確保 ME > 0, 否則無法計算比例
+        const totalRef = ME > 0 ? ME : totalEnergy; // 使用實際 ME 或初始總能作為參考
+        
+        const gpePercent = (GPE / totalRef) * 100;
+        const kePercent = (KE / totalRef) * 100;
+        
+        // 更新能量條寬度
+        gpeBar.style.width = `${Math.max(0, Math.min(100, gpePercent))}%`;
+        keBar.style.width = `${Math.max(0, Math.min(100, kePercent))}%`;
+    }
+
+    /**
+     * 設定預覽狀態 (擺錘在最大角度)
+     * @param {number} theta - 角度 (弧度)
+     */
+    function setPreviewState(theta) {
+        simulationState = 'preview';
+        simulationTime = 0;
+        currentTheta = theta;
+        currentAngularVelocity = 0;
+        
+        // 更新 UI
+        playText.textContent = "開始";
+        btnPlayPause.classList.replace('bg-yellow-500', 'bg-indigo-600');
+        
+        const physics = calculatePhysics(currentTheta);
+        draw(physics);
+        updateEnergyDisplay(physics);
+    }
+
+    // --- 動畫迴圈與控制 ---
+
+    function animate(timestamp) {
+        if (simulationState === 'running') {
+            const deltaTime = (timestamp - lastTime) / 1000; // 轉換為秒
+            lastTime = timestamp;
+            
+            // 由於 requestAnimationFrame 的時間間隔不固定，我們使用固定的小步長進行多次模擬，確保數值穩定性
+            const numSteps = 5;
+            const dt = deltaTime * timeScale / numSteps;
+            
+            for (let i = 0; i < numSteps; i++) {
+                stepSimulation(dt);
+            }
+        }
+        
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function startSimulation() {
+        if (simulationState === 'running') return; // 已在運行
+
+        if (simulationState === 'stopped' || simulationState === 'preview') {
+            // 從頭開始
+            setPreviewState(initialTheta); 
+            simulationState = 'running';
+            lastTime = performance.now();
+            if (!animationFrameId) {
+                animate(lastTime);
+            }
+        } else if (simulationState === 'paused') {
+            // 繼續
+            simulationState = 'running';
+            lastTime = performance.now(); // 重新設定時間戳，防止跳動
+        }
+        
+        playText.textContent = "暫停";
+        btnPlayPause.classList.replace('bg-indigo-600', 'bg-yellow-500');
+    }
+
+    function pauseSimulation() {
+        if (simulationState === 'running') {
+            simulationState = 'paused';
+            playText.textContent = "繼續";
+            btnPlayPause.classList.replace('bg-yellow-500', 'bg-indigo-600');
+        }
+    }
+
+    function stopSimulation() {
+        if (simulationState !== 'stopped') {
+            setPreviewState(initialTheta);
+            simulationState = 'stopped';
+            playText.textContent = "開始";
+            btnPlayPause.classList.replace('bg-yellow-500', 'bg-indigo-600');
+        }
+    }
+
+    // --- 事件監聽器 ---
+
+    btnPlayPause.addEventListener('click', () => {
+        if (simulationState === 'running') {
+            pauseSimulation();
+        } else {
+            startSimulation();
+        }
+    });
+
+    btnStop.addEventListener('click', stopSimulation);
+
+    speedSlider.addEventListener('input', (e) => {
+        timeScale = parseFloat(e.target.value);
+        speedValueSpan.textContent = `${timeScale.toFixed(1)}x`;
+    });
+
+
+    // (修改) 延遲執行，確保畫布尺寸正確
+    window.onload = function () {
+        calculateGeometry();
+        setPreviewState(initialTheta);
+        animate(performance.now());
+    }
+</script>
+</body>
+</html>

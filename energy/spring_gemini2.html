@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>彈簧力學能守恆-彈力位能 (精簡版)</title>
+    
+<script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 'Inter' 字體 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* 能量條的平滑過渡效果 */
+        .energy-bar-fill {
+            transition: width 0.1s linear;
+        }
+        /* 確保畫布高度能正確計算 (16:9) */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            cursor: grab; /* 拖曳游標 */
+        }
+        .canvas-container.dragging {
+             cursor: grabbing;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 p-4 sm:p-6 min-h-screen">
+
+    <div class="max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-2xl">
+        <h1 class="text-3xl font-extrabold text-teal-700 border-b-4 border-teal-200 pb-2 mb-6">同步力學能守恆比較實驗 (彈簧精簡版)</h1>
+
+        <!-- 畫布容器 -->
+        <div id="canvasContainer" class="canvas-container rounded-lg border-4 border-gray-300 shadow-inner mb-6">
+            <canvas id="springCanvas"></canvas>
+        </div>
+
+        <!-- 控制面板 -->
+        <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
+            
+            <!-- 播放/暫停/停止 控制 -->
+            <div class="flex space-x-3 w-full sm:w-auto">
+                <button id="btnPlayPause" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-6 rounded-full shadow-lg transition duration-150 transform hover:scale-105 flex items-center justify-center min-w-[100px]">
+                    <span id="playText" class="text-lg">開始</span>
+                </button>
+                <button id="btnStop" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transition duration-150 transform hover:scale-105 flex items-center justify-center min-w-[100px]">
+                    <span class="text-lg">停止</span>
+                </button>
+            </div>
+
+            <!-- 速度控制 -->
+            <div class="flex items-center space-x-3 bg-gray-100 p-3 rounded-xl shadow-md w-full sm:w-auto">
+                <label for="speedSlider" class="text-md font-semibold text-gray-700 min-w-[40px]">速度:</label>
+                <input type="range" id="speedSlider" min="0.1" max="2.0" value="1.0" step="0.1" class="w-full sm:w-40 h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer">
+                <span id="speedValue" class="text-md font-mono text-teal-700 min-w-[40px]">1.0x</span>
+            </div>
+        </div>
+
+        <!-- 能量條與數值顯示 -->
+        <div class="mt-8">
+            <h2 class="text-xl font-bold text-gray-800 mb-3">力學能分析 (J)</h2>
+            
+            <!-- 總力學能 (ME) 標籤 -->
+            <div class="bg-teal-100 p-3 rounded-lg shadow-inner mb-4">
+                <p class="text-lg font-bold text-teal-700 flex justify-between">
+                    <span>總力學能 (ME):</span>
+                    <span id="meValue" class="font-mono">0.00 J</span>
+                </p>
+            </div>
+
+            <div class="flex flex-col space-y-4">
+                
+                <!-- 動能 (KE) 條 -->
+                <div class="flex items-center space-x-3">
+                    <span class="text-md font-semibold w-12 text-right text-red-600 min-w-[60px]">KE:</span>
+                    <!-- 灰色地帶 (Green Circle Request) -->
+                    <div class="h-6 flex-grow bg-gray-300 rounded-full shadow-inner relative overflow-hidden">
+                        <div id="keBar" class="energy-bar-fill h-full bg-red-500 rounded-full absolute top-0 left-0" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <!-- 彈力位能 (EPE) 條 -->
+                <div class="flex items-center space-x-3">
+                    <span class="text-md font-semibold w-12 text-right text-teal-600 min-w-[60px]">EPE:</span>
+                    <!-- 灰色地帶 (Green Circle Request) -->
+                    <div class="h-6 flex-grow bg-gray-300 rounded-full shadow-inner relative overflow-hidden">
+                        <div id="epeBar" class="energy-bar-fill h-full bg-teal-500 rounded-full absolute top-0 left-0" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 資訊顯示 (位移、速度) -->
+        <div class="mt-8 bg-gray-50 p-4 rounded-lg shadow-md">
+            <p class="text-lg font-mono text-gray-800">位移 x: <span id="displacementValue">0.00</span> m</p>
+            <p class="text-lg font-mono text-gray-800">速度 v: <span id="velocityValue">0.00</span> m/s</p>
+        </div>
+        
+    </div>
+
+
+<script type="module">
+    // --- 參數設定 (物理量) ---
+    const m = 1.0;         // 彈簧連接的物體質量 (kg)
+    const k = 10.0;        // 彈簧常數 (N/m)
+    let maxAmplitude = 0.5; // 最大振幅 (m)
+    
+    // --- 模擬狀態 ---
+    let simulationTime = 0; // 模擬時間 (秒)
+    let simulationState = 'preview'; // 'preview', 'running', 'paused', 'stopped'
+    let animationFrameId = null; // 儲存 requestAnimationFrame 的 ID
+    let lastTime = 0; // 上次繪製的時間戳
+    let timeScale = 1.0; // 速度倍率
+    let currentX = 0; // 當前位移 (m)
+    let currentV = 0; // 當前速度 (m/s)
+
+    // --- 畫布與尺寸設定 ---
+    const canvas = document.getElementById('springCanvas');
+    const ctx = canvas.getContext('2d');
+    const canvasContainer = document.getElementById('canvasContainer');
+    let W, H; // 畫布寬高
+    let equilibriumX_pixels; // 平衡點在畫布上的 x 座標
+    let pixelsPerMeterX; // x 軸 像素/米 的比例尺
+    let pixelsPerMeterY; // y 軸 像素/米 的比例尺
+
+    // --- 彈簧繪製參數 ---
+    const blockHeight = 60;
+    const blockWidth = 60;
+    const springStart_X = 50; // 彈簧固定端 x 座標 (像素)
+    const springCoils = 15; // 彈簧圈數
+
+    // --- UI 元素 ---
+    const btnPlayPause = document.getElementById('btnPlayPause');
+    const btnStop = document.getElementById('btnStop');
+    const playText = document.getElementById('playText');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValueSpan = document.getElementById('speedValue');
+    const meValueSpan = document.getElementById('meValue');
+    const epeBar = document.getElementById('epeBar');
+    const keBar = document.getElementById('keBar');
+    const displacementValueSpan = document.getElementById('displacementValue');
+    const velocityValueSpan = document.getElementById('velocityValue');
+
+    // --- 拖曳狀態 ---
+    let isDragging = false;
+    let dragStartCoords = { x: 0, y: 0 };
+    let blockStart_X_meters = 0; // 拖曳開始時的位移 (m)
+
+    // --- 初始計算 ---
+    let omega, totalEnergy; // 角頻率 和 總力學能
+
+    // --- 座標轉換與幾何計算 ---
+    function calculateGeometry() {
+        W = canvasContainer.clientWidth;
+        H = W * 0.5625; // 保持 16:9 比例
+        canvas.width = W;
+        canvas.height = H;
+
+        // 設定平衡點在畫布中央
+        equilibriumX_pixels = W / 2;
+
+        // 彈簧振幅 (2 * maxAmplitude) 佔畫布寬度的 60%
+        pixelsPerMeterX = (W * 0.6) / (2 * maxAmplitude);
+        pixelsPerMeterY = pixelsPerMeterX; // 保持比例一致
+
+        // 重新計算物理常數
+        omega = Math.sqrt(k / m);
+        totalEnergy = 0.5 * k * maxAmplitude * maxAmplitude; // 總力學能等於最大 EPE
+
+        // 更新預覽狀態
+        setPreviewState(currentX);
+    }
+    window.addEventListener('resize', calculateGeometry);
+
+    // --- 模擬核心函數 ---
+
+    /**
+     * 計算當前狀態的物理量
+     * @param {number} x - 當前位移 (m)
+     */
+    function calculatePhysics(x) {
+        // 彈力位能
+        const EPE = 0.5 * k * x * x; 
+        
+        // 動能
+        const KE = totalEnergy - EPE;
+        
+        // 速度 (從能量守恆計算)
+        let v = 0;
+        if (KE >= 0) {
+            v = Math.sqrt(2 * KE / m);
+        }
+        
+        // 確保速度方向正確 (僅在運行狀態下使用)
+        if (simulationState === 'running') {
+            const v_sim = -omega * maxAmplitude * Math.sin(omega * simulationTime);
+            v = Math.sign(v_sim) * v;
+        } else {
+            v = 0;
+        }
+
+        // 返回所有能量數據
+        return {
+            EPE: EPE,
+            KE: KE,
+            ME: totalEnergy,
+            v: v
+        };
+    }
+
+    /**
+     * 更新模擬狀態 (使用解析解)
+     * @param {number} dt - 時間步長 (秒)
+     */
+    function stepSimulation(dt) {
+        simulationTime += dt;
+        
+        // 簡諧運動解析解: x(t) = A * cos(omega*t)
+        // 假設 t=0 時 x=A (currentX = maxAmplitude)
+        currentX = maxAmplitude * Math.cos(omega * simulationTime);
+
+        // 使用解析解的位移計算物理量
+        const physics = calculatePhysics(currentX);
+        currentV = physics.v;
+        
+        // 繪圖與 UI 更新
+        draw(); // 繪圖使用 currentX, currentV
+        updateEnergyDisplay(physics);
+    }
+
+    // --- 彈簧繪製函數 ---
+
+    /**
+     * 繪製彈簧
+     * @param {number} x_start - 彈簧固定端 x 座標
+     * @param {number} x_end - 彈簧連接物塊 x 座標 (中心點)
+     * @param {number} y - 彈簧 y 座標
+     */
+    function drawSpring(x_start, x_end, y) {
+        const length = x_end - x_start;
+        const coilWidth = 10;
+        const offset = 1; // 彈簧末端偏移，確保與物塊連接
+
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(x_start, y);
+
+        // 繪製左側小段
+        ctx.lineTo(x_start + 10, y);
+
+        // 繪製彈簧線圈
+        for (let i = 0; i < springCoils; i++) {
+            const ratio = (i + 0.5) / springCoils;
+            const x = x_start + 10 + ratio * (length - 20 - offset);
+            const amplitude = (i % 2 === 0) ? -coilWidth : coilWidth;
+            ctx.lineTo(x, y + amplitude);
+        }
+        
+        // 繪製右側小段與連接物塊
+        ctx.lineTo(x_end - 10 - offset, y);
+        ctx.lineTo(x_end - offset, y);
+
+        ctx.stroke();
+    }
+
+    // --- 繪圖函數 ---
+
+    function draw() {
+        // 1. Flicker Fix: 清除整個畫布
+        ctx.clearRect(0, 0, W, H); // **修正閃頻關鍵**
+
+        const center_Y = H / 2;
+        
+        // 2. 繪製地面/軌道
+        ctx.fillStyle = '#ccc';
+        ctx.fillRect(0, center_Y + blockHeight / 2, W, H);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, center_Y + blockHeight / 2);
+        ctx.lineTo(W, center_Y + blockHeight / 2);
+        ctx.stroke();
+
+        // 3. 繪製固定牆
+        ctx.fillStyle = '#666';
+        ctx.fillRect(springStart_X - 10, center_Y - H/2, 10, H);
+        
+        // 4. 繪製物塊位置 (從位移 x 轉為像素座標)
+        const blockCenter_X = equilibriumX_pixels + currentX * pixelsPerMeterX;
+        const block_X = blockCenter_X - blockWidth / 2;
+        const block_Y = center_Y - blockHeight / 2;
+
+        // 5. 繪製彈簧
+        drawSpring(springStart_X, block_X, center_Y);
+
+        // 6. 繪製物塊
+        ctx.fillStyle = 'rgba(0, 150, 136, 0.9)'; // Teal/青色
+        ctx.strokeStyle = '#1e3a8a';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 10;
+        ctx.fillRect(block_X, block_Y, blockWidth, blockHeight);
+        ctx.strokeRect(block_X, block_Y, blockWidth, blockHeight);
+        ctx.shadowBlur = 0; // 重置陰影
+
+        // 7. 繪製平衡點標記 (虛線)
+        ctx.strokeStyle = '#999';
+        ctx.setLineDash([5, 5]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(equilibriumX_pixels, 0);
+        ctx.lineTo(equilibriumX_pixels, H);
+        ctx.stroke();
+        ctx.setLineDash([]); // 重置實線
+
+        // 8. 繪製速度箭頭
+        if (Math.abs(currentV) > 0.01) {
+            const arrowLength = Math.min(60, Math.abs(currentV) * 50); // 速度越大箭頭越長
+            const direction = Math.sign(currentV);
+            const arrowStart = blockCenter_X;
+            const arrowEnd = arrowStart + direction * arrowLength;
+            
+            ctx.strokeStyle = '#ef4444';
+            ctx.fillStyle = '#ef4444';
+            ctx.lineWidth = 3;
+
+            // 箭頭主體
+            ctx.beginPath();
+            ctx.moveTo(arrowStart, center_Y + blockHeight/2 + 20);
+            ctx.lineTo(arrowEnd, center_Y + blockHeight/2 + 20);
+            ctx.stroke();
+
+            // 箭頭頭部
+            ctx.beginPath();
+            ctx.moveTo(arrowEnd, center_Y + blockHeight/2 + 20);
+            ctx.lineTo(arrowEnd - direction * 10, center_Y + blockHeight/2 + 15);
+            ctx.lineTo(arrowEnd - direction * 10, center_Y + blockHeight/2 + 25);
+            ctx.fill();
+        }
+
+        // 9. 顯示當前時間
+        ctx.fillStyle = '#1e3a8a';
+        ctx.font = 'bold 16px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(`時間: ${simulationTime.toFixed(2)} s`, 10, 30);
+    }
+
+    // --- UI 更新函數 ---
+
+    function updateEnergyDisplay(physics) {
+        const { EPE, KE, ME } = physics;
+        
+        // 總力學能數值
+        meValueSpan.textContent = `${ME.toFixed(2)} J`;
+        displacementValueSpan.textContent = `${currentX.toFixed(2)}`;
+        velocityValueSpan.textContent = `${currentV.toFixed(2)}`;
+
+        // 計算百分比 (基於總力學能 ME)
+        const totalRef = ME > 0 ? ME : totalEnergy;
+        
+        const epePercent = (EPE / totalRef) * 100;
+        const kePercent = (KE / totalRef) * 100;
+        
+        // 更新能量條寬度
+        epeBar.style.width = `${Math.max(0, Math.min(100, epePercent))}%`;
+        keBar.style.width = `${Math.max(0, Math.min(100, kePercent))}%`;
+    }
+
+    /**
+     * 設定預覽狀態 (方塊在最大振幅)
+     * @param {number} x - 位移 (m)
+     */
+    function setPreviewState(x) {
+        simulationState = 'preview';
+        simulationTime = 0;
+        currentX = x;
+        currentV = 0;
+        
+        // 更新 UI
+        playText.textContent = "開始";
+        btnPlayPause.classList.replace('bg-yellow-500', 'bg-teal-600');
+        
+        const physics = calculatePhysics(currentX);
+        draw();
+        updateEnergyDisplay(physics);
+    }
+    
+    // 拖曳結束或重設時使用的狀態更新函數
+    function setPreviewStateFromDrag(x_meters) {
+        // 設定最大振幅
+        maxAmplitude = Math.abs(x_meters) > 0.01 ? Math.abs(x_meters) : 0.01;
+        // 重新計算總能
+        totalEnergy = 0.5 * k * maxAmplitude * maxAmplitude; 
+        
+        setPreviewState(x_meters);
+    }
+
+
+    // --- 動畫迴圈與控制 ---
+
+    function animate(timestamp) {
+        if (simulationState === 'running') {
+            const deltaTime = (timestamp - lastTime) / 1000; // 轉換為秒
+            lastTime = timestamp;
+            
+            // 使用固定的小步長進行多次模擬，確保數值穩定性
+            const numSteps = 5;
+            const dt = deltaTime * timeScale / numSteps;
+            
+            for (let i = 0; i < numSteps; i++) {
+                stepSimulation(dt);
+            }
+        }
+        
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function startSimulation() {
+        if (simulationState === 'running') return;
+
+        if (simulationState === 'stopped' || simulationState === 'preview') {
+            // 從頭開始
+            // 由於解析解以 cos(wt) 為基礎，我們需要調整時間 t 使 currentX 成為最大振幅
+            simulationTime = 0;
+            currentV = 0; // 確保起始速度為 0
+            
+            // 調整 maxAmplitude 和 totalEnergy 以匹配 currentX (使用者拖曳後的位置)
+            maxAmplitude = Math.abs(currentX);
+            totalEnergy = 0.5 * k * maxAmplitude * maxAmplitude; 
+            
+            simulationState = 'running';
+            lastTime = performance.now();
+            if (!animationFrameId) {
+                animate(lastTime);
+            }
+        } else if (simulationState === 'paused') {
+            // 繼續
+            simulationState = 'running';
+            lastTime = performance.now();
+        }
+        
+        playText.textContent = "暫停";
+        btnPlayPause.classList.replace('bg-teal-600', 'bg-yellow-500');
+    }
+
+    function pauseSimulation() {
+        if (simulationState === 'running') {
+            simulationState = 'paused';
+            playText.textContent = "繼續";
+            btnPlayPause.classList.replace('bg-yellow-500', 'bg-teal-600');
+        }
+    }
+
+    function stopSimulation() {
+        if (simulationState !== 'stopped') {
+            // 停止後回到拖曳時的起始最大振幅位置
+            setPreviewState(maxAmplitude); 
+            simulationState = 'stopped';
+            playText.textContent = "開始";
+            btnPlayPause.classList.replace('bg-yellow-500', 'bg-teal-600');
+        }
+    }
+
+    // --- 拖曳邏輯 ---
+
+    function getMouseCoords(event) {
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+
+        if (event.touches) {
+            clientX = event.touches[0].clientX;
+            clientY = event.touches[0].clientY;
+        } else {
+            clientX = event.clientX;
+            clientY = event.clientY;
+        }
+
+        return {
+            x: clientX - rect.left,
+            y: clientY - rect.top
+        };
+    }
+
+    function hitTest(coords) {
+        const blockCenter_X = equilibriumX_pixels + currentX * pixelsPerMeterX;
+        const block_X = blockCenter_X - blockWidth / 2;
+        const block_Y = H / 2 - blockHeight / 2;
+
+        return coords.x >= block_X && coords.x <= block_X + blockWidth &&
+               coords.y >= block_Y && coords.y <= block_Y + blockHeight;
+    }
+
+    function handleDragStart(event) {
+        // 阻止觸控事件的預設行為 (例如滾動)
+        if (event.touches) {
+            event.preventDefault();
+        }
+
+        if (simulationState === 'running') return; // 運行中不能拖曳
+
+        const coords = getMouseCoords(event);
+        if (hitTest(coords)) {
+            isDragging = true;
+            canvasContainer.classList.add('dragging');
+            dragStartCoords = coords;
+            blockStart_X_meters = currentX;
+            pauseSimulation(); // 如果在暫停狀態，也允許拖曳
+        }
+    }
+
+    function handleDragMove(event) {
+        if (!isDragging) return;
+        if (event.touches) event.preventDefault();
+        
+        const coords = getMouseCoords(event);
+        const dx_pixels = coords.x - dragStartCoords.x;
+        
+        // 位移 (米) = 初始位移 (米) + 像素位移 / 比例尺
+        let new_x_meters = blockStart_X_meters + (dx_pixels / pixelsPerMeterX); 
+        
+        // 限制在一定範圍內 (例如 1.0m，以防拖曳過遠)
+        const absoluteMax = 1.0; 
+        new_x_meters = Math.max(-absoluteMax, Math.min(absoluteMax, new_x_meters));
+        
+        currentX = new_x_meters;
+        setPreviewStateFromDrag(currentX);
+    }
+
+    function handleDragEnd(event) {
+        if (!isDragging) return;
+        isDragging = false;
+        canvasContainer.classList.remove('dragging');
+        // 拖曳結束後，新的最大振幅已經設定在 setPreviewStateFromDrag 中
+    }
+
+    // 綁定滑鼠事件
+    canvas.addEventListener('mousedown', handleDragStart);
+    canvas.addEventListener('mousemove', handleDragMove);
+    canvas.addEventListener('mouseup', handleDragEnd);
+    canvas.addEventListener('mouseleave', handleDragEnd); 
+
+    // 綁定觸控事件
+    canvas.addEventListener('touchstart', handleDragStart);
+    canvas.addEventListener('touchmove', handleDragMove);
+    canvas.addEventListener('touchend', handleDragEnd);
+    canvas.addEventListener('touchcancel', handleDragEnd);
+
+
+    // --- 事件監聽器 ---
+
+    btnPlayPause.addEventListener('click', () => {
+        if (simulationState === 'running') {
+            pauseSimulation();
+        } else {
+            startSimulation();
+        }
+    });
+
+    btnStop.addEventListener('click', stopSimulation);
+
+    speedSlider.addEventListener('input', (e) => {
+        timeScale = parseFloat(e.target.value);
+        speedValueSpan.textContent = `${timeScale.toFixed(1)}x`;
+    });
+
+
+    // --- 初始設定 ---
+    window.onload = function () {
+        calculateGeometry();
+        setPreviewState(maxAmplitude); // 預設從最大振幅開始
+        animate(performance.now());
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單擺與彈簧的同步力學能守恆比較 (L=5m, k=2.0)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 'Inter' 字體 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* 能量條的平滑過渡效果 */
+        .energy-bar-fill {
+            transition: height 0.1s linear; 
+        }
+        /* 確保畫布高度能正確計算 (16:9) */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; 
+            height: 0;
+            overflow: hidden;
+            background-color: #f9fafb; 
+            border-radius: 0.5rem; 
+            border: 1px solid #e5e7eb; 
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* 縱向能量條容器 */
+        .vertical-bar-container {
+            width: 3rem;
+            height: 250px; 
+            max-height: 400px; 
+            position: relative;
+            background-color: #e5e7eb;
+            border-radius: 0.5rem;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column-reverse; 
+        }
+        .v-bar {
+            width: 100%;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4 md:p-8">
+
+    <div class="w-full max-w-7xl bg-white rounded-2xl shadow-xl p-6 md:p-8">
+        
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">
+            單擺（擺長 5.0m）與彈簧（k=2.0, m=1.0）的同步比較實驗
+        </h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-7 gap-6">
+
+            <!-- ================== 左側欄：控制設定 (單擺設定為主) ================== -->
+            <div class="md:col-span-1 p-4 bg-gray-50 rounded-lg flex flex-col gap-6 order-2 md:order-1">
+                
+                <!-- 1. 播放控制 (共用) -->
+                <div>
+                    <h2 class="text-lg font-semibold text-center mb-4">播放控制 (共用)</h2>
+                    <div class="flex flex-col gap-2 mb-4">
+                        <button id="btn-play" class="text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1"><path fill-rule="evenodd" d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm6.39-2.908a.75.75 0 0 1 .766.027l3.5 2.25a.75.75 0 0 1 0 1.262l-3.5 2.25A.75.75 0 0 1 8 12.25v-4.5a.75.75 0 0 1 .39-.658Z" clip-rule="evenodd" /></svg>
+                            <span id="play-text">開始</span>
+                        </button>
+                        <button id="btn-pause" class="text-sm bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1"><path fill-rule="evenodd" d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm5-2.25A.75.75 0 0 1 7.75 7h.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-4.5Zm4 0A.75.75 0 0 1 11.75 7h.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-4.5Z" clip-rule="evenodd" /></svg>
+                            <span>暫停</span>
+                        </button>
+                        <button id="btn-stop" class="text-sm bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1"><path fill-rule="evenodd" d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm5.25-1.75A.75.75 0 0 1 8 7.5h4a.75.75 0 0 1 .75.75v4a.75.75 0 0 1-.75.75H8a.75.75 0 0 1-.75-.75v-4Z" clip-rule="evenodd" /></svg>
+                            <span>停止 (歸零)</span>
+                        </button>
+                    </div>
+                    <!-- 模式切換 -->
+                    <div class="flex flex-col gap-2 mb-4">
+                        <button id="btn-mode-continuous" class="text-sm bg-indigo-600 text-white py-2 px-4 rounded-lg transition opacity-100">連續擺動/震動</button>
+                        <button id="btn-mode-step" class="text-sm bg-gray-300 text-gray-700 hover:bg-indigo-200 py-2 px-4 rounded-lg transition opacity-70">分段移動 (下一步)</button>
+                    </div>
+                </div>
+
+                <hr class="border-gray-300">
+                
+                <!-- 2. 單擺設定 (主控項) -->
+                <div>
+                    <h2 class="text-base font-semibold text-center mb-2">單擺初始角度 (決定總能量)</h2>
+                    <div class="flex flex-col gap-2">
+                        <!-- L=5m, g=10m/s^2, m=1kg -->
+                        <!-- 85 deg: h≈4.9m, E≈49.8J -->
+                        <!-- 60 deg: h=2.5m, E=25.0J -->
+                        <!-- 30 deg: h≈0.7m, E≈6.7J -->
+                        <button id="btn-p-l-85" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">左 85° </button>
+                        <button id="btn-p-l-60" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">左 60° </button>
+                        <button id="btn-p-l-30" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">左 30° </button>
+                        <button id="btn-p-0" class="w-full text-sm bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition">最低點 0° </button>
+                    </div>
+                </div>
+
+                <!-- 3. 彈簧說明 (已移除按鈕) -->
+                <div class="p-2 border border-gray-200 rounded-md">
+                    <h2 class="text-base font-semibold text-center mb-1">彈簧初始狀態</h2>
+                    <p class="text-xs text-gray-600 text-center">
+                        
+                    </p>
+                </div>
+            </div>
+
+            <!-- ================== 中間欄：畫布 ================== -->
+            <div class="md:col-span-5 order-1 md:order-2 flex flex-col gap-6">
+                
+                <!-- 1. 單擺畫布 -->
+                <div class="canvas-container shadow-lg">
+                    <canvas id="pendulumCanvas"></canvas>
+                </div>
+
+                <!-- 2. 彈簧畫布 -->
+                <div id="springCanvasContainer" class="canvas-container shadow-lg">
+                    <canvas id="springCanvas"></canvas>
+                </div>
+            </div>
+
+            <!-- ================== 右側欄：數據與能量 (縱向) ================== -->
+            <div class="md:col-span-1 order-3 md:order-3 flex flex-col items-center p-4">
+                 
+                 <!-- 數據顯示 (縱向) -->
+                 <div class="bg-gray-50 rounded-lg shadow-inner w-full p-3 mb-6 space-y-3">
+                    <div class="text-center">
+                        <div id="sharedPosLabel" class="text-sm text-gray-500 font-medium">位置/形變量</div>
+                        <div id="sharedPosValue" class="text-xl font-bold font-mono text-gray-800">0.00 m</div>
+                    </div>
+                    <div class="border-t border-gray-200 pt-3 text-center">
+                        <div class="text-sm text-gray-500 font-medium">瞬時速度</div>
+                        <div id="velocityValue" class="text-xl font-bold font-mono text-gray-800">0.00 m/s</div>
+                    </div>
+                </div>
+
+                <div class="text-sm font-semibold text-gray-700 mb-2">總力學能</div>
+                 
+                 <div class="vertical-bar-container">
+                    <!-- 動能 (KE) -->
+                    <div id="keBar" class="v-bar bg-green-500 energy-bar-fill" style="height: 0%"></div>
+                    <!-- 位能 (PE) -->
+                    <div id="peBar" class="v-bar bg-blue-500 energy-bar-fill" style="height: 0%"></div>
+                 </div>
+
+                 <div class="mt-4 space-y-1 text-center">
+                    <div class="text-xs font-medium text-blue-600 flex items-center justify-center">
+                        <span class="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1"></span>
+                        <span id="peValue" class="font-mono">0.0 J</span> (位能)
+                    </div>
+                    <div class="text-xs font-medium text-green-600 flex items-center justify-center">
+                        <span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span>
+                        <span id="keValue" class="font-mono">0.0 J</span> (動能)
+                    </div>
+                    <div class="text-sm font-bold text-gray-800 border-t pt-1 mt-2">
+                         <span id="totalValue" class="font-mono">0.0 J</span>
+                    </div>
+                 </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // ---=======================================================---
+        // ---               1. 全域變數與共用 DOM 元素                ---
+        // ---=======================================================---
+
+        // --- 共用 DOM 元素 ---
+        const peValueEl = document.getElementById('peValue');
+        const keValueEl = document.getElementById('keValue');
+        const totalValueEl = document.getElementById('totalValue');
+        const peBarEl = document.getElementById('peBar');
+        const keBarEl = document.getElementById('keBar');
+        const verticalBarContainer = document.querySelector('.vertical-bar-container');
+
+        const sharedPosLabelEl = document.getElementById('sharedPosLabel');
+        const sharedPosValueEl = document.getElementById('sharedPosValue');
+        const velocityValueEl = document.getElementById('velocityValue');
+
+        // --- 共用播放控制元素 ---
+        const btnPlay = document.getElementById('btn-play');
+        const playText = document.getElementById('play-text');
+        const btnPause = document.getElementById('btn-pause');
+        const btnStop = document.getElementById('btn-stop');
+        const btnModeContinuous = document.getElementById('btn-mode-continuous');
+        const btnModeStep = document.getElementById('btn-mode-step');
+
+        // --- 共用物理常數 ---
+        const g = 10;     // 重力加速度 (m/s^2)
+        // 單擺最大角度 85 deg, L=5m, m=1kg. h_max = 5 * (1 - cos(85deg)) ≈ 4.9806 m
+        // E_max = m * g * h_max ≈ 1 * 10 * 4.9806 ≈ 49.8 J
+        const E_MAX_DISPLAY = 50.0; // 顯示的最大能量 (精確設定為單擺最大能量，消除灰色地帶)
+
+        // --- 共用狀態變數 ---
+        let globalAnimationFrameId = null; 
+        let globalSimulationState = 'stopped'; 
+        let isStepping = false;          
+        let activeSimulation = 'pendulum'; 
+
+        // ---=======================================================---
+        // ---              2. 單擺 (Pendulum) 程式碼                ---
+        // ---=======================================================---
+
+        // --- 單擺 DOM ---
+        const p_canvas = document.getElementById('pendulumCanvas');
+        const p_ctx = p_canvas.getContext('2d');
+
+        // --- 單擺物理常數與設定 ---
+        const p_m = 1.0;      // 質量 (kg)
+        const p_L_meters = 5.0; // 擺長 (公尺)
+        const p_angularFrequency = Math.sqrt(g / p_L_meters); // 角頻率
+        const p_degToRad = (deg) => (deg * Math.PI) / 180;
+        const p_radToDeg = (rad) => (rad * 180) / Math.PI;
+        const p_slowMotionFactor = 0.5; 
+        const p_keyframes = [-85, -60, -30, 0, 30, 60, 85]; // 角度 (度)
+        
+        // --- 單擺狀態變數 ---
+        let p_initialAngle = 0;        
+        let p_E_total = 0;             
+        let p_lastTickTime = 0;        
+        let p_simulationState = 'stopped'; 
+        let p_currentKeyframeIndex = 3;
+        let p_stepDirection = 1;
+        let p_startTime = 0;
+        let p_maxAngleIndex = 3;
+        let p_minAngleIndex = 3;
+        
+        // --- 單擺畫布設定 ---
+        let p_canvasWidth, p_canvasHeight;
+        let p_L_pixels, p_pivotX, p_pivotY;
+        const p_bobRadius = 15;
+
+        // --- 單擺 UI 更新 (由 p_setPreviewState 和 p_animation_step 呼叫) ---
+        function p_updateDisplay(h, v, pe, ke, E_total) {
+            p_E_total = E_total; 
+            if (activeSimulation === 'pendulum') {
+                updateSharedUI(pe, ke, E_total, h, v, '單擺高度 h');
+            }
+        }
+
+        // --- 繪製單擺軌跡和數據標記 ---
+        function p_drawLabelsAndArc() {
+            const maxAngleRad = Math.abs(p_degToRad(p_keyframes[p_maxAngleIndex]));
+            if (maxAngleRad > 0.01) {
+                p_ctx.beginPath();
+                p_ctx.arc(p_pivotX, p_pivotY, p_L_pixels, Math.PI / 2 - maxAngleRad, Math.PI / 2 + maxAngleRad);
+                p_ctx.strokeStyle = '#e5e7eb'; 
+                p_ctx.lineWidth = 2;
+                p_ctx.setLineDash([4, 4]);
+                p_ctx.stroke();
+                p_ctx.setLineDash([]);
+            }
+
+            p_ctx.font = 'bold 15px "Inter", "Noto Sans TC", sans-serif'; 
+            p_ctx.textAlign = 'center';
+            p_ctx.fillStyle = '#1f2937'; 
+
+            for (const [index, deg] of p_keyframes.entries()) {
+                if (index < p_minAngleIndex || index > p_maxAngleIndex) continue;
+
+                const theta_point = p_degToRad(deg);
+                const x_point = p_pivotX + p_L_pixels * Math.sin(theta_point);
+                const y_point = p_pivotY + p_L_pixels * Math.cos(theta_point);
+
+                p_ctx.beginPath();
+                p_ctx.arc(x_point, y_point, 3, 0, 2 * Math.PI);
+                p_ctx.fillStyle = '#9ca3af';
+                p_ctx.fill();
+
+                const h_point = p_L_meters * (1 - Math.cos(theta_point));
+                const PE_point = p_m * g * h_point;
+                let KE_point = p_E_total - PE_point;
+                if (KE_point < 0.05) KE_point = 0;
+                const v_point = Math.sqrt(Math.max(0, KE_point * 2 / p_m));
+                
+                let textX = x_point;
+                let textY_h = y_point;
+                let textY_v = y_point;
+                let offsetDistance = 25;
+                const verticalOffset = 15;
+                if (deg === -85 || deg === 85 || deg === -60 || deg === 60) offsetDistance = 18;
+                else if (deg === 0) offsetDistance = 30;
+
+                if (deg < 0) {
+                    textX = x_point - offsetDistance;
+                    textY_h = y_point - verticalOffset / 2;
+                    textY_v = y_point + verticalOffset / 2;
+                    p_ctx.textAlign = 'right';
+                } else if (deg > 0) {
+                    textX = x_point + offsetDistance;
+                    textY_h = y_point - verticalOffset / 2;
+                    textY_v = y_point + verticalOffset / 2;
+                    p_ctx.textAlign = 'left';
+                } else { // deg === 0
+                    textX = x_point;
+                    textY_h = y_point + offsetDistance;
+                    textY_v = y_point + offsetDistance + verticalOffset;
+                    p_ctx.textAlign = 'center';
+                }
+                
+                p_ctx.fillStyle = '#1f2937';
+                p_ctx.fillText(`h: ${h_point.toFixed(1)}m`, textX, textY_h);
+                p_ctx.fillText(`v: ${v_point.toFixed(1)}m/s`, textX, textY_v);
+            }
+        }
+
+        // --- 繪製單擺 ---
+        function p_drawPendulum(theta) {
+            p_ctx.clearRect(0, 0, p_canvasWidth, p_canvasHeight); // 每次繪製前清除
+            
+            const x = p_pivotX + p_L_pixels * Math.sin(theta);
+            const y = p_pivotY + p_L_pixels * Math.cos(theta);
+            
+            p_drawLabelsAndArc();
+            p_ctx.beginPath();
+            p_ctx.arc(p_pivotX, p_pivotY, 5, 0, 2 * Math.PI);
+            p_ctx.fillStyle = '#333';
+            p_ctx.fill();
+            p_ctx.beginPath();
+            p_ctx.moveTo(p_pivotX, p_pivotY);
+            p_ctx.lineTo(x, y);
+            p_ctx.strokeStyle = '#555';
+            p_ctx.lineWidth = 3;
+            p_ctx.stroke();
+            p_ctx.beginPath();
+            p_ctx.arc(x, y, p_bobRadius, 0, 2 * Math.PI);
+            p_ctx.fillStyle = 'royalblue';
+            p_ctx.fill();
+            p_ctx.strokeStyle = 'darkblue';
+            p_ctx.lineWidth = 2;
+            p_ctx.stroke();
+        }
+        
+        // --- 單擺畫布響應式 ---
+        function p_resizeCanvas() {
+             const container = p_canvas.parentElement;
+             p_canvasWidth = container.clientWidth;
+             p_canvasHeight = container.clientHeight;
+             p_canvas.width = p_canvasWidth;
+             p_canvas.height = p_canvasHeight;
+             
+             p_L_pixels = p_canvasHeight * 0.7; 
+             p_pivotX = p_canvasWidth / 2;
+             p_pivotY = p_canvasHeight * 0.1; 
+
+             let currentAngle = p_initialAngle;
+             if(globalSimulationState === 'paused' || globalSimulationState === 'running') {
+                const t = p_lastTickTime;
+                currentAngle = p_initialAngle * Math.cos(p_angularFrequency * t);
+             } else if (globalSimulationState === 'stepping' || globalSimulationState === 'preview') {
+                currentAngle = p_degToRad(p_keyframes[p_currentKeyframeIndex]);
+             }
+             
+             p_drawPendulum(currentAngle);
+             
+             const h = p_L_meters * (1 - Math.cos(currentAngle));
+             const pe = p_m * g * h;
+             let ke = p_E_total - pe;
+             if (ke < 0.05) ke = 0;
+             const v = Math.sqrt(Math.max(0, ke * 2 / p_m));
+             p_updateDisplay(h, v, pe, ke, p_E_total);
+        }
+
+        // --- 單擺設定預覽 (內部) ---
+        function p_setPreviewState(startAngleRad, startKeyframeIndex) {
+            p_simulationState = 'preview';
+            p_initialAngle = startAngleRad;
+            p_currentKeyframeIndex = startKeyframeIndex;
+            
+            const absIndex = Math.abs(startKeyframeIndex - 3);
+            p_minAngleIndex = 3 - absIndex;
+            p_maxAngleIndex = 3 + absIndex;
+            
+            p_stepDirection = (startAngleRad >= 0) ? -1 : 1; 
+
+            p_lastTickTime = 0;
+            const h_max = p_L_meters * (1 - Math.cos(Math.abs(p_initialAngle)));
+            p_E_total = p_m * g * h_max; 
+            
+            p_drawPendulum(p_degToRad(p_keyframes[startKeyframeIndex]));
+            p_updateDisplay(h_max, 0, p_E_total, 0, p_E_total);
+        }
+
+        // --- 單擺：根據能量設定預覽 (由彈簧呼叫) ---
+        function p_setPreviewStateFromEnergy(energy, direction) {
+            p_simulationState = 'preview';
+            p_E_total = energy;
+            if (p_E_total < 1e-3) {
+                 p_initialAngle = 0;
+                 p_currentKeyframeIndex = 3;
+            } else {
+                let h_max = energy / (p_m * g);
+                let cosTheta = 1 - (h_max / p_L_meters);
+                cosTheta = Math.max(-1, Math.min(1, cosTheta)); 
+
+                // 單擺負角度 => 彈簧負位移
+                p_initialAngle = Math.acos(cosTheta) * (direction >= 0 ? 1 : -1); 
+                
+                const deg = p_radToDeg(p_initialAngle);
+                let closestIndex = 3;
+                let minDist = Infinity;
+                for(let i=0; i < p_keyframes.length; i++) {
+                    let dist = Math.abs(deg - p_keyframes[i]);
+                    if (dist < minDist) {
+                        minDist = dist;
+                        closestIndex = i;
+                    }
+                }
+                p_currentKeyframeIndex = closestIndex;
+            }
+            
+            // 重新計算 min/max index
+            const absIndex = Math.abs(p_currentKeyframeIndex - 3);
+            p_minAngleIndex = 3 - absIndex;
+            p_maxAngleIndex = 3 + absIndex;
+            
+            p_drawPendulum(p_degToRad(p_keyframes[p_currentKeyframeIndex]));
+            
+            const h_max_actual = p_L_meters * (1 - Math.cos(Math.abs(p_initialAngle)));
+            p_updateDisplay(h_max_actual, 0, p_E_total, 0, p_E_total);
+        }
+
+        // --- 單擺動畫邏輯 (由 unified_animate 呼叫) ---
+        function p_animation_step(timestamp) {
+            if (p_simulationState !== 'running') return null;
+
+            const t = (Date.now() - p_startTime) / 1000 * p_slowMotionFactor;
+            p_lastTickTime = t;
+            
+            const theta = p_initialAngle * Math.cos(p_angularFrequency * t); 
+            const omega_inst = -p_initialAngle * p_angularFrequency * Math.sin(p_angularFrequency * t); 
+            
+            const h = p_L_meters * (1 - Math.cos(theta));
+            const v = Math.abs(p_L_meters * omega_inst); 
+            const PE = p_m * g * h;
+            let KE = p_E_total - PE;
+            if (KE < 0.05) KE = 0;
+            
+            p_drawPendulum(theta);
+            
+            return { pe: PE, ke: KE, E_total: p_E_total, pos: h, vel: v, label: '單擺高度 h' };
+        }
+
+        // --- 單擺播放控制 (由 global 呼叫) ---
+        function p_playContinuous() {
+            if (p_simulationState === 'running') return;
+            if (p_E_total < 0.01) return;
+            p_simulationState = 'running';
+            
+            const A = Math.abs(p_initialAngle);
+            const theta_t = p_degToRad(p_keyframes[p_currentKeyframeIndex]);
+            
+            // 只有當從非最大振幅點開始時，才需要調整 p_startTime
+            if (Math.abs(theta_t) < A - 0.01 && A > 0.01) {
+                const currentCos = theta_t / A;
+                let phase = Math.acos(currentCos);
+                
+                if (p_stepDirection < 0) phase = 2 * Math.PI - phase; 
+                
+                p_startTime = Date.now() - (phase / p_angularFrequency * 1000 / p_slowMotionFactor);
+                p_lastTickTime = phase / p_angularFrequency;
+            } else {
+                 p_startTime = Date.now();
+                 p_lastTickTime = 0;
+            }
+        }
+
+        function p_pauseContinuous() {
+            if (p_simulationState !== 'running') return;
+            p_simulationState = 'paused';
+        }
+
+        function p_stopSimulation() {
+            p_simulationState = 'stopped';
+        }
+
+        function p_stepForward() {
+            if (p_E_total < 0.01 && p_currentKeyframeIndex === 3) return;
+            p_simulationState = 'stepping';
+
+            if (p_currentKeyframeIndex <= p_minAngleIndex && p_stepDirection === -1) p_stepDirection = 1;
+            else if (p_currentKeyframeIndex >= p_maxAngleIndex && p_stepDirection === 1) p_stepDirection = -1;
+            p_currentKeyframeIndex += p_stepDirection;
+            
+            const targetRad = p_degToRad(p_keyframes[p_currentKeyframeIndex]);
+            p_drawPendulum(targetRad);
+            
+            const h = p_L_meters * (1 - Math.cos(targetRad));
+            const pe = p_m * g * h;
+            let ke = p_E_total - pe;
+            if (ke < 0.05) ke = 0;
+            let v = (ke > 0) ? Math.sqrt(ke * 2 / p_m) : 0;
+            
+            p_updateDisplay(h, v, pe, ke, p_E_total);
+        }
+
+
+        // ---=======================================================---
+        // ---                3. 彈簧 (Spring) 程式碼                ---
+        // ---=======================================================---
+
+        // --- 彈簧 DOM ---
+        const s_canvasContainer = document.getElementById('springCanvasContainer');
+        const s_canvas = document.getElementById('springCanvas');
+        const s_ctx = s_canvas.getContext('2d');
+
+        // --- 彈簧物理常數與設定 ---
+        const s_m = 1.0;    // 質量 (kg)
+        const s_k = 2.0;    // 彈力常數 (N/m)
+        const s_omega = Math.sqrt(s_k / s_m); // 角頻率
+        const s_slowMotionFactor = 0.5;
+        // 彈簧的 keyPositions 應根據單擺的最大能量動態計算
+        const s_defaultKeyPositions = [
+             { x: -10.0 }, { x: -5.0 }, { x: -2.5 },
+             { x: 0.0 },
+             { x: 2.5 },  { x: 5.0 }, { x: 10.0 }
+        ];
+
+        // --- 彈簧狀態變數 ---
+        let s_E_total = 0;
+        let s_lastTimestamp = 0;
+        let s_simulationState = 'stopped';
+        let s_currentKeyPointIndex = 3;
+        let s_stepDirection = 1; 
+        let s_initialAmplitude = 0;
+        let s_simulationTime = 0;
+        let s_block = { x_meters: 0, v: 0 };
+        
+        // --- 彈簧畫布設定 ---
+        let s_pixelsPerMeterX = 1;
+        let s_equilibriumX_pixels;
+        let s_wallX_pixels;
+        let s_blockWidth_pixels, s_blockHeight_pixels;
+        let s_canvasWidth, s_canvasHeight;
+        let s_currentKeyPositions = s_defaultKeyPositions; // 用於分步模式的可視化標記
+
+        // --- 彈簧 UI 更新 (由 s_setPreviewState 和 s_animation_step 呼叫) ---
+        function s_updateDisplay(x, v, pe, ke, E_total) {
+            s_E_total = E_total; 
+            if (activeSimulation === 'spring') {
+                updateSharedUI(pe, ke, E_total, x, v, '彈簧位移 x');
+            }
+        }
+
+        // --- 繪製彈簧標記 (動態調整標記點) ---
+        function s_drawGuidesAndLabels() {
+            // FIXED: 將清畫布移到 drawSpringAndBlock 中，確保每次重新繪製時清除
+            
+            const floorY = s_canvasHeight * 0.7;
+            s_ctx.beginPath();
+            s_ctx.moveTo(0, floorY);
+            s_ctx.lineTo(s_canvasWidth, floorY);
+            s_ctx.strokeStyle = '#374151';
+            s_ctx.lineWidth = 4;
+            s_ctx.stroke();
+
+            s_ctx.fillStyle = '#9ca3af';
+            s_ctx.fillRect(0, s_canvasHeight * 0.2, s_wallX_pixels, s_canvasHeight * 0.5);
+
+            s_ctx.font = 'bold 15px "Inter", "Noto Sans TC", sans-serif'; 
+            s_ctx.textAlign = 'center';
+            s_ctx.fillStyle = '#1f2937';
+            
+            // 繪製動態計算的 key positions
+            s_currentKeyPositions.forEach((p) => {
+                // 檢查是否在當前總能量 E_total 範圍內 (實際上已在 p_setPreviewStateFromEnergy 處理)
+                // if (Math.abs(p.x) > s_initialAmplitude + 0.01) return;
+
+                const px = s_equilibriumX_pixels + p.x * s_pixelsPerMeterX;
+                s_ctx.beginPath();
+                s_ctx.moveTo(px, floorY - 10);
+                s_ctx.lineTo(px, floorY + 10);
+                s_ctx.strokeStyle = '#9ca3af';
+                s_ctx.lineWidth = 2;
+                s_ctx.stroke();
+
+                const pe_point = 0.5 * s_k * p.x * p.x;
+                let ke_point = s_E_total - pe_point;
+                if (ke_point < 0.05) ke_point = 0; 
+                const v_point = Math.sqrt(ke_point * 2 / s_m);
+
+                let textX = px;
+                let textY_x = floorY + 25;
+                let textY_v_val = floorY + 42;
+                let textY_v_unit = floorY + 57;
+                
+                s_ctx.fillStyle = '#1f2937'; 
+                s_ctx.fillText(`x: ${p.x.toFixed(1)}m`, textX, textY_x);
+                s_ctx.fillText(`v: ${v_point.toFixed(1)}`, textX, textY_v_val);
+                s_ctx.fillText(`m/s`, textX, textY_v_unit);
+            });
+        }
+        
+        // --- 繪製彈簧與方塊 ---
+        function s_drawSpringAndBlock(block_x_meters) {
+             s_ctx.clearRect(0, 0, s_canvasWidth, s_canvasHeight); // FIXED: 每次繪製前清除畫布
+             s_drawGuidesAndLabels();
+
+             const block_x_pixels = s_equilibriumX_pixels + block_x_meters * s_pixelsPerMeterX;
+             
+             const floorY = s_canvasHeight * 0.7;
+             const blockY = floorY - s_blockHeight_pixels;
+             const springY = floorY - s_blockHeight_pixels / 2;
+             const blockLeftX = block_x_pixels - s_blockWidth_pixels / 2;
+
+             s_ctx.beginPath();
+             s_ctx.moveTo(s_wallX_pixels, springY);
+             const springWidth = blockLeftX - s_wallX_pixels;
+             const segments = 20;
+             s_ctx.strokeStyle = '#555';
+             s_ctx.lineWidth = 3;
+             
+             // 彈簧繪製 (波浪線)
+             for (let i = 1; i < segments; i++) {
+                 const x = s_wallX_pixels + (springWidth / segments) * i;
+                 const y = springY + (i % 2 === 0 ? -10 : 10);
+                 s_ctx.lineTo(x, y);
+             }
+             s_ctx.lineTo(blockLeftX, springY);
+             s_ctx.stroke();
+            
+            // FIXED: 繪製單個方塊
+            s_ctx.fillStyle = 'royalblue';
+            s_ctx.strokeStyle = 'darkblue';
+            s_ctx.lineWidth = 2;
+            s_ctx.fillRect(blockLeftX, blockY, s_blockWidth_pixels, s_blockHeight_pixels);
+            s_ctx.strokeRect(blockLeftX, blockY, s_blockWidth_pixels, s_blockHeight_pixels);
+        }
+
+        // --- 彈簧計算畫布幾何 ---
+        function s_calculateGeometry() {
+            s_canvasWidth = s_canvas.clientWidth;
+            s_canvasHeight = s_canvas.clientHeight;
+            s_canvas.width = s_canvasWidth;
+            s_canvas.height = s_canvasHeight;
+            
+            s_wallX_pixels = s_canvasWidth * 0.1; 
+            s_equilibriumX_pixels = s_canvasWidth * 0.55; 
+            s_blockWidth_pixels = s_canvasWidth * 0.08;
+            s_blockHeight_pixels = s_canvasHeight * 0.2;
+
+            // 最大彈簧位移 x_max 應對應單擺的 E_MAX_DISPLAY
+            // E_MAX_DISPLAY = 50.0 J. k=2.0 N/m. x_max_display = sqrt(2*50/2) = 7.07 m
+            const s_max_amplitude_display = Math.sqrt(2 * E_MAX_DISPLAY / s_k); // 約 7.07 m
+
+            const maxStretchPixels = s_canvasWidth * 0.95; 
+            s_pixelsPerMeterX = (maxStretchPixels - s_equilibriumX_pixels) / s_max_amplitude_display;
+            
+            // 確保牆壁和平衡點不會太靠近
+             const safeMinBlockCenter = s_wallX_pixels + s_blockWidth_pixels / 2 + 5;
+             const safeMaxBlockCenter = s_canvasWidth - s_blockWidth_pixels / 2 - 5;
+             s_equilibriumX_pixels = (safeMaxBlockCenter + safeMinBlockCenter) / 2;
+             s_pixelsPerMeterX = (safeMaxBlockCenter - s_equilibriumX_pixels) / s_max_amplitude_display;
+        }
+
+        // --- 彈簧畫布響應式 ---
+        function s_resizeCanvas() {
+            s_calculateGeometry(); 
+            const currentPixelsX = s_equilibriumX_pixels + s_block.x_meters * s_pixelsPerMeterX;
+            s_drawSpringAndBlock(s_block.x_meters);
+            const pe = 0.5 * s_k * s_block.x_meters * s_block.x_meters;
+            const ke = s_E_total - pe;
+            s_updateDisplay(s_block.x_meters, Math.abs(s_block.v), pe, ke, s_E_total);
+        }
+        
+        // --- 彈簧設定預覽 (內部) ---
+        function s_setPreviewState(startDisplacement) {
+            s_simulationState = 'preview';
+            s_initialAmplitude = Math.abs(startDisplacement);
+            s_E_total = 0.5 * s_k * s_initialAmplitude * s_initialAmplitude; 
+            
+            s_block.x_meters = startDisplacement;
+            s_block.v = 0;
+            
+            // 設置起始時間
+            s_simulationTime = (s_initialAmplitude > 0.01) ? Math.acos(startDisplacement / s_initialAmplitude) / s_omega : 0;
+            s_lastTimestamp = 0; 
+
+            s_drawSpringAndBlock(s_block.x_meters); 
+            s_updateDisplay(startDisplacement, 0, s_E_total, 0, s_E_total);
+        }
+
+        // --- 彈簧：根據能量設定預覽 (由單擺呼叫) ---
+        function s_setPreviewStateFromEnergy(energy, initialAngleDirection) {
+            s_E_total = energy;
+            if (energy < 1e-3) {
+                 s_initialAmplitude = 0;
+            } else {
+                 const x_max_sq = (2 * energy) / s_k;
+                 s_initialAmplitude = Math.sqrt(x_max_sq);
+            }
+            
+            // 初始位移： 單擺負角度 => 彈簧負位移 (壓縮)
+            const startDisplacement = s_initialAmplitude * (initialAngleDirection >= 0 ? 1 : -1); 
+
+            // 動態更新 s_currentKeyPositions 標記點
+            const A = s_initialAmplitude;
+            s_currentKeyPositions = [
+                 { x: -A }, 
+                 { x: -A / 2 }, 
+                 { x: 0 },
+                 { x: A / 2 }, 
+                 { x: A }
+            ].filter(p => Math.abs(p.x) < 0.01 || Math.abs(p.x) <= s_initialAmplitude + 0.1); // 確保只顯示振幅內的點
+            
+            // 確保分步模式的 index 正確對應到 startDisplacement
+            let closestIndex = s_currentKeyPositions.findIndex(p => Math.abs(p.x - startDisplacement) < 0.01);
+            if (closestIndex === -1) { 
+                 s_currentKeyPointIndex = (initialAngleDirection >= 0 ? s_currentKeyPositions.length - 1 : 0);
+            } else {
+                 s_currentKeyPointIndex = closestIndex;
+            }
+
+            s_setPreviewState(startDisplacement); 
+        }
+
+        // --- 彈簧動畫邏輯 (由 unified_animate 呼叫) ---
+         function s_animation_step(timestamp) {
+            if (s_simulationState !== 'running') return null;
+
+            if (!s_lastTimestamp) { 
+                s_lastTimestamp = timestamp;
+                return null; 
+            }
+            const elapsedRealTime = (timestamp - s_lastTimestamp) / 1000;
+            const dt = elapsedRealTime * s_slowMotionFactor; // 使用真實時間差，避免跳動
+            s_lastTimestamp = timestamp; 
+            s_simulationTime += dt;
+
+            const t = s_simulationTime;
+            const A = s_initialAmplitude;
+            const initialSign = s_block.x_meters > 0 ? 1 : -1; 
+            
+            if (A < 0.01) {
+                 s_block.x_meters = 0;
+                 s_block.v = 0;
+            } else {
+                 // x(t) = A_initial * cos(omega*t)
+                 s_block.x_meters = initialSign * A * Math.cos(s_omega * t);
+                 s_block.v = -initialSign * A * s_omega * Math.sin(s_omega * t);
+            }
+            
+            const currentPE = 0.5 * s_k * s_block.x_meters * s_block.x_meters;
+            const currentKE = 0.5 * s_m * s_block.v * s_block.v;
+            
+            s_drawSpringAndBlock(s_block.x_meters);
+            
+            return { pe: currentPE, ke: currentKE, E_total: s_E_total, pos: s_block.x_meters, vel: Math.abs(s_block.v), label: '彈簧位移 x' };
+        }
+
+        // --- 彈簧播放控制 (由 global 呼叫) ---
+        function s_playContinuous() {
+            if (s_simulationState === 'running') return; 
+            if (s_E_total < 0.01) return;
+
+            s_lastTimestamp = 0;
+            if (s_simulationState === 'paused') {
+                 const A = s_initialAmplitude;
+                 const x_t = s_block.x_meters;
+                 const initialSign = s_block.x_meters > 0 ? 1 : -1; 
+
+                 // 計算相位
+                 let cos_phase = x_t / (initialSign * A);
+                 cos_phase = Math.min(1, Math.max(-1, cos_phase)); // 避免浮點誤差
+                 let phase = Math.acos(cos_phase); 
+                 
+                 // 根據當前速度 v 調整相位：如果 sin(omega*t) 的符號與 v 的符號不符，則表示在後半週期
+                 const sin_omega_t = -s_block.v / (initialSign * A * s_omega);
+                 if (sin_omega_t < 0) { // sin(phase) < 0
+                      phase = 2 * Math.PI - phase; 
+                 }
+                 
+                 s_simulationTime = phase / s_omega;
+            } else {
+                 s_simulationTime = 0;
+            }
+            s_simulationState = 'running'; 
+        }
+
+        function s_pauseContinuous() {
+             if (s_simulationState !== 'running') return; 
+             s_simulationState = 'paused';
+             s_lastTimestamp = 0;
+        }
+
+        function s_stopSimulation() {
+            s_simulationState = 'stopped';
+        }
+
+        // --- 彈簧分步前進 ---
+        function s_stepForward() {
+            if (s_E_total < 0.01 && s_block.x_meters === 0) return;
+            s_simulationState = 'stepping';
+
+            // 基於 s_currentKeyPositions 進行分步
+            let minIndex = 0; 
+            let maxIndex = s_currentKeyPositions.length - 1;
+
+             // 檢查是否到達邊界，並反向
+             if (s_currentKeyPointIndex <= minIndex && s_stepDirection === -1) s_stepDirection = 1;
+             else if (s_currentKeyPointIndex >= maxIndex && s_stepDirection === 1) s_stepDirection = -1;
+             
+             s_currentKeyPointIndex += s_stepDirection;
+             s_currentKeyPointIndex = Math.max(minIndex, Math.min(maxIndex, s_currentKeyPointIndex));
+
+            const targetPoint = s_currentKeyPositions[s_currentKeyPointIndex];
+             s_block.x_meters = targetPoint.x;
+             const pe = 0.5 * s_k * s_block.x_meters * s_block.x_meters;
+             let ke = s_E_total - pe;
+             if (ke < 0.05) ke = 0;
+             
+             // 設定速度 V (V=0 在極值點, V=max 在平衡點)
+             let v_mag = (ke > 0) ? Math.sqrt(ke * 2 / s_m) : 0;
+             let v_sign = s_stepDirection;
+             if (s_currentKeyPointIndex === minIndex || s_currentKeyPointIndex === maxIndex) v_sign = 0; 
+             
+             s_block.v = v_mag * v_sign; 
+             
+            s_drawSpringAndBlock(s_block.x_meters);
+            s_updateDisplay(s_block.x_meters, Math.abs(s_block.v), pe, ke, s_E_total);
+        }
+        
+        // --- 彈簧拖曳功能 (已移除) ---
+        // 由於用戶要求移除彈簧的獨立控制，拖曳功能也被移除，現在彈簧完全由單擺控制。
+
+
+        // ---=======================================================---
+        // ---          4. 全域/共用控制函數與事件綁定               ---
+        // ---=======================================================---
+
+        // --- 共用 UI 更新函數 (縱向能量條) ---
+        function updateSharedUI(pe, ke, E_total, pos, vel, pos_label_text) {
+            peValueEl.textContent = `${pe.toFixed(1)} J`;
+            keValueEl.textContent = `${ke.toFixed(1)} J`;
+            totalValueEl.textContent = `${E_total.toFixed(1)} J`;
+
+            // FIXED: 精確計算百分比，基於 E_MAX_DISPLAY = 50.0 J，消除灰色地帶
+            const E_max_h = verticalBarContainer.clientHeight; 
+            const totalE_clamped = Math.min(E_total, E_MAX_DISPLAY); 
+            
+            // 總能量佔 E_MAX_DISPLAY 的百分比
+            const total_E_percent_of_max = (totalE_clamped / E_MAX_DISPLAY) * 100;
+            
+            // 位能佔總能量的百分比
+            let pe_ratio = E_total > 0 ? (pe / E_total) : 0;
+            let ke_ratio = E_total > 0 ? (ke / E_total) : 0;
+            
+            // 實際繪製的高度 (佔容器總高的百分比)
+            let pe_height_percent = pe_ratio * total_E_percent_of_max;
+            let ke_height_percent = ke_ratio * total_E_percent_of_max;
+
+            // 設置高度和位置
+            peBarEl.style.height = `${pe_height_percent}%`;
+            keBarEl.style.height = `${ke_height_percent}%`;
+            keBarEl.style.bottom = `${pe_height_percent}%`; 
+
+            sharedPosLabelEl.textContent = pos_label_text;
+            sharedPosValueEl.textContent = `${pos.toFixed(1)} m`;
+            velocityValueEl.textContent = `${vel.toFixed(1)} m/s`;
+        }
+
+        // --- 全域狀態設定函數 (連動) ---
+        function setPendulumState(startAngleRad, startKeyframeIndex) {
+            activeSimulation = 'pendulum';
+            globalSimulationState = 'preview';
+            if (globalAnimationFrameId) cancelAnimationFrame(globalAnimationFrameId);
+            globalAnimationFrameId = null;
+            
+            p_setPreviewState(startAngleRad, startKeyframeIndex);
+            
+            // direction: 決定彈簧是拉伸 (正) 還是壓縮 (負)
+            const direction = startAngleRad >= 0 ? 1 : -1; 
+            s_setPreviewStateFromEnergy(p_E_total, direction);
+            
+            playText.textContent = isStepping ? "下一步" : "開始";
+            btnPlay.classList.remove('bg-green-600');
+        }
+
+        // (移除 setSpringState，因為彈簧已不能獨立控制)
+
+        // --- 統一的動畫循環 ---
+        function startUnifiedLoop() {
+            if (globalAnimationFrameId) return; 
+            globalSimulationState = 'running';
+
+            function unified_animate(timestamp) {
+                if (globalSimulationState !== 'running') {
+                    cancelAnimationFrame(globalAnimationFrameId);
+                    globalAnimationFrameId = null;
+                    return;
+                }
+
+                const p_results = p_animation_step(timestamp);
+                const s_results = s_animation_step(timestamp);
+                
+                // 根據 activeSimulation 更新 UI
+                const active_results = (activeSimulation === 'pendulum') ? p_results : s_results;
+                if (active_results) {
+                    updateSharedUI(active_results.pe, active_results.ke, active_results.E_total, active_results.pos, active_results.vel, active_results.label);
+                }
+
+                globalAnimationFrameId = requestAnimationFrame(unified_animate);
+            }
+            
+            globalAnimationFrameId = requestAnimationFrame(unified_animate);
+        }
+
+        // --- 統一的播放/暫停/停止控制 ---
+        function unified_play() {
+            if (isStepping) {
+                // 分段模式
+                globalSimulationState = 'stepping';
+                p_stepForward();
+                s_stepForward();
+                playText.textContent = "下一步";
+            } else {
+                // 連續模式
+                if (globalSimulationState === 'running') return;
+
+                globalSimulationState = 'running';
+                p_playContinuous();
+                s_playContinuous();
+                startUnifiedLoop(); 
+                playText.textContent = "播放";
+                btnPlay.classList.add('bg-green-600');
+            }
+        }
+
+        function unified_pause() {
+            if (globalSimulationState !== 'running') return;
+            globalSimulationState = 'paused';
+            p_pauseContinuous();
+            s_pauseContinuous();
+            if (globalAnimationFrameId) cancelAnimationFrame(globalAnimationFrameId);
+            globalAnimationFrameId = null;
+            playText.textContent = "繼續";
+            btnPlay.classList.remove('bg-green-600');
+        }
+
+        function unified_stop() {
+            globalSimulationState = 'stopped';
+            if (globalAnimationFrameId) cancelAnimationFrame(globalAnimationFrameId);
+            globalAnimationFrameId = null;
+            
+            p_setPreviewState(0, 3);
+            s_setPreviewStateFromEnergy(0, 1); // E=0, direction=1
+            
+            activeSimulation = 'pendulum';
+            p_updateDisplay(0, 0, 0, 0, 0);
+
+            playText.textContent = "開始";
+            btnPlay.classList.remove('bg-green-600');
+        }
+
+        // --- 統一的畫布重設大小 ---
+        function resizeAll() {
+            p_resizeCanvas();
+            s_resizeCanvas();
+        }
+        window.addEventListener('resize', resizeAll);
+
+        // --- 綁定單擺按鈕 (主控) ---
+        document.getElementById('btn-p-l-85').addEventListener('click', () => setPendulumState(p_degToRad(-85), 0));
+        document.getElementById('btn-p-l-60').addEventListener('click', () => setPendulumState(p_degToRad(-60), 1));
+        document.getElementById('btn-p-l-30').addEventListener('click', () => setPendulumState(p_degToRad(-30), 2));
+        document.getElementById('btn-p-0').addEventListener('click', () => setPendulumState(0, 3));
+        
+        // (已移除彈簧按鈕綁定)
+
+        // --- 綁定共用播放控制事件 ---
+        btnPlay.addEventListener('click', unified_play);
+        btnPause.addEventListener('click', unified_pause);
+        btnStop.addEventListener('click', unified_stop);
+
+        // --- 模式切換事件 ---
+        btnModeContinuous.addEventListener('click', () => {
+            if (!isStepping) return;
+            isStepping = false;
+            btnModeContinuous.classList.replace('bg-gray-300', 'bg-indigo-600');
+            btnModeContinuous.classList.replace('text-gray-700', 'text-white');
+            btnModeContinuous.classList.replace('opacity-70', 'opacity-100');
+            btnModeStep.classList.replace('bg-indigo-600', 'bg-gray-300');
+            btnModeStep.classList.replace('text-white', 'text-gray-700');
+            btnModeStep.classList.replace('opacity-100', 'opacity-70');
+            
+            if (globalSimulationState === 'paused') playText.textContent = "繼續";
+            else if (globalSimulationState === 'running') playText.textContent = "播放";
+            else playText.textContent = "開始";
+            
+            if (globalSimulationState === 'stepping') {
+                 globalSimulationState = 'preview';
+                 p_simulationState = 'preview';
+                 s_simulationState = 'preview';
+            }
+        });
+
+        btnModeStep.addEventListener('click', () => {
+            if (isStepping) return;
+            isStepping = true;
+            btnModeStep.classList.replace('bg-gray-300', 'bg-indigo-600');
+            btnModeStep.classList.replace('text-gray-700', 'text-white');
+            btnModeStep.classList.replace('opacity-70', 'opacity-100');
+            btnModeContinuous.classList.replace('bg-indigo-600', 'bg-gray-300');
+            btnModeContinuous.classList.replace('text-white', 'text-gray-700');
+            btnModeContinuous.classList.replace('opacity-100', 'opacity-70');
+
+            playText.textContent = "下一步";
+            if (globalSimulationState === 'running') unified_pause();
+        });
+
+
+        // --- 初始設定 ---
+        setTimeout(() => {
+            resizeAll();
+            unified_stop(); 
+            btnModeContinuous.click(); 
+            // 預設設定到最大能量點 (左 85度)
+            setPendulumState(p_degToRad(-85), 0);
+        }, 0);
+    </script>
+</body>
+</html>

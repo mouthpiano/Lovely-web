@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>彈簧力學能守恆-彈力位能</title>
+    
+    
+
+<script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 使用 'Inter' 字體 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        /* 能量條的平滑過渡效果 */
+        .energy-bar-fill {
+            transition: width 0.1s linear;
+        }
+        /* 確保畫布高度能正確計算 (修改為 16:9) */
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            height: 0;
+            overflow: hidden;
+            cursor: grab; /* 拖曳游標 */
+        }
+        .canvas-container.dragging {
+             cursor: grabbing;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        /* 用於切換按鈕的樣式 */
+        .mode-btn-active {
+            @apply bg-indigo-600 text-white shadow-md opacity-100;
+        }
+        .mode-btn-inactive {
+            @apply bg-gray-300 text-gray-700 hover:bg-indigo-200 opacity-70;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4 md:p-8">
+
+    
+
+<div class="w-full max-w-6xl bg-white rounded-2xl shadow-xl p-6 md:p-8">
+        
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-6">
+            彈簧力學能守恆 (彈力位能)
+        </h1>
+
+        
+
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+
+            
+
+<div class="md:col-span-2 p-4 bg-gray-50 rounded-lg order-2 md:order-1">
+                
+                
+
+<!-- 模式選擇 (移除) -->
+
+                
+
+<h2 id="position-title" class="text-lg font-semibold text-center mb-4">設定釋放位置 (位移)</h2>
+                
+                
+
+<!-- (修改) 彈簧位置按鈕 -->
+                <div id="position-buttons" class="flex flex-col gap-2">
+                    <button id="btn-neg-10" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">x = -10.0m (最大壓縮)</button>
+                    <button id="btn-neg-5" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">x = -5.0m</button>
+                    <button id="btn-neg-2_5" class="w-full text-sm bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition">x = -2.5m</button>
+                    <button id="btn-c-0" class="w-full text-sm bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition">x = 0m (平衡點)</button>
+                    <button id="btn-pos-2_5" class="w-full text-sm bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition">x = +2.5m</button>
+                    <button id="btn-pos-5" class="w-full text-sm bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition">x = +5.0m</button>
+                    <button id="btn-pos-10" class="w-full text-sm bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition">x = +10.0m (最大伸長)</button>
+                </div>
+
+            </div>
+
+            
+
+<div class="md:col-span-8 order-1 md:order-2">
+                <div class="canvas-container bg-gray-50 rounded-lg overflow-hidden border border-gray-200" id="canvasContainer">
+                    <canvas id="simulationCanvas"></canvas>
+                </div>
+                
+                
+
+<div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <div class="space-y-5">
+                        <div class="space-y-3">
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <!-- (修改) 標籤 -->
+                                    <span class="font-medium text-blue-600">彈力位能 (PE)</span>
+                                    <span id="peValue" class="font-mono text-blue-600">0.00 J</span>
+                                </div>
+                                <div class="w-full bg-blue-100 rounded-full h-3">
+                                    <div id="peBar" class="energy-bar-fill bg-blue-500 h-3 rounded-full" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="font-medium text-green-600">動能 (KE)</span>
+                                    <span id="keValue" class="font-mono text-green-600">0.00 J</span>
+                                </div>
+                                <div class="w-full bg-green-100 rounded-full h-3">
+                                    <div id="keBar" class="energy-bar-fill bg-green-500 h-3 rounded-full" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-sm mb-1">
+                                    <span class="font-bold text-gray-700">總力學能 (E)</span>
+                                    <span id="totalValue" class="font-mono font-bold text-gray-700">0.00 J</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-3">
+                                    <div class="bg-gray-700 h-3 rounded-full" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <hr class="my-4">
+                        <div class="grid grid-cols-2 gap-4 text-center">
+                            <div>
+                                <!-- (修改) 標籤 -->
+                                <div class="text-sm text-gray-500">目前位移 (x)</div>
+                                <div id="displacementValue" class="text-2xl font-bold font-mono text-gray-800">0.00 m</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-500">目前速度</div>
+                                <div id="velocityValue" class="text-2xl font-bold font-mono text-gray-800">0.00 m/s</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            
+
+<div class="md:col-span-2 p-4 bg-gray-50 rounded-lg order-3 md:order-3">
+                <div class="flex flex-col gap-4">
+                    
+                    
+
+<!-- (移除) 右斜面角度控制 -->
+                    
+                    
+
+<div>
+                        <h2 class="text-lg font-semibold text-center mb-4">播放控制</h2>
+                        <div class="flex flex-col gap-2 mb-4">
+                            <button id="btn-play" class="text-sm bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1"><path fill-rule="evenodd" d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm6.39-2.908a.75.75 0 0 1 .766.027l3.5 2.25a.75.75 0 0 1 0 1.262l-3.5 2.25A.75.75 0 0 1 8 12.25v-4.5a.75.75 0 0 1 .39-.658Z" clip-rule="evenodd" /></svg>
+                                <span id="play-text">開始</span>
+                            </button>
+                            <button id="btn-pause" class="text-sm bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1"><path fill-rule="evenodd" d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm5-2.25A.75.75 0 0 1 7.75 7h.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-4.5Zm4 0A.75.75 0 0 1 11.75 7h.5a.75.75 0 0 1 .75.75v4.5a.75.75 0 0 1-.75.75h-.5a.75.75 0 0 1-.75-.75v-4.5Z" clip-rule="evenodd" /></svg>
+                                <span>暫停</span>
+                            </button>
+                            <button id="btn-stop" class="text-sm bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 mr-1"><path fill-rule="evenodd" d="M2 10a8 8 0 1 1 16 0 8 8 0 0 1-16 0Zm5.25-1.75A.75.75 0 0 1 8 7.5h4a.75.75 0 0 1 .75.75v4a.75.75 0 0 1-.75.75H8a.75.75 0 0 1-.75-.75v-4Z" clip-rule="evenodd" /></svg>
+                                <span>停止 (歸零)</span>
+                            </button>
+                        </div>
+                    </div>
+            
+                    
+
+<div>
+                        <h2 class="text-lg font-semibold text-center mb-4">播放模式</h2>
+                        <div class="flex flex-col gap-2 mb-4">
+                            <button id="btn-mode-continuous" class="text-sm py-2 px-4 rounded-lg transition bg-indigo-600 text-white shadow-md opacity-100">
+                                連續擺動
+                            </button>
+                            <button id="btn-mode-step" class="text-sm py-2 px-4 rounded-lg transition bg-gray-300 text-gray-700 hover:bg-indigo-200 opacity-70">
+                                分段移動
+                            </button>
+                        </div>
+                    </div>
+
+                    
+
+</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        // --- DOM 元素 ---
+        const canvasContainer = document.getElementById('canvasContainer');
+        const canvas = document.getElementById('simulationCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const peValueEl = document.getElementById('peValue');
+        const keValueEl = document.getElementById('keValue');
+        const totalValueEl = document.getElementById('totalValue');
+        const peBarEl = document.getElementById('peBar');
+        const keBarEl = document.getElementById('keBar');
+        const displacementValueEl = document.getElementById('displacementValue'); // (修改)
+        const velocityValueEl = document.getElementById('velocityValue');
+
+        // --- 播放控制元素 ---
+        const btnPlay = document.getElementById('btn-play');
+        const playText = document.getElementById('play-text');
+        const btnPause = document.getElementById('btn-pause');
+        const btnStop = document.getElementById('btn-stop');
+        const btnModeContinuous = document.getElementById('btn-mode-continuous');
+        const btnModeStep = document.getElementById('btn-mode-step');
+
+        // --- (修改) 物理常數與設定 ---
+        const m = 0.5;    // 質量 (kg)
+        const k = 5;      // 彈力常數 (N/m) (k/m = 10)
+        const maxAmplitude = 10; // 最大位移 (m)
+        const omega = Math.sqrt(k / m); // 角頻率 (sqrt(10) ≈ 3.16)
+        const slowMotionFactor = 0.5; // 正常速度
+        
+        // --- (修改) 關鍵點 ---
+        const keyPositions = [
+             { x: -10,   label: 'x = -10.0m' }, // 0
+             { x: -5,    label: 'x = -5.0m' },  // 1
+             { x: -2.5,  label: 'x = -2.5m' },  // 2
+             { x: 0,     label: 'x = 0m' },     // 3
+             { x: 2.5,   label: 'x = +2.5m' },  // 4
+             { x: 5,     label: 'x = +5.0m' },  // 5
+             { x: 10,    label: 'x = +10.0m' }  // 6
+        ];
+
+        // --- 動畫狀態變數 ---
+        let animationFrameId = null; 
+        let E_total = 0;             
+        let lastTimestamp = 0; 
+        let simulationState = 'stopped'; 
+        let isStepping = false;          
+        let currentKeyPointIndex = 3;  // 預設在 0m
+        let stepDirection = 1;         // +1 往右, -1 往左
+        
+        let initialAmplitude = 0; // 初始釋放的幅度
+        let simulationTime = 0; // (新增) 模擬時間
+        let block = { x_meters: 0, v: 0 }; // (修改) 方塊狀態
+        let isDragging = false; 
+
+        // --- (新增) 像素比例尺 ---
+        let pixelsPerMeterX = 1;
+        let equilibriumX_pixels; // 平衡點的 X 像素座標
+        let wallX_pixels; // 牆壁的 X 像素座標
+        let blockWidth_pixels, blockHeight_pixels; // 方塊尺寸
+
+        // --- 樣式切換輔助函數 ---
+        const activeClasses = ['bg-indigo-600', 'text-white', 'shadow-md', 'opacity-100'];
+        const inactiveClasses = ['bg-gray-300', 'text-gray-700', 'hover:bg-indigo-200', 'opacity-70'];
+
+        function setButtonActive(btn) {
+            btn.classList.remove(...inactiveClasses);
+            btn.classList.add(...activeClasses);
+        }
+        function setButtonInactive(btn) {
+            btn.classList.remove(...activeClasses);
+            btn.classList.add(...inactiveClasses);
+        }
+
+        // --- 畫布設定 ---
+        let canvasWidth, canvasHeight;
+
+        // 更新 UI 顯示 (格式化數字)
+        function updateUI(x, v, pe, ke, E_total) {
+            displacementValueEl.textContent = `${x.toFixed(1)} m`; // (修改)
+            velocityValueEl.textContent = `${v.toFixed(1)} m/s`;
+            peValueEl.textContent = `${pe.toFixed(1)} J`;
+            keValueEl.textContent = `${ke.toFixed(1)} J`;
+            totalValueEl.textContent = `${E_total.toFixed(1)} J (守恆!)`;
+            
+            const pePercent = E_total > 0 ? (pe / E_total) * 100 : 0;
+            const kePercent = E_total > 0 ? (ke / E_total) * 100 : 0;
+            peBarEl.style.width = `${pePercent}%`;
+            keBarEl.style.width = `${kePercent}%`;
+        }
+        
+        // --- (修改) 繪製標記和地面 ---
+        function drawGuidesAndLabels() {
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            // 繪製地面
+            const floorY = canvasHeight * 0.7;
+            ctx.beginPath();
+            ctx.moveTo(0, floorY);
+            ctx.lineTo(canvasWidth, floorY);
+            ctx.strokeStyle = '#374151'; // gray-700
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // 繪製牆壁
+            ctx.fillStyle = '#9ca3af'; // gray-400
+            ctx.fillRect(0, canvasHeight * 0.2, wallX_pixels, canvasHeight * 0.5);
+
+            // 繪製標示點和文字
+            ctx.font = 'bold 15px "Inter", "Noto Sans TC", sans-serif'; 
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#1f2937'; // gray-900
+            
+            const verticalOffset = 15; // (新增) 行距
+
+            keyPositions.forEach(p => {
+                const px = equilibriumX_pixels + p.x * pixelsPerMeterX;
+                // 畫點 (垂直線)
+                ctx.beginPath();
+                ctx.moveTo(px, floorY - 10);
+                ctx.lineTo(px, floorY + 10);
+                ctx.strokeStyle = '#9ca3af'; // gray-400
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // 計算速度
+                const pe_point = 0.5 * k * p.x * p.x;
+                let ke_point = E_total - pe_point;
+                if (ke_point < 0.05) ke_point = 0; 
+                const v_point = Math.sqrt(ke_point * 2 / m); // v = sqrt(2*KE/m)
+
+                // 調整文字位置
+                let textX = px;
+                let textY_x = floorY + 25; // (修改) 移上來一點
+                let textY_v_val = floorY + 42; // (修改) 速度數值
+                let textY_v_unit = floorY + 57; // (修改) 速度單位
+                
+                // 顯示文字
+                ctx.fillStyle = '#1f2937'; 
+                ctx.fillText(`x: ${p.x.toFixed(1)}m`, textX, textY_x);
+                // (修改) 分兩行繪製
+                ctx.fillText(`v: ${v_point.toFixed(1)}`, textX, textY_v_val);
+                ctx.fillText(`m/s`, textX, textY_v_unit);
+            });
+        }
+        
+        // --- (修改) 繪製彈簧和方塊 ---
+        function drawSpringAndBlock(block_x_pixels) { // x is the center of the block
+             drawGuidesAndLabels();
+             
+             const floorY = canvasHeight * 0.7;
+             const blockY = floorY - blockHeight_pixels;
+             const springY = floorY - blockHeight_pixels / 2;
+             const blockLeftX = block_x_pixels - blockWidth_pixels / 2;
+
+             // 繪製彈簧
+             ctx.beginPath();
+             ctx.moveTo(wallX_pixels, springY); // Start at wall
+             const springWidth = blockLeftX - wallX_pixels;
+             const segments = 20; // 彈簧節數
+             ctx.strokeStyle = '#555';
+             ctx.lineWidth = 3;
+             for (let i = 1; i < segments; i++) {
+                 const x = wallX_pixels + (springWidth / segments) * i;
+                 const y = springY + (i % 2 === 0 ? -10 : 10); // Zig-zag
+                 ctx.lineTo(x, y);
+             }
+             ctx.lineTo(blockLeftX, springY); // End at block
+             ctx.stroke();
+
+            
+            // 畫方塊
+            ctx.fillStyle = 'royalblue';
+            ctx.strokeStyle = 'darkblue';
+            ctx.lineWidth = 2;
+            ctx.fillRect(blockLeftX, blockY, blockWidth_pixels, blockHeight_pixels);
+            ctx.strokeRect(blockLeftX, blockY, blockWidth_pixels, blockHeight_pixels);
+        }
+
+        // --- (修改) 計算畫布幾何 ---
+        function calculateGeometry() {
+            canvasWidth = canvas.clientWidth;
+            canvasHeight = canvas.clientHeight;
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+
+            // (修改) 牆壁在左側 20%
+            wallX_pixels = canvasWidth * 0.2;
+            // (修改) 平衡點在 55%
+            equilibriumX_pixels = canvasWidth * 0.55;
+            
+            // (修改) 方塊尺寸
+            blockWidth_pixels = canvasWidth * 0.1;
+            blockHeight_pixels = canvasHeight * 0.2;
+
+            // (修改) 像素比例尺
+            // 讓最大伸長 (+10m) 差不多在 90% 的位置
+            const maxStretchPixels = canvasWidth * 0.9;
+            pixelsPerMeterX = (maxStretchPixels - equilibriumX_pixels) / maxAmplitude;
+            
+            // 檢查最大壓縮 (-10m) 是否可見
+            const minCompressionPixels = equilibriumX_pixels - (maxAmplitude * pixelsPerMeterX);
+            const blockLeftAtMin = minCompressionPixels - blockWidth_pixels / 2;
+            if (blockLeftAtMin < wallX_pixels) {
+                 // 如果還是太靠左，基於牆壁重新計算
+                 // console.warn("Recalculating geometry based on wall collision");
+                 const safeMinBlockCenter = wallX_pixels + blockWidth_pixels / 2 + 10; // 牆壁 + 一半方塊寬 + 10px 緩衝
+                 const safeMaxBlockCenter = canvasWidth - blockWidth_pixels / 2 - 10;
+                 
+                 equilibriumX_pixels = (safeMaxBlockCenter + safeMinBlockCenter) / 2;
+                 pixelsPerMeterX = (safeMaxBlockCenter - equilibriumX_pixels) / maxAmplitude;
+            }
+        }
+
+        // 處理畫布響應式
+        function resizeCanvas() {
+            calculateGeometry(); 
+            if (simulationState === 'preview' || simulationState === 'stopped') {
+                 setPreviewState(block.x_meters); 
+            } else if (simulationState === 'paused' || simulationState === 'stepping'){
+                 const currentPixelsX = equilibriumX_pixels + block.x_meters * pixelsPerMeterX;
+                 drawSpringAndBlock(currentPixelsX);
+                 const pe = 0.5 * k * block.x_meters * block.x_meters;
+                 const ke = E_total - pe;
+                 updateUI(block.x_meters, block.v, pe, ke, E_total); // (修正) 傳遞 block.v
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+
+        // --- (修改) 設定預覽狀態 ---
+        function setPreviewState(startDisplacement) {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            simulationState = 'preview';
+
+            initialAmplitude = Math.abs(startDisplacement); // 幅度
+            E_total = 0.5 * k * startDisplacement * startDisplacement; 
+            
+            block.x_meters = startDisplacement;
+            block.v = 0;
+            
+            // 尋找對應的關鍵點 index
+            let closestIndex = -1;
+            let minDist = Infinity;
+            keyPositions.forEach((p, i) => {
+                const dist = Math.abs(p.x - startDisplacement); 
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestIndex = i;
+                }
+            });
+            currentKeyPointIndex = closestIndex;
+            stepDirection = (startDisplacement >= 0) ? -1 : 1; // 從正向釋放 -> 往左; 從負向釋放 -> 往右
+
+            simulationTime = (startDisplacement < 0) ? (Math.PI / omega) : 0; // (修正) 設定初始相位
+            lastTimestamp = 0; 
+            
+            const currentPixelsX = equilibriumX_pixels + block.x_meters * pixelsPerMeterX;
+            drawSpringAndBlock(currentPixelsX); 
+            updateUI(startDisplacement, 0, E_total, 0, E_total);
+
+            playText.textContent = "開始";
+            btnPlay.classList.remove('bg-green-600');
+        }
+
+        // --- (修改) 動畫循環 ---
+         function animate(timestamp) {
+            if (simulationState !== 'running') return;
+
+            // --- 1. Time Calculation ---
+            if (!lastTimestamp) { 
+                lastTimestamp = timestamp;
+                animationFrameId = requestAnimationFrame(animate);
+                return;
+            }
+            const elapsedRealTime = (timestamp - lastTimestamp) / 1000;
+            const dt = Math.max(1e-5, Math.min(0.05, elapsedRealTime * slowMotionFactor)); 
+            lastTimestamp = timestamp; 
+            simulationTime += dt; // 累積模擬時間
+
+            // --- 2. Calculate Position & Speed (SHM) ---
+            const t = simulationTime;
+            const A = initialAmplitude;
+            
+            if (A < 0.01) { // 總能量為 0，不運動
+                 block.x_meters = 0;
+                 block.v = 0;
+                 pauseContinuous(); // 直接暫停
+            } else {
+                 block.x_meters = A * Math.cos(omega * t);
+                 block.v = -A * omega * Math.sin(omega * t);
+            }
+            
+            // --- 3. Check Stop Conditions (e.g., full cycle) ---
+             // 暫時不加，讓它一直震盪
+             
+            // --- 4. Calculate Energies ---
+            const currentPE = 0.5 * k * block.x_meters * block.x_meters;
+            const currentKE = 0.5 * m * block.v * block.v;
+            
+            // --- 5. Drawing ---
+            const currentPixelsX = equilibriumX_pixels + block.x_meters * pixelsPerMeterX;
+            drawSpringAndBlock(currentPixelsX);
+            updateUI(block.x_meters, block.v, currentPE, currentKE, E_total);
+
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // --- 播放控制功能 ---
+        function playContinuous() {
+            if (simulationState === 'running') return; 
+            if (E_total < 0.01 && Math.abs(block.x_meters) < 0.01) return; // 沒能量不啟動
+
+            // (修改) 確保 lastTimestamp 被正確初始化
+            lastTimestamp = 0; // 重置時間戳，將在 animate 第一幀設定
+            if (simulationState !== 'paused') { // Starting fresh (stopped, preview)
+                 // simulationTime = 0; // 保持 setPreviewState 或 updatePreviewFromDrag 設定的時間
+                 initialAmplitude = Math.abs(block.x_meters); // 設定幅度
+                 if (initialAmplitude < 0.01) initialAmplitude = 0;
+                 
+                 E_total = 0.5 * k * initialAmplitude * initialAmplitude; // 確保 E_total 正確
+                 
+                 if (E_total < 0.01) E_total = 0;
+                 else {
+                     // 決定初始相位，以匹配釋放點
+                     if (block.x_meters < -0.01) {
+                         simulationTime = Math.PI / omega; // 設為半個週期，等同 cos(ωt) 從 -A 開始
+                     } else {
+                         simulationTime = 0; // 設為 0，等同 cos(ωt) 從 +A 開始
+                     }
+                 }
+            } 
+            // If resuming from paused, keep the current simulationTime
+
+            simulationState = 'running'; 
+            playText.textContent = "播放";
+            btnPlay.classList.add('bg-green-600');
+            animationFrameId = requestAnimationFrame(animate); 
+        }
+
+        function pauseContinuous() {
+             if (simulationState !== 'running') return; 
+             simulationState = 'paused';
+             cancelAnimationFrame(animationFrameId);
+             lastTimestamp = 0; // Reset timestamp
+             playText.textContent = "繼續";
+             btnPlay.classList.remove('bg-green-600');
+        }
+
+        function stopSimulation() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            simulationState = 'stopped';
+            lastTimestamp = 0; // Clear timestamp
+            setPreviewState(0); // Reset to 0m
+            btnPlay.classList.remove('bg-green-600');
+        }
+
+        // --- (修改) 分步前進 ---
+        function stepForward() {
+            if (simulationState === 'running') {
+                 pauseContinuous(); 
+            }
+            if (E_total < 0.01) return; // 沒能量不移動
+
+            simulationState = 'stepping'; 
+            playText.textContent = "下一步";
+            btnPlay.classList.remove('bg-green-600');
+            
+            // 找到當前點
+             let currentIndex = -1;
+             let minDist = Infinity;
+             keyPositions.forEach((p, i) => {
+                 const dist = Math.abs(p.x - block.x_meters);
+                 if (dist < minDist) {
+                     minDist = dist;
+                     currentIndex = i;
+                 }
+             });
+             
+             // (*** 關鍵修復 Bug 2 ***)
+             // 找到能量允許的邊界
+             let minIndex = 0;
+             for (let i = 0; i < keyPositions.length; i++) {
+                 if (keyPositions[i].x >= -initialAmplitude - 0.01) {
+                     minIndex = i;
+                     break;
+                 }
+             }
+             let maxIndex = keyPositions.length - 1;
+             for (let i = keyPositions.length - 1; i >= 0; i--) {
+                 if (keyPositions[i].x <= initialAmplitude + 0.01) {
+                     maxIndex = i;
+                     break;
+                 }
+             }
+             if (E_total < 0.01) { minIndex = 3; maxIndex = 3; } // 特例：能量為 0
+
+
+             // 判斷方向
+             if (currentIndex <= minIndex && stepDirection === -1) {
+                 stepDirection = 1; // 到最左邊，反彈
+             } else if (currentIndex >= maxIndex && stepDirection === 1) {
+                 stepDirection = -1; // 到最右邊，反彈
+             }
+             
+             // 計算下一個 index
+             let nextIndex = currentIndex + stepDirection;
+             nextIndex = Math.max(minIndex, Math.min(maxIndex, nextIndex)); // 確保在範圍內
+
+            // 取得目標點
+            const targetPoint = keyPositions[nextIndex];
+
+             // 更新球的狀態
+             block.x_meters = targetPoint.x;
+             const pe = 0.5 * k * block.x_meters * block.x_meters;
+             let ke = E_total - pe;
+             if (ke < 0.05) ke = 0;
+             
+             // 估算速度方向
+             let v_sign = (stepDirection === 1) ? 1 : -1; // 預設
+             if (nextIndex > currentIndex) v_sign = 1; // 往右
+             else if (nextIndex < currentIndex) v_sign = -1; // 往左
+             else v_sign = stepDirection; // 保持
+             
+             block.v = Math.sqrt(ke * 2 / m) * v_sign; 
+             // 修正 0 點和最高點的速度
+             if (Math.abs(block.x_meters) < 0.01) block.v = Math.sqrt(E_total * 2 / m) * stepDirection; // 平衡點速度
+             if (Math.abs(Math.abs(block.x_meters) - initialAmplitude) < 0.01) block.v = 0; // 最高點速度
+
+
+            // 繪製並更新 UI
+            const currentPixelsX = equilibriumX_pixels + block.x_meters * pixelsPerMeterX;
+            drawSpringAndBlock(currentPixelsX);
+            updateUI(block.x_meters, block.v, pe, ke, E_total);
+        }
+
+        // --- (修改) 綁定釋放按鈕事件 ---
+        document.getElementById('btn-neg-10').addEventListener('click', () => setPreviewState(-10.0));
+        document.getElementById('btn-neg-5').addEventListener('click', () => setPreviewState(-5.0));
+        document.getElementById('btn-neg-2_5').addEventListener('click', () => setPreviewState(-2.5));
+        document.getElementById('btn-c-0').addEventListener('click', () => setPreviewState(0));
+        document.getElementById('btn-pos-2_5').addEventListener('click', () => setPreviewState(2.5));
+        document.getElementById('btn-pos-5').addEventListener('click', () => setPreviewState(5.0));
+        document.getElementById('btn-pos-10').addEventListener('click', () => setPreviewState(10.0));
+
+
+        // --- 綁定播放控制事件 ---
+        btnPlay.addEventListener('click', () => {
+            if (isStepping) {
+                stepForward();
+            } else {
+                playContinuous();
+            }
+        });
+        btnPause.addEventListener('click', pauseContinuous);
+        btnStop.addEventListener('click', stopSimulation);
+
+        // --- 綁定播放模式切換 ---
+        btnModeContinuous.addEventListener('click', () => {
+            isStepping = false;
+            setButtonActive(btnModeContinuous);
+            setButtonInactive(btnModeStep);
+            if (simulationState === 'paused') playText.textContent = "繼續";
+            else if (simulationState === 'running') playText.textContent = "播放";
+            else playText.textContent = "開始";
+        });
+        btnModeStep.addEventListener('click', () => {
+            isStepping = true;
+            setButtonActive(btnModeStep);
+            setButtonInactive(btnModeContinuous);
+            playText.textContent = "下一步";
+            if (simulationState === 'running') pauseContinuous();
+        });
+
+        // --- (移除) 綁定右斜面角度切換 ---
+        
+        // --- (新增) 拖曳功能 ---
+        function getRelativeCoords(event) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if (event.touches) {
+                 event.preventDefault();
+                clientX = event.touches[0].clientX;
+                clientY = event.touches[0].clientY;
+            } else {
+                clientX = event.clientX;
+                clientY = event.clientY;
+            }
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        }
+
+        // (新增) 統一的預覽更新函數
+        function updatePreviewFromDrag(x_meters) {
+             if (animationFrameId) cancelAnimationFrame(animationFrameId);
+             simulationState = 'preview';
+             
+             // 限制最大拖曳範圍
+             x_meters = Math.max(-maxAmplitude, Math.min(maxAmplitude, x_meters));
+
+             initialAmplitude = Math.abs(x_meters); // (修改) 更新 initialAmplitude
+             E_total = 0.5 * k * x_meters * x_meters; 
+            
+             block.x_meters = x_meters;
+             // ball.h = x_meters; // 移除
+             block.v = 0;
+             // ball.onSlope = 'left'; // 移除
+
+             // 尋找對應的關鍵點 index
+             let closestIndex = -1;
+             let minDist = Infinity;
+             keyPositions.forEach((p, i) => {
+                 const dist = Math.abs(p.x - block.x_meters); 
+                 if (dist < minDist) {
+                     minDist = dist;
+                     closestIndex = i;
+                 }
+             });
+             currentKeyPointIndex = closestIndex;
+            
+             // 設定初始方向
+             stepDirection = (x_meters >= 0) ? -1 : 1;
+
+             lastTimestamp = 0; 
+             simulationTime = (x_meters < 0) ? (Math.PI / omega) : 0; // (新增) 設定初始相位
+             const currentPixelsX = equilibriumX_pixels + block.x_meters * pixelsPerMeterX;
+             drawSpringAndBlock(currentPixelsX); 
+             updateUI(x_meters, 0, E_total, 0, E_total);
+
+             playText.textContent = "開始";
+             btnPlay.classList.remove('bg-green-600');
+        }
+
+
+        function handleDragStart(event) {
+            const coords = getRelativeCoords(event);
+            const currentPixelsX = equilibriumX_pixels + block.x_meters * pixelsPerMeterX;
+            const blockXMin = currentPixelsX - blockWidth_pixels / 2;
+            const blockXMax = currentPixelsX + blockWidth_pixels / 2;
+            const blockYMin = canvasHeight * 0.7 - blockHeight_pixels;
+            const blockYMax = canvasHeight * 0.7;
+
+            if (coords.x >= blockXMin && coords.x <= blockXMax && coords.y >= blockYMin && coords.y <= blockYMax) {
+                isDragging = true;
+                if (simulationState === 'running') {
+                     pauseContinuous(); // 暫停動畫
+                }
+                simulationState = 'preview'; // 進入拖曳預覽
+                cancelAnimationFrame(animationFrameId);
+                canvasContainer.classList.add('dragging');
+            }
+        }
+
+        function handleDragMove(event) {
+            if (!isDragging) return;
+            event.preventDefault(); // 阻止觸控時的頁面滾動
+            const coords = getRelativeCoords(event);
+            const mx = coords.x;
+            
+            // 從像素 x 轉回物理位移 x
+            let new_x_meters = (mx - (equilibriumX_pixels) ) / pixelsPerMeterX; // (修正) 拖曳時以方塊中心為準
+            
+            // 限制在最大振幅內
+            new_x_meters = Math.max(-maxAmplitude, Math.min(maxAmplitude, new_x_meters));
+            
+            updatePreviewFromDrag(new_x_meters);
+        }
+
+        function handleDragEnd(event) {
+            if (!isDragging) return;
+            isDragging = false;
+            canvasContainer.classList.remove('dragging');
+            // 狀態已在 move 時更新，這裡不需要再做 setPreviewState
+        }
+
+        // 綁定滑鼠事件
+        canvas.addEventListener('mousedown', handleDragStart);
+        canvas.addEventListener('mousemove', handleDragMove);
+        canvas.addEventListener('mouseup', handleDragEnd);
+        canvas.addEventListener('mouseleave', handleDragEnd); 
+
+        // 綁定觸控事件
+        canvas.addEventListener('touchstart', handleDragStart);
+        canvas.addEventListener('touchmove', handleDragMove);
+        canvas.addEventListener('touchend', handleDragEnd);
+        canvas.addEventListener('touchcancel', handleDragEnd);
+
+
+        // --- 初始設定 ---
+        setTimeout(() => {
+            calculateGeometry(); // (修改)
+            setPreviewState(0); // 預設從 0 開始
+            // (移除) setRightSlope(85); 
+            // 預設連續播放模式
+            setButtonActive(btnModeContinuous); 
+            setButtonInactive(btnModeStep); 
+        }, 0);
+    </script>
+</body>
+</html>
+
