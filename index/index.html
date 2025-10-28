@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小栗老師的翻轉人生 - 網站結構編輯器</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Noto Sans 讓中文字體更美觀 -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+        /* 美化滾動條，確保更好的用戶體驗 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4 sm:p-8">
+
+    <div id="app" class="max-w-4xl mx-auto">
+        <!-- 標題與用戶資訊 -->
+        <header class="mb-8 border-b pb-4 flex justify-between items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-indigo-700">小栗老師的翻轉人生</h1>
+                <p class="text-sm text-gray-500">網站內容結構編輯器 (UserID: <span id="user-id" class="font-mono text-xs text-gray-700">載入中...</span>)</p>
+                <p class="text-xs text-red-500 font-medium mt-1">⚠️ 此檔案僅在協作環境中具備連線儲存功能。</p>
+            </div>
+            <div class="flex space-x-2">
+                <!-- 新增：匯出 JSON 按鈕 -->
+                <button onclick="exportJson()" class="bg-blue-500 text-white p-2 rounded-lg shadow-md hover:bg-blue-600 transition-colors flex items-center" title="匯出網站結構 JSON">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                </button>
+                <button onclick="navigateHome()" id="home-button" class="bg-indigo-500 text-white p-2 rounded-lg shadow-md hover:bg-indigo-600 transition-colors hidden" title="回到主目錄">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0h6m-6 0h-6" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- 麵包屑導航 -->
+        <div id="breadcrumb" class="text-indigo-600 mb-6 flex items-center flex-wrap">
+            <!-- 麵包屑將由 JS 渲染 -->
+        </div>
+
+        <!-- 主要內容區域 (Sections/Categories/Links) -->
+        <div id="content-container">
+            <!-- 內容將由 JS 渲染 -->
+            <div id="loading" class="text-center p-12 text-gray-500">
+                <svg class="animate-spin h-6 w-6 text-indigo-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                正在連線資料庫並載入數據...
+            </div>
+        </div>
+    </div>
+
+    <!-- 彈出視窗 Modal 區域 -->
+    <div id="modal-backdrop" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden z-50 transition-opacity duration-300"></div>
+    <div id="modal-container" class="fixed inset-0 flex items-center justify-center p-4 z-50 pointer-events-none">
+        <!-- Modal 內容將由 JS 渲染 -->
+    </div>
+
+    <!-- Firebase 腳本 -->
+    <script type="module">
+        // 匯入 Firebase 核心模組
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        // 匯入認證相關模組
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // 匯入 Firestore 資料庫模組
+        import { getFirestore, doc, setDoc, onSnapshot, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 設定 Firebase 變數 (這些變數由協作環境自動提供)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+        // 初始化 Firebase 服務
+        try {
+            setLogLevel('Debug'); // 開啟日誌以協助偵錯
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
+            window.db = db; // 將 db 設為全域變數方便存取
+            window.auth = auth; // 將 auth 設為全域變數方便存取
+        } catch (e) {
+            console.error("Firebase 初始化失敗:", e);
+        }
+
+        // 全域狀態管理
+        window.configData = { sections: [] }; // 網站結構資料
+        window.currentView = { level: 'sections' }; // 目前顯示的層級: 'sections', 'categories', 或 'links'
+        window.isAuthReady = false;
+        window.userId = null;
+
+        // DOM 元素參考
+        const CONTENT_CONTAINER = document.getElementById('content-container');
+        const BREADCRUMB = document.getElementById('breadcrumb');
+        const HOME_BUTTON = document.getElementById('home-button');
+        const USER_ID_SPAN = document.getElementById('user-id');
+        const MODAL_BACKDROP = document.getElementById('modal-backdrop');
+        const MODAL_CONTAINER = document.getElementById('modal-container');
+
+        // 構造 Firestore 文件參考路徑
+        const websiteConfigDocRef = (uid) => doc(window.db, `artifacts/${appId}/users/${uid}/website_config/main_data`);
+
+        // 預設網站結構數據
+        function getInitialDefaultData() {
+            return {
+  "sections": [
+    {
+      "id": "section-1",
+      "name": "互動教學網頁~鈺心設計",
+      "categories": [
+        {
+          "id": "cat-1-1",
+          "name": "國二上理化",
+          "finalLinks": [
+            {
+              "id": "850bd26f-1593-4c32-b1c5-e9ffcff2a096",
+              "name": "質量、體積與密度模擬器",
+              "url": "https://mouthpiano.github.io/Lovely-web/physics/density.html"
+            },
+            {
+              "id": "084a1d4e-32fd-4b48-a951-c797c725d523",
+              "name": "人口密度概念模擬器",
+              "url": "https://mouthpiano.github.io/Lovely-web/physics/population%20density.html"
+            },
+            {
+              "id": "19c5fe68-e9f1-49dc-b2c6-b27f88cc1514",
+              "name": "人口密度與物質密度對照模擬",
+              "url": "https://mouthpiano.github.io/Lovely-web/physics/population%20density_density.html"
+            },
+            {
+              "id": "9aa20676-c281-47bf-b3bb-6315ba0af445",
+              "name": "密度與濃度概念對照模擬~粒子不會游動",
+              "url": "https://mouthpiano.github.io/Lovely-web/physics/density_conc.html"
+            },
+            {
+              "id": "67f9c553-42b1-400f-b969-9bae73065093",
+              "name": "密度與濃度概念對照模擬~粒子會游動",
+              "url": "https://mouthpiano.github.io/Lovely-web/physics/density_conc_move.html"
+            },
+            {
+              "id": "46476450-caf5-47da-a21f-368f3d241971",
+              "name": "溶液濃度概念模擬",
+              "url": "https://mouthpiano.github.io/Lovely-web/physics/conc.html"
+            },
+            {
+              "id": "0597c22f-2077-4aa6-95e9-1da7ef8cbd10",
+              "name": "化學分子的超級馬拉松~色層分析法 (Chromatography) 互動教學",
+              "url": "https://mouthpiano.github.io/Lovely-web/physics/chromatography.html"
+            },
+            {
+              "id": "6f704ceb-0391-4e95-8c39-584229d8ca5a",
+              "name": "進階版濾水器",
+              "url": "https://mouthpiano.github.io/Lovely-web/physics/filter.html"
+            },
+            {
+              "id": "bc6aaab2-8ca7-4322-aeae-869e6a18f898",
+              "name": "元素週期表賓果",
+              "url": "https://mouthpiano.github.io/Lovely-web/element/element_bingo_2.html"
+            },
+            {
+              "id": "ea87268e-fdc3-4560-85b5-ac9fcfc95995",
+              "name": "光學探索實驗室",
+              "url": "https://mouthpiano.github.io/Lovely-web/physics/can%20see4.html"
+            }
+          ]
+        },
+        {
+          "id": "18f6a095-8e9b-4be1-8427-add7e51f6d33",
+          "name": "國中地科",
+          "finalLinks": []
+        },
+        {
+          "id": "948b0363-2a8f-4f48-980a-2a25e3d6f537",
+          "name": "國三上理化",
+          "finalLinks": [
+            {
+              "id": "364ed13f-8d6a-4ba8-bbeb-04c030b238d4",
+              "name": "互動鋼琴",
+              "url": "https://mouthpiano.github.io/Lovely-web/piano/piano_long.html"
+            },
+            {
+              "id": "186d1d43-1f19-47cf-a8b0-2d67bd2e66bc",
+              "name": "單擺與力學能守恆",
+              "url": "https://mouthpiano.github.io/Lovely-web/energy/swingpc7+11.html"
+            },
+            {
+              "id": "87b6061c-9ebf-4c78-861f-d4d455ca6d22",
+              "name": "彈簧力學能守恆",
+              "url": "https://mouthpiano.github.io/Lovely-web/energy/spring.html"
+            },
+            {
+              "id": "579f1676-5d8e-481b-82fe-f84ba70fd2b3",
+              "name": "伽利略慣性實驗與力學能守恆",
+              "url": "https://mouthpiano.github.io/Lovely-web/energy/inertia.html"
+            },
+            {
+              "id": "ffbee2c2-ed45-4d8f-bcda-c2fce8b27a0e",
+              "name": "單擺（擺長 5.0m）與彈簧（k=2.0, m=1.0）的同步比較實驗",
+              "url": "https://mouthpiano.github.io/Lovely-web/energy/2_in_1_me.html"
+            },
+            {
+              "id": "9d8c712b-99c2-47c0-85ee-eaad58095cfe",
+              "name": "單擺力學能守恆~可調速度",
+              "url": "https://mouthpiano.github.io/Lovely-web/energy/swing_gemini2.html"
+            },
+            {
+              "id": "a047c68d-a82b-458a-a56f-6406c1eb2845",
+              "name": "單擺力學能守恆~可調各種參數",
+              "url": "https://mouthpiano.github.io/Lovely-web/energy/swing_gemini.html"
+            },
+            {
+              "id": "dc4a620c-8c4d-46e5-ae03-75bf1d174f60",
+              "name": "水平彈簧力學能守恆模擬~可調各種參數",
+              "url": "https://mouthpiano.github.io/Lovely-web/energy/spring_gemini.html"
+            },
+            {
+              "id": "6af59605-9819-4a4b-b6db-6cfb40c628de",
+              "name": "水平彈簧力學能守恆模擬~可調速度",
+              "url": "https://mouthpiano.github.io/Lovely-web/energy/spring_gemini2.html"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "59b1f960-fbd1-4307-b122-ea596bb13f2d",
+      "name": "教學分享",
+      "categories": []
+    },
+    {
+      "id": "9d8b36f8-c041-404c-a63a-b56c4e3c521d",
+      "name": "幼兒區",
+      "categories": [
+        {
+          "id": "73bea6f3-2ffb-4756-9cfb-1ae25ef14055",
+          "name": "數學學習區",
+          "finalLinks": []
+        },
+        {
+          "id": "0bce5a50-166b-479d-8642-87a9945b8825",
+          "name": "小遊戲區",
+          "finalLinks": []
+        },
+        {
+          "id": "92e16048-1d1b-467f-80cc-f4d3d9726044",
+          "name": "繪本區",
+          "finalLinks": []
+        }
+      ]
+    }
+  ]
+}
+
+
+        // --- 1. 身份驗證與初始化 ---
+        onAuthStateChanged(window.auth, async (user) => {
+            if (user) {
+                window.userId = user.uid;
+                USER_ID_SPAN.textContent = `${window.userId}`; 
+                window.isAuthReady = true;
+                console.log("Firebase 認證成功，UID:", window.userId);
+                setupDataListener();
+            } else {
+                window.userId = 'pending-auth';
+                USER_ID_SPAN.textContent = '連線中...';
+                window.isAuthReady = false; 
+                console.log("Firebase 認證狀態變更: 等待連線...");
+            }
+        });
+
+        async function authenticate() {
+            try {
+                // 嘗試使用環境提供的自訂 Token 登入
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(window.auth, __initial_auth_token);
+                } else {
+                    // 如果沒有 Token，則使用匿名登入
+                    await signInAnonymously(window.auth);
+                }
+            } catch (error) {
+                console.error("身份驗證錯誤:", error);
+                // 認證失敗，使用預設資料並顯示錯誤訊息
+                window.userId = crypto.randomUUID(); // 使用隨機 ID 作為本地標識
+                USER_ID_SPAN.textContent = '認證失敗，使用離線模式';
+                window.isAuthReady = true; 
+                setupDataListener(); 
+                showModal("錯誤", "Firebase 認證失敗，您將無法儲存資料。請聯繫支援。", null, true);
+            }
+        }
+
+        // 啟動身份驗證流程
+        authenticate();
+
+
+        // --- 2. 資料存取與同步 (使用 onSnapshot 實現即時同步) ---
+
+        function setupDataListener() {
+            const loadingElement = document.getElementById('loading');
+            if (loadingElement) loadingElement.remove();
+
+            if (!window.isAuthReady || !window.userId) {
+                console.log("Auth not ready, skipping data listener setup.");
+                return;
+            }
+            
+            // 監聽 Firestore 文件的即時變動
+            onSnapshot(websiteConfigDocRef(window.userId), (docSnapshot) => {
+                if (docSnapshot.exists() && docSnapshot.data().configJson) {
+                    try {
+                        // 解析 JSON 數據
+                        window.configData = JSON.parse(docSnapshot.data().configJson);
+                        if (!window.configData.sections) {
+                            window.configData.sections = []; 
+                        }
+                    } catch (e) {
+                        console.error("解析數據錯誤，使用預設範例:", e);
+                        window.configData = getInitialDefaultData();
+                    }
+                } else {
+                    // 文件不存在，使用預設範例並嘗試儲存 (用於首次啟動)
+                    console.log("Firestore 文件不存在，初始化預設數據。");
+                    window.configData = getInitialDefaultData();
+                    // 為了不無限迴圈，首次載入不強制儲存
+                }
+                renderUI();
+            }, (error) => {
+                console.error("監聽 Firestore 錯誤:", error);
+                CONTENT_CONTAINER.innerHTML = `<div class="p-8 text-center bg-red-100 text-red-700 rounded-xl">資料同步失敗：${error.message}，請刷新頁面或檢查網路。</div>`;
+            });
+        }
+
+        // 儲存結構到 Firestore
+        async function saveStructure() {
+            if (!window.userId) {
+                showModal("錯誤", "無法儲存：用戶 ID 未知。請刷新頁面。", null, true);
+                return;
+            }
+            
+            try {
+                const dataToSave = {
+                    configJson: JSON.stringify(window.configData, null, 2),
+                    lastUpdated: new Date().toISOString()
+                };
+                // 使用 setDoc 儲存數據
+                await setDoc(websiteConfigDocRef(window.userId), dataToSave);
+            } catch (e) {
+                console.error("儲存結構到 Firestore 失敗:", e);
+                showModal("錯誤", "儲存網站結構時發生錯誤。", null, true);
+            }
+        }
+
+
+        // --- 3. 核心 UI 渲染邏輯 ---
+        function renderUI() {
+            CONTENT_CONTAINER.innerHTML = ''; 
+
+            if (!window.isAuthReady) {
+                 // 如果還在認證中，不渲染 UI
+                 return;
+            }
+
+            renderBreadcrumb();
+
+            const { level, sectionId, categoryId } = window.currentView;
+            const currentSection = sectionId ? window.configData.sections.find(s => s.id === sectionId) : null;
+            const currentCategory = categoryId && currentSection 
+                ? currentSection.categories.find(c => c.id === categoryId) : null;
+            
+            let itemsToRender = [];
+            let addButtonText = "";
+            let addButtonAction = "";
+            let titleText = "";
+            
+            // 判斷當前視圖層級
+            if (level === 'sections') {
+                itemsToRender = window.configData.sections;
+                addButtonText = "新增主要區塊";
+                addButtonAction = 'addSection()';
+                titleText = "主要區塊 (教學區, 遊戲區...)";
+                HOME_BUTTON.classList.add('hidden');
+            } else if (level === 'categories' && currentSection) {
+                itemsToRender = currentSection.categories;
+                addButtonText = `新增分類到「${currentSection.name}」`;
+                addButtonAction = `addCategory('${sectionId}')`;
+                titleText = `${currentSection.name} - 分類 (國二理化, 國一生物...)`;
+                HOME_BUTTON.classList.remove('hidden');
+            } else if (level === 'links' && currentCategory) {
+                itemsToRender = currentCategory.finalLinks;
+                addButtonText = `新增最終連結到「${currentCategory.name}」`;
+                addButtonAction = `addLink('${sectionId}', '${categoryId}')`;
+                titleText = `${currentCategory.name} - 連結 (模擬實驗, 互動網頁...)`;
+                HOME_BUTTON.classList.remove('hidden');
+            } else {
+                navigateHome();
+                return; 
+            }
+
+            // 渲染列表標題和新增按鈕
+            CONTENT_CONTAINER.innerHTML = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold text-gray-800">${titleText}</h2>
+                    <button onclick="${addButtonAction}" class="bg-teal-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-teal-600 transition-colors flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                        </svg>
+                        ${addButtonText}
+                    </button>
+                </div>
+                <div id="item-list" class="space-y-4"></div>
+            `;
+            
+            const itemList = document.getElementById('item-list');
+            if (itemsToRender.length === 0) {
+                 itemList.innerHTML = `<div class="p-8 text-center bg-gray-100 text-gray-500 rounded-xl border border-dashed">
+                     目前沒有內容，請點擊「${addButtonText}」開始新增。
+                 </div>`;
+                 return;
+            }
+
+            // 渲染列表項目
+            itemsToRender.forEach(item => {
+                let primaryAction = '';
+                let icon = '';
+                let linkTarget = '';
+
+                if (level === 'sections') {
+                    primaryAction = `onclick="navigateTo('categories', '${item.id}')"`;
+                    icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>`;
+                } else if (level === 'categories') {
+                    primaryAction = `onclick="navigateTo('links', '${sectionId}', '${item.id}')"`;
+                    icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>`;
+                } else if (level === 'links') {
+                    primaryAction = `href="${item.url}" target="_blank"`;
+                    linkTarget = 'target="_blank"';
+                    icon = `<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>`;
+                }
+                
+                const deleteAction = `deleteItem('${level}', '${sectionId || ''}', '${categoryId || ''}', '${item.id}')`;
+                const editAction = `openEditModal('${level}', '${item.id}', '${item.name}', '${item.url || ''}', '${sectionId || ''}', '${categoryId || ''}')`;
+
+                itemList.innerHTML += `
+                    <div class="flex items-center bg-white p-4 rounded-xl shadow-lg hover:shadow-xl transition duration-300">
+                        <!-- 主要點擊區域 -->
+                        <a ${primaryAction} ${linkTarget} class="flex-grow flex items-center cursor-pointer p-2 -m-2 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div class="mr-4">${icon}</div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900">${item.name}</h3>
+                                ${item.url ? `<p class="text-sm text-gray-500 truncate max-w-xs sm:max-w-md">${item.url}</p>` : ''}
+                            </div>
+                        </a>
+                        
+                        <!-- 操作按鈕 -->
+                        <div class="flex space-x-2 ml-4">
+                            <button onclick="${editAction}" class="text-blue-500 hover:text-blue-700 p-2 rounded-full hover:bg-blue-100 transition-colors" title="編輯">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zm-3.109 4.887l-2.828 2.829 7.171 7.171 2.828-2.828-7.171-7.171z" /></svg>
+                            </button>
+                            <button onclick="${deleteAction}" class="text-red-500 hover:text-red-700 p-2 rounded-full hover:bg-red-100 transition-colors" title="刪除">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 011 1v6a1 1 0 11-2 0V9a1 1 0 011-1zm7 1a1 1 0 00-2 0v6a1 1 0 102 0V9z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        // --- 4. 導航與狀態變更 ---
+        function renderBreadcrumb() {
+            const { level, sectionId, categoryId } = window.currentView;
+            BREADCRUMB.innerHTML = `<span class="cursor-pointer hover:underline" onclick="navigateHome()">首頁</span>`;
+            
+            if (level === 'sections') return;
+
+            const currentSection = window.configData.sections.find(s => s.id === sectionId);
+            if (currentSection) {
+                BREADCRUMB.innerHTML += `<span class="mx-2 text-gray-400">/</span><span class="cursor-pointer hover:underline" onclick="navigateTo('categories', '${currentSection.id}')">${currentSection.name}</span>`;
+            }
+
+            if (level === 'links') {
+                const currentCategory = currentSection.categories.find(c => c.id === categoryId);
+                if (currentCategory) {
+                    BREADCRUMB.innerHTML += `<span class="mx-2 text-gray-400">/</span><span class="font-bold text-indigo-700">${currentCategory.name}</span>`;
+                }
+            }
+        }
+
+        window.navigateHome = function() {
+            window.currentView = { level: 'sections' };
+            renderUI();
+        }
+
+        window.navigateTo = function(level, sectionId, categoryId = null) {
+            window.currentView = { level, sectionId, categoryId };
+            renderUI();
+        }
+
+
+        // --- 5. CRUD 核心邏輯 ---
+        
+        window.addSection = function() { openEditModal('sections'); }
+        window.addCategory = function(sectionId) { openEditModal('categories', null, null, null, sectionId); }
+        window.addLink = function(sectionId, categoryId) { openEditModal('links', null, null, null, sectionId, categoryId); }
+
+        window.deleteItem = function(level, sectionId, categoryId, itemId) {
+            showModal(
+                "確認刪除",
+                "您確定要刪除此項目嗎？此操作無法恢復。",
+                async () => {
+                    let container;
+                    let itemIndex = -1;
+                    
+                    if (level === 'sections') {
+                        container = window.configData.sections;
+                    } else if (level === 'categories') {
+                        const section = window.configData.sections.find(s => s.id === sectionId);
+                        container = section ? section.categories : null;
+                    } else if (level === 'links') {
+                        const section = window.configData.sections.find(s => s.id === sectionId);
+                        const category = section ? section.categories.find(c => c.id === categoryId) : null;
+                        container = category ? category.finalLinks : null;
+                    }
+                    
+                    if (container) {
+                        itemIndex = container.findIndex(item => item.id === itemId);
+                        if (itemIndex > -1) {
+                            container.splice(itemIndex, 1);
+                            await saveStructure();
+                        }
+                    }
+                    closeModal();
+                },
+                false, // Is Error?
+                "確認刪除",
+                "取消"
+            );
+        }
+
+        window.saveItem = async function(level, itemId, name, url, sectionId, categoryId) {
+            let container;
+            let item;
+            
+            if (level === 'sections') {
+                container = window.configData.sections;
+            } else if (level === 'categories') {
+                const section = window.configData.sections.find(s => s.id === sectionId);
+                container = section ? section.categories : null;
+            } else if (level === 'links') {
+                const section = window.configData.sections.find(s => s.id === sectionId);
+                const category = section ? section.categories.find(c => c.id === categoryId) : null;
+                container = category ? category.finalLinks : null;
+            }
+
+            if (!container) return;
+
+            if (itemId) { // 編輯現有項目
+                item = container.find(i => i.id === itemId);
+                if (item) {
+                    item.name = name;
+                    if (level === 'links') {
+                        item.url = url;
+                    }
+                }
+            } else { // 新增項目
+                const newItem = {
+                    id: crypto.randomUUID(),
+                    name: name,
+                };
+                if (level === 'sections') {
+                    newItem.categories = [];
+                } else if (level === 'categories') {
+                    newItem.finalLinks = [];
+                } else if (level === 'links') {
+                    newItem.url = url;
+                }
+                container.push(newItem);
+            }
+
+            closeModal();
+            await saveStructure();
+        }
+
+        // --- 6. 匯出 JSON 數據 (新增功能) ---
+        window.exportJson = function() {
+            const jsonString = JSON.stringify(window.configData, null, 2);
+            
+            showModal(
+                "網站結構 JSON 數據",
+                `<p class="text-sm mb-4">請複製以下 JSON 數據，您可以用它來在自己的網站中建立結構。</p>
+                 <textarea id="json-export-area" readonly class="w-full h-48 p-2 border rounded-lg bg-gray-100 font-mono text-xs resize-none">${jsonString}</textarea>`,
+                () => {
+                    // 執行複製操作
+                    const textarea = document.getElementById('json-export-area');
+                    textarea.select();
+                    document.execCommand('copy');
+                    showModal("成功", "JSON 數據已複製到剪貼簿！", null, false, "關閉");
+                },
+                false, 
+                "複製到剪貼簿",
+                "關閉"
+            );
+        }
+
+
+        // --- 7. Modal 視窗功能 ---
+
+        window.closeModal = function() {
+            MODAL_BACKDROP.classList.add('hidden');
+            MODAL_CONTAINER.innerHTML = '';
+            MODAL_CONTAINER.classList.remove('pointer-events-auto');
+            MODAL_CONTAINER.classList.add('pointer-events-none');
+        }
+
+        window.showModal = function(title, content, action, isError = false, confirmText = "確認", cancelText = "取消") {
+            MODAL_CONTAINER.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transition-all scale-100 duration-300 pointer-events-auto">
+                    <h3 class="text-xl font-bold ${isError ? 'text-red-600' : 'text-gray-800'} mb-4">${title}</h3>
+                    <div class="text-gray-600 mb-6">${content}</div>
+                    <div class="flex justify-end space-x-3">
+                        ${action ? `<button onclick="closeModal()" class="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">${cancelText}</button>` : ''}
+                        <button onclick="${action ? 'window.currentAction();' : 'closeModal()'}" class="px-4 py-2 ${isError ? 'bg-red-500 hover:bg-red-600' : 'bg-indigo-500 hover:bg-indigo-600'} text-white rounded-lg transition-colors">
+                            ${confirmText}
+                        </button>
+                    </div>
+                </div>
+            `;
+            MODAL_BACKDROP.classList.remove('hidden');
+            MODAL_CONTAINER.classList.add('pointer-events-auto');
+            MODAL_CONTAINER.classList.remove('pointer-events-none');
+            
+            if (action) window.currentAction = action; // 將 action 綁定到全域變數以供 Modal 按鈕呼叫
+        }
+
+        window.openEditModal = function(level, id = '', name = '', url = '', sectionId = '', categoryId = '') {
+            const isEditing = !!id;
+            let title = isEditing ? '編輯' : '新增';
+            let namePlaceholder = '';
+            let urlInput = '';
+
+            if (level === 'sections') {
+                title += '主要區塊名稱';
+                namePlaceholder = '例如：教學區';
+            } else if (level === 'categories') {
+                title += '分類名稱';
+                namePlaceholder = '例如：國中理化';
+            } else if (level === 'links') {
+                title += '最終連結';
+                namePlaceholder = '例如：密度模擬實驗設計';
+                urlInput = `
+                    <div class="mb-4">
+                        <label for="url-input" class="block text-sm font-medium text-gray-700">網址 (URL)</label>
+                        <input type="url" id="url-input" value="${url}" placeholder="輸入您的互動教學網頁網址" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                    </div>
+                `;
+            }
+
+            MODAL_CONTAINER.innerHTML = `
+                <div class="bg-white p-6 rounded-xl shadow-2xl max-w-lg w-full transition-all scale-100 duration-300 pointer-events-auto">
+                    <h3 class="text-xl font-bold text-indigo-700 mb-4">${title}</h3>
+                    <form id="edit-form">
+                        <div class="mb-4">
+                            <label for="name-input" class="block text-sm font-medium text-gray-700">名稱</label>
+                            <input type="text" id="name-input" value="${name}" placeholder="${namePlaceholder}" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 focus:ring-indigo-500 focus:border-indigo-500" required>
+                        </div>
+                        ${urlInput}
+                        <div class="flex justify-end space-x-3 mt-6">
+                            <button type="button" onclick="closeModal()" class="px-4 py-2 text-gray-600 rounded-lg hover:bg-gray-100 transition-colors">取消</button>
+                            <button type="submit" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition-colors">儲存</button>
+                        </div>
+                    </form>
+                </div>
+            `;
+            
+            const editForm = document.getElementById('edit-form');
+            editForm.onsubmit = function(e) {
+                e.preventDefault();
+                const newName = document.getElementById('name-input').value.trim();
+                const newUrl = level === 'links' ? document.getElementById('url-input').value.trim() : '';
+                
+                if (newName) {
+                    window.saveItem(level, id, newName, newUrl, sectionId, categoryId);
+                } else {
+                    showModal("錯誤", "名稱不能為空。", null, true);
+                }
+            };
+
+            MODAL_BACKDROP.classList.remove('hidden');
+            MODAL_CONTAINER.classList.add('pointer-events-auto');
+            MODAL_CONTAINER.classList.remove('pointer-events-none');
+            document.getElementById('name-input').focus();
+        }
+        
+        // 確保在頁面載入後立即執行一次渲染（如果 Auth 已經準備好）
+        window.onload = function() {
+            if (window.isAuthReady) {
+                renderUI();
+            }
+        };
+    </script>
+</body>
+</html>
