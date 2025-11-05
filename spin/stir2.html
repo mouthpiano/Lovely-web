@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>力矩與槓桿原理互動學習</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Inter 字體 */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc; /* cool-gray-50 */
+        }
+        /* 頁籤樣式 */
+        .tab-btn {
+            @apply px-6 py-3 font-semibold text-gray-600 rounded-t-lg transition-colors duration-200;
+        }
+        .tab-btn.active {
+            @apply bg-white text-blue-600 border-b-2 border-blue-600;
+        }
+        .tab-content {
+            @apply hidden;
+        }
+        .tab-content.active {
+            @apply block;
+        }
+        /* 畫布 */
+        canvas {
+            @apply bg-white border border-gray-300 rounded-lg shadow-sm;
+        }
+        /* 控制項 */
+        .control-panel {
+            @apply bg-white p-6 rounded-lg shadow-md;
+        }
+        .control-panel label {
+            @apply block text-sm font-medium text-gray-700 mb-2;
+        }
+        .control-panel select, .control-panel input[type="range"] {
+            @apply w-full mt-1;
+        }
+        /* 槓桿部分的物件按鈕 */
+        .item-btn {
+            /* 修正：增加 flex flex-col 強制垂直排列 */
+            @apply w-full text-left px-4 py-2 my-1 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-lg shadow-sm transition-all duration-150 flex justify-between items-center cursor-grab;
+        }
+        .item-btn:active {
+            @apply transform scale-95 cursor-grabbing;
+        }
+        /* 槓桿部分已掛上物品 */
+        .hook-item {
+            @apply flex justify-between items-center px-3 py-1.5 my-1 bg-purple-50 hover:bg-purple-100 rounded-lg cursor-grab;
+        }
+        .hook-item:active {
+            @apply cursor-grabbing;
+        }
+        .hook-item .remove-btn {
+            @apply text-red-500 font-bold px-2 hover:bg-red-100 rounded-full text-sm;
+        }
+
+        /* 填空 */
+        .formula-input {
+            /* 修正：固定寬度 w-14 以對齊 */
+            @apply w-14 text-center border-b-2 border-blue-400 focus:border-blue-600 outline-none; /* 移除 inline-block */
+        }
+        /* 修正：用於對齊的標籤 */
+        .formula-label {
+             /* 修正：固定寬度 w-14 以對齊 */
+             @apply inline-block w-14 text-center;
+        }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl font-bold text-center text-blue-800 mb-6">力矩與槓桿原理互動學習</h1>
+
+        <!-- 頁籤按鈕 -->
+        <div class="border-b border-gray-300 mb-6">
+            <nav class="flex -mb-px">
+                <button class="tab-btn active" data-tab="torque">第一部分：力矩原理</button>
+                <button class="tab-btn" data-tab="lever">第二部分：槓桿原理 (槓秤)</button>
+            </nav>
+        </div>
+
+        <!-- 內容 -->
+        <div>
+            <!-- 第一部分：力矩 -->
+            <div id="torque-content" class="tab-content active">
+                <div class="flex flex-col md:flex-row gap-6">
+                    
+                    <!-- 左側控制面板 -->
+                    <div class="control-panel w-full md:w-1/4">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">力矩控制變因</h2>
+                        
+                        <div class="mb-4">
+                            <label for="torque-variable">選擇要改變的變因：</label>
+                            <select id="torque-variable" class="block w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                <option value="force">1. 施力大小</option>
+                                <option value="position">2. 施力點位置</option>
+                                <option value="angle">3. 施力角度</option>
+                            </select>
+                        </div>
+
+                        <!-- 施力大小控制 -->
+                        <div id="force-control" class="space-y-4 control-group">
+                            <label for="force-slider">施力大小 (F):</label>
+                            <div class="flex items-center gap-2">
+                                <span>F</span>
+                                <input id="force-slider" type="range" min="1" max="2" value="1" step="1" class="w-full">
+                                <span>2F</span>
+                            </div>
+                            <p class="text-sm text-gray-600">位置和角度固定 (90°)</p>
+                        </div>
+
+                        <!-- 施力點位置控制 -->
+                        <div id="position-control" class="space-y-4 control-group hidden">
+                            <p class="text-sm text-gray-600">請在右側畫布上拖曳施力點 (藍色圓圈)。</p>
+                            <p class="text-sm text-gray-600">施力大小和角度固定 (90°)</p>
+                        </div>
+
+                        <!-- 施力角度控制 -->
+                        <div id="angle-control" class="space-y-4 control-group hidden">
+                            <label for="angle-slider">施力角度 (θ): <span id="angle-value">90°</span></label>
+                            <input id="angle-slider" type="range" min="0" max="315" value="90" step="45" class="w-full">
+                            <p class="text-sm text-gray-600">施力大小和位置固定</p>
+                        </div>
+
+                        <hr class="my-6">
+                        <button id="start-torque-btn" class="w-full px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600 text-lg font-bold">
+                            開始轉動
+                        </button>
+                    </div>
+
+                    <!-- 右側畫布 -->
+                    <div class="w-full md:w-3/4">
+                        <canvas id="torque-canvas" width="800" height="400"></canvas>
+                        <div class="text-center mt-4">
+                            <p class="text-lg font-semibold">
+                                計算力矩： <span id="torque-calculation">r * F * sin(θ)</span> = <span id="torque-value" class="text-blue-600">0</span>
+                            </p>
+                            <p class="text-sm text-gray-500">(r=力臂, F=施力, θ=角度)</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 最大轉動幅度組合 -->
+                <hr class="my-8 border-t-2 border-gray-200">
+                <div class="mt-6">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4">提問：最大轉動幅度的組合是？</h2>
+                    <div class="control-panel flex flex-col md:flex-row gap-4 items-center">
+                        <div>
+                            <label for="combo-force">施力大小：</label>
+                            <select id="combo-force" class="p-2 border border-gray-300 rounded-md shadow-sm">
+                                <option value="1">F (小)</option>
+                                <option value="2">2F (大)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="combo-position">施力位置：</label>
+                            <select id="combo-position" class="p-2 border border-gray-300 rounded-md shadow-sm">
+                                <option value="200">最遠</option>
+                                <option value="100">中間</option>
+                                <option valuea="0">支點</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="combo-angle">施力角度：</label>
+                            <select id="combo-angle" class="p-2 border border-gray-300 rounded-md shadow-sm">
+                                <option value="0">0°</option>
+                                <option value="45">45°</option>
+                                <option value="90">90°</option>
+                                <option value="135">135°</option>
+                                <option value="180">180°</option>
+                                <option value="225">225°</option>
+                                <option value="270">270°</option>
+                                <option value="315">315°</option>
+                            </select>
+                        </div>
+                        <button id="start-combo-btn" class="w-full md:w-auto px-6 py-2 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 text-lg font-bold mt-4 md:mt-0">
+                            測試組合
+                        </button>
+                    </div>
+                    <div class="w-full mt-4">
+                        <canvas id="combo-canvas" width="800" height="400"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第二部分：槓桿原理 -->
+            <div id="lever-content" class="tab-content">
+                <div class="flex flex-col md:flex-row gap-6">
+
+                    <!-- 左側控制 & 畫布 -->
+                    <div class="w-full md:w-3/4">
+                        <!-- 槓桿控制 -->
+                        <div class="control-panel mb-4">
+                            <h2 class="text-xl font-bold text-gray-800 mb-4">槓秤設定</h2>
+                            <div class="flex items-center gap-4">
+                                <label for="lever-pivot">選擇支點：</label>
+                                <select id="lever-pivot" class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="A">甲環</option>
+                                    <option value="B">乙環</option>
+                                </select>
+                                <button id="reset-lever-btn" class="px-4 py-2 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600">重設物品</button>
+                            </div>
+                        </div>
+
+                        <!-- 槓桿畫布 (修正：高度改為 300) -->
+                        <canvas id="lever-canvas" width="800" height="300"></canvas>
+                        <!-- 修正：mt-1 -> mt-0 -->
+                        <div id="lever-status" class="text-center text-xl font-bold mt-0 p-4 bg-gray-100 rounded-lg">
+                            請選擇支點並掛上物品
+                        </div>
+
+                        <!-- 槓桿公式 (修正：mt-2 -> mt-1) -->
+                        <div class="control-panel mt-1">
+                            <h3 class="text-xl font-bold mb-4">力矩平衡計算 (施力矩 = 抗力矩)</h3>
+                            <!-- 修正：改用 flex + 固定寬度對齊 -->
+                            <div class="text-xl space-y-4">
+                                <!-- Row 1: Labels (修正：justify-around) -->
+                                <div class="flex items-center justify-around text-center">
+                                    <div class="w-24 text-red-600">施力 (掛物)</div>
+                                    <div class="px-2">x</div>
+                                    <div class="w-24 text-red-600">施力臂</div>
+                                    <div class="px-2">=</div>
+                                    <div class="w-24 text-blue-600">抗力 (桿秤)</div>
+                                    <div class="px-2">x</div>
+                                    <div class="w-24 text-blue-600">抗力臂</div>
+                                </div>
+                                <!-- Row 2: Values (修正：justify-around + flex) -->
+                                <div class="flex items-center justify-around">
+                                    <!-- 修正：[ 最終 Bug 修正 ] 修正這個 HTML 語法錯誤 -->
+                                    <div class="w-24 flex justify-center items-center">( <input type="number" id="formula-obj-weight" class="formula-input"> gw )</div>
+                                    <div class="px-2">x</div>
+                                    <div class="w-24 flex justify-center items-center">( <span id="formula-arm-obj" class="formula-label">_</span> cm )</div>
+                                    <div class="px-2">=</div>
+                                    <div class="w-24 flex justify-center items-center">( <span id="formula-steelyard-weight" class="formula-label">1000</span> gw )</div>
+                                    <div class="px-2">x</div>
+                                    <div class="w-24 flex justify-center items-center">( <span id="formula-arm-steelyard" class="formula-label">_</span> cm )</div>
+                                </div>
+                                <!-- Row 3: Result (修正：justify-around) -->
+                                <div class="flex items-center justify-around text-center pt-2 border-t mt-4">
+                                    <div class="w-24"><span id="formula-torque-obj" class="formula-label">_</span></div>
+                                    <div class="px-2">=</div>
+                                    <div class="w-24"><span id="formula-torque-steelyard" class="formula-label">_</span></div>
+                                </div>
+                                <div class="text-center mt-4">
+                                    <button id="check-formula-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg shadow-md hover:bg-green-600">核對答案</button>
+                                    <span id="formula-result" class="ml-4 font-semibold"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右側物品欄 -->
+                    <div class="control-panel w-full md:w-1/4">
+                        <h2 class="text-xl font-bold text-gray-800 mb-4">可懸掛物品</h2>
+                        <!-- 修正：增加 flex flex-col 強制垂直排列 -->
+                        <div id="item-list" class="space-y-1 min-h-[200px] bg-gray-50 p-2 rounded-lg border border-dashed flex flex-col">
+                            <!-- 物品會由 JS 動態加入 -->
+                        </div>
+                        <hr class="my-4">
+                        <h3 class="text-lg font-semibold mb-2">已掛上物品 (共 <span id="hook-weight">0</span> gw)</h3>
+                        <div id="hook-items" class="text-gray-700 space-y-1">
+                            <!-- 已掛物品列表 -->
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- 通用：頁籤切換 ---
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            let isTorqueAnimating = false;
+            let isLeverAnimating = false; // 修正：[ 最終 Bug 修正 ] 這是「永久迴圈」的「開/關」
+            let isComboAnimating = false;
+            
+            // 修正：[ 最終 Bug 修正 ] 
+            // 這個變數用來確保 `animateLever` 迴圈*只*被啟動一次
+            let isLeverLoopRunning = false; 
+
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    tabButtons.forEach(btn => btn.classList.remove('active', 'text-blue-600', 'border-b-2', 'border-blue-600', 'bg-white'));
+                    tabContents.forEach(content => content.classList.remove('active'));
+
+                    button.classList.add('active', 'text-blue-600', 'border-b-2', 'border-blue-600', 'bg-white');
+                    document.getElementById(button.dataset.tab + '-content').classList.add('active');
+                    
+                    if (button.dataset.tab === 'torque') {
+                        isLeverAnimating = false; // 修正：[ 最終 Bug 修正 ] 暫停永久迴圈
+                        isTorqueAnimating = false; // 重設力矩動畫
+                        isComboAnimating = false; // 重設組合動畫
+                        drawTorque(); // 確保重繪
+                        drawCombo(); // 確保重繪
+                    } else if (button.dataset.tab === 'lever') {
+                        isTorqueAnimating = false; // 停止力矩動畫
+                        isComboAnimating = false; // 停止組合動畫
+                        
+                        // 修正：[ 最終 Bug 修正 ] 恢復永久迴圈
+                        isLeverAnimating = true; 
+                        updateLever(); // 只需要更新狀態
+                        
+                        // 修正：[ 最終 Bug 修正 ] 
+                        // 如果迴圈*尚未*啟動，*現在*就啟動它
+                        if (!isLeverLoopRunning) {
+                            isLeverLoopRunning = true;
+                            animateLever();
+                        }
+                    }
+                });
+            });
+
+            // --- 第一部分：力矩 ---
+            const torqueCanvas = document.getElementById('torque-canvas');
+            const torqueCtx = torqueCanvas.getContext('2d');
+            const variableSelect = document.getElementById('torque-variable');
+            const controlGroups = document.querySelectorAll('.control-group');
+            
+            const forceSlider = document.getElementById('force-slider');
+            const angleSlider = document.getElementById('angle-slider');
+            const angleValue = document.getElementById('angle-value');
+            const startTorqueBtn = document.getElementById('start-torque-btn');
+
+            const torqueValueEl = document.getElementById('torque-value');
+            const torqueCalcEl = document.getElementById('torque-calculation');
+
+            const comboCanvas = document.getElementById('combo-canvas');
+            const comboCtx = comboCanvas.getContext('2d');
+            const comboForce = document.getElementById('combo-force');
+            const comboPosition = document.getElementById('combo-position');
+            const comboAngle = document.getElementById('combo-angle');
+            const startComboBtn = document.getElementById('start-combo-btn');
+
+            const leverLength = 200; 
+            const pivot = { x: 325, y: 200 }; // 支點置中
+            let forceMag = 20; 
+            let forcePos = leverLength; 
+            let forceAngle = 90; 
+            
+            let rotation = 0; 
+            let targetRotation = 0;
+            let isDragging = false;
+
+            let comboRotation = 0;
+            let comboTargetRotation = 0;
+
+            // 繪製力矩畫布 (通用函數)
+            function drawGenericTorque(ctx, p, len, rot, fPos, fAngle, fMag) {
+                const w = ctx.canvas.width;
+                const h = ctx.canvas.height;
+                ctx.clearRect(0, 0, w, h);
+
+                // 修正：先畫支點 (不會動)
+                ctx.fillStyle = '#3b82f6'; // blue-500
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x - 25, p.y + 50);
+                ctx.lineTo(p.x + 25, p.y + 50);
+                ctx.closePath();
+                ctx.fill();
+
+                // 儲存狀態，平移並旋轉
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(rot * Math.PI / 180);
+
+                // 繪製槓桿
+                ctx.fillStyle = '#9ca3af'; // gray-400
+                ctx.fillRect(-50, -10, len + 50, 20); 
+
+                // 施力點
+                const handleX = fPos; 
+                const handleY = 0;
+                
+                // 繪製施力向量
+                const currentForce = fMag; 
+                const arrowLength = currentForce * 3;
+                
+                const angleRad = fAngle * Math.PI / 180; 
+                
+                const arrowEndX = handleX + arrowLength * Math.cos(angleRad);
+                const arrowEndY = handleY + arrowLength * Math.sin(angleRad);
+
+                ctx.strokeStyle = '#ef4444'; // red-500
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(handleX, handleY);
+                ctx.lineTo(arrowEndX, arrowEndY);
+                
+                // 畫箭頭
+                const headlen = 10;
+                const angle = Math.atan2(arrowEndY - handleY, arrowEndX - handleX);
+                ctx.lineTo(arrowEndX - headlen * Math.cos(angle - Math.PI / 6), arrowEndY - headlen * Math.sin(angle - Math.PI / 6));
+                ctx.moveTo(arrowEndX, arrowEndY);
+                ctx.lineTo(arrowEndX - headlen * Math.cos(angle + Math.PI / 6), arrowEndY - headlen * Math.sin(angle + Math.PI / 6));
+                ctx.stroke();
+                
+                ctx.restore(); // 還原狀態 (旋轉和平移)
+            }
+
+            // 繪製主畫布
+            function drawTorque() {
+                let currentForce = variableSelect.value === 'force' ? forceSlider.value * forceMag : forceMag;
+                let currentPos = forcePos;
+                let currentAngle = forceAngle;
+
+                if (variableSelect.value === 'force') {
+                    currentPos = leverLength;
+                    currentAngle = 90;
+                } else if (variableSelect.value === 'position') {
+                    currentForce = forceMag;
+                    currentAngle = 90;
+                } else if (variableSelect.value === 'angle') {
+                    currentPos = leverLength;
+                    currentForce = forceMag;
+                }
+
+                drawGenericTorque(torqueCtx, pivot, leverLength, rotation, currentPos, currentAngle, currentForce);
+                
+                // 拖曳點
+                if (variableSelect.value === 'position') {
+                    torqueCtx.save();
+                    torqueCtx.translate(pivot.x, pivot.y);
+                    torqueCtx.rotate(rotation * Math.PI / 180);
+                    torqueCtx.fillStyle = '#3b82f6'; // blue-500
+                    torqueCtx.beginPath();
+                    torqueCtx.arc(forcePos, 0, 10, 0, 2 * Math.PI);
+                    torqueCtx.fill();
+                    torqueCtx.restore();
+                }
+            }
+            
+            // 力矩動畫迴圈
+            function animateTorque() {
+                if (!isTorqueAnimating) return; 
+
+                rotation += (targetRotation - rotation) * 0.1;
+                drawTorque();
+                
+                if (Math.abs(targetRotation - rotation) < 0.01) {
+                    rotation = targetRotation;
+                    isTorqueAnimating = false; 
+                    drawTorque(); 
+                } else {
+                    requestAnimationFrame(animateTorque); 
+                }
+            }
+
+            // 更新力矩計算
+            function updateTorque() {
+                let r = forcePos;
+                let F = variableSelect.value === 'force' ? forceSlider.value * forceMag : forceMag;
+                let theta = forceAngle;
+
+                if (variableSelect.value === 'force') {
+                    r = leverLength;
+                    theta = 90;
+                } else if (variableSelect.value === 'position') {
+                    F = forceMag;
+                    theta = 90;
+                    if (r < 0) r = 0; 
+                } else if (variableSelect.value === 'angle') {
+                    r = leverLength;
+                    F = forceMag;
+                }
+                
+                const torqueRatio = (r / 200) * (F / 40) * Math.sin(theta * Math.PI / 180);
+                
+                torqueCalcEl.innerHTML = `${r.toFixed(0)} * ${F/forceMag}F * sin(${theta}°)`;
+                
+                // 修正：使用平方來加大轉動幅度差異
+                const maxRotation = 45; 
+                const amplifiedRatio = Math.pow(Math.abs(torqueRatio), 1.5) * Math.sign(torqueRatio);
+                
+                targetRotation = amplifiedRatio * maxRotation; 
+                torqueValueEl.textContent = (torqueRatio * 400).toFixed(2);
+                
+                if (r === 0 || theta % 180 === 0) {
+                    targetRotation = 0;
+                    torqueValueEl.textContent = "0 (不轉動)";
+                }
+            }
+
+            // 重設力矩狀態
+            function resetTorqueState() {
+                isTorqueAnimating = false;
+                rotation = 0;
+                updateTorque();
+                drawTorque();
+            }
+
+            variableSelect.addEventListener('change', (e) => {
+                controlGroups.forEach(group => group.classList.add('hidden'));
+                document.getElementById(e.target.value + '-control').classList.remove('hidden');
+                
+                forceSlider.value = 1;
+                forcePos = leverLength;
+                angleSlider.value = 90;
+                angleValue.textContent = '90°';
+                forceAngle = 90;
+                
+                resetTorqueState();
+            });
+
+            forceSlider.addEventListener('input', resetTorqueState);
+            angleSlider.addEventListener('input', (e) => {
+                forceAngle = Number(e.target.value);
+                angleValue.textContent = `${forceAngle}°`;
+                resetTorqueState();
+            });
+
+            // 修正：在 mousedown 時重設
+            torqueCanvas.addEventListener('mousedown', (e) => {
+                if (variableSelect.value === 'position') {
+                    isDragging = true;
+                    torqueCanvas.style.cursor = 'grabbing';
+                    resetTorqueState(); // 拖曳開始時重設
+                }
+            });
+            
+            torqueCanvas.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const rect = torqueCanvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                // 修正：計算旋轉後的 X 座標
+                const canvasX = mouseX - pivot.x;
+                const canvasY = (e.clientY - rect.top) - pivot.y;
+                const rotRad = -rotation * Math.PI / 180;
+                const rotatedX = canvasX * Math.cos(rotRad) - canvasY * Math.sin(rotRad);
+
+                forcePos = Math.max(0, Math.min(leverLength, rotatedX));
+                updateTorque(); // 拖曳時更新計算
+                drawTorque();   // 拖曳時重繪
+            });
+            torqueCanvas.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    torqueCanvas.style.cursor = 'default';
+                }
+            });
+            torqueCanvas.addEventListener('mouseleave', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    torqueCanvas.style.cursor = 'default';
+                }
+            });
+
+
+            startTorqueBtn.addEventListener('click', () => {
+                rotation = 0; 
+                updateTorque(); 
+
+                if (!isTorqueAnimating) {
+                    isTorqueAnimating = true;
+                    animateTorque();
+                }
+            });
+
+            // --- 組合畫布的邏輯 ---
+            function drawCombo() {
+                const f_val = Number(comboForce.value);
+                const r_val = Number(comboPosition.value);
+                const a_val = Number(comboAngle.value);
+                
+                const currentForce = f_val * forceMag;
+                const handleX = r_val;
+                
+                drawGenericTorque(comboCtx, pivot, leverLength, comboRotation, handleX, a_val, currentForce);
+            }
+
+            function animateCombo() {
+                if (!isComboAnimating) return; 
+
+                comboRotation += (comboTargetRotation - comboRotation) * 0.1;
+                drawCombo();
+                
+                if (Math.abs(comboTargetRotation - comboRotation) < 0.01) {
+                    comboRotation = comboTargetRotation;
+                    isComboAnimating = false;
+                    drawCombo();
+                } else {
+                    requestAnimationFrame(animateCombo);
+                }
+            }
+
+            function resetComboState() {
+                isComboAnimating = false;
+                comboRotation = 0;
+                comboTargetRotation = 0;
+                drawCombo();
+            }
+
+            comboForce.addEventListener('change', resetComboState);
+            comboPosition.addEventListener('change', resetComboState);
+            comboAngle.addEventListener('change', resetComboState);
+
+            startComboBtn.addEventListener('click', () => {
+                comboRotation = 0; 
+
+                const f_val = Number(comboForce.value);
+                const r_val = Number(comboPosition.value);
+                const a_val = Number(comboAngle.value);
+
+                const comboTorqueRatio = (r_val / 200) * (f_val * forceMag / 40) * Math.sin(a_val * Math.PI / 180);
+                
+                const maxRotation = 45;
+                const amplifiedRatio = Math.pow(Math.abs(comboTorqueRatio), 1.5) * Math.sign(comboTorqueRatio);
+                
+                comboTargetRotation = amplifiedRatio * maxRotation;
+                
+                if (r_val === 0 || a_val % 180 === 0) {
+                    comboTargetRotation = 0;
+                }
+
+                if (!isComboAnimating) {
+                    isComboAnimating = true;
+                    animateCombo();
+                }
+            });
+
+
+            // --- 第二部分：槓桿原理 ---
+            const leverCanvas = document.getElementById('lever-canvas');
+            const leverCtx = leverCanvas.getContext('2d');
+            const pivotSelect = document.getElementById('lever-pivot');
+            const resetLeverBtn = document.getElementById('reset-lever-btn');
+            const itemListEl = document.getElementById('item-list');
+            const hookItemsEl = document.getElementById('hook-items');
+            const hookWeightEl = document.getElementById('hook-weight');
+            const leverStatusEl = document.getElementById('lever-status');
+            
+            const items = [
+                { name: '鑰匙圈', weight: 50 },
+                { name: '線圈筆記本', weight: 200 },
+                { name: '水壺', weight: 1000 },
+                { name: '書包', weight: 2000 },
+                { name: '餐袋', weight: 500 },
+                { name: '玩偶娃娃', weight: 150 },
+                { name: '錢包', weight: 250 },
+                { name: '一包糖果', weight: 50 }
+            ];
+
+            const steelyard = {
+                weight: 1000,
+                pos_H: 0,  // 掛勾 (Hook)
+                pos_A: -1, // 甲環 (A)
+                pos_B: -4, // 乙環 (B)
+                pos_CM: -5, // 質心 (CM)
+                scale: 100, 
+                offsetX: 700 
+            };
+
+            let leverState = {
+                pivotPos: steelyard.pos_A, 
+                hookLoad: 0,
+                hookItems: [], 
+                rotation: 0,
+                targetRotation: 0
+            };
+
+            // --- Part 2 拖曳功能 ---
+            function onItemDragStart(e, item) {
+                e.dataTransfer.setData('application/json', JSON.stringify(item));
+            }
+            function onHookDragStart(e, index) {
+                e.dataTransfer.setData('text/item-index', index.toString());
+            }
+            function onItemDragOver(e) {
+                e.preventDefault();
+            }
+            function onItemDrop(e) {
+                e.preventDefault();
+                const itemJson = e.dataTransfer.getData('application/json');
+                if (itemJson) {
+                    const item = JSON.parse(itemJson);
+                    const rect = leverCanvas.getBoundingClientRect();
+                    const dropX = e.clientX - rect.left;
+                    const dropY = e.clientY - rect.top;
+
+                    const pivotScreenX = steelyard.offsetX + leverState.pivotPos * steelyard.scale;
+                    const pivotScreenY = 100;
+                    const hookLocalX = (steelyard.pos_H - leverState.pivotPos) * steelyard.scale;
+                    const hookLocalY = 40; 
+                    const rot = leverState.rotation * Math.PI / 180; // 轉為弧度
+                    const hookScreenX = pivotScreenX + hookLocalX * Math.cos(rot) - hookLocalY * Math.sin(rot);
+                    const hookScreenY = pivotScreenY + hookLocalX * Math.sin(rot) + hookLocalY * Math.cos(rot);
+                    
+                    const distance = Math.sqrt(Math.pow(dropX - hookScreenX, 2) + Math.pow(dropY - hookScreenY, 2));
+
+                    if (distance < 40) { 
+                        addItemToHook(item);
+                    }
+                }
+            }
+            itemListEl.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                itemListEl.classList.add('bg-red-50', 'border-red-300');
+            });
+            itemListEl.addEventListener('dragleave', (e) => {
+                itemListEl.classList.remove('bg-red-50', 'border-red-300');
+            });
+            function onHookDrop(e) {
+                e.preventDefault();
+                itemListEl.classList.remove('bg-red-50', 'border-red-300');
+                const itemIndex = e.dataTransfer.getData('text/item-index');
+                if (itemIndex) {
+                    removeItemFromHook(Number(itemIndex));
+                }
+            }
+            itemListEl.addEventListener('drop', onHookDrop);
+            leverCanvas.addEventListener('dragover', onItemDragOver);
+            leverCanvas.addEventListener('drop', onItemDrop);
+
+            items.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = 'item-btn';
+                btn.innerHTML = `<span>${item.name}</span> <span class="font-bold">${item.weight} gw</span>`;
+                btn.draggable = true;
+                btn.addEventListener('dragstart', (e) => onItemDragStart(e, item));
+                itemListEl.appendChild(btn);
+            });
+
+            // 修正：[ 最終 Bug 修正 ]
+            // 這些函數*只*更新狀態。動畫迴圈會自己處理。
+            function addItemToHook(item) {
+                leverState.hookItems.push(item);
+                updateHookDisplay();
+                updateLever(); 
+            }
+            function removeItemFromHook(index) {
+                leverState.hookItems.splice(index, 1);
+                updateHookDisplay();
+                updateLever(); 
+            }
+            function resetLever() {
+                leverState.hookItems = [];
+                updateHookDisplay();
+                updateLever(); 
+                document.getElementById('formula-obj-weight').value = '';
+                document.getElementById('formula-result').textContent = '';
+            }
+            resetLeverBtn.addEventListener('click', resetLever);
+
+            function updateHookDisplay() {
+                leverState.hookLoad = leverState.hookItems.reduce((acc, item) => acc + item.weight, 0);
+                hookWeightEl.textContent = leverState.hookLoad;
+                hookItemsEl.innerHTML = '';
+                
+                if (leverState.hookItems.length === 0) {
+                    hookItemsEl.innerHTML = '<li>尚未懸掛物品</li>';
+                } else {
+                    leverState.hookItems.forEach((item, index) => {
+                        const li = document.createElement('li');
+                        li.className = 'hook-item';
+                        li.draggable = true;
+                        li.addEventListener('dragstart', (e) => onHookDragStart(e, index));
+
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = `${item.name} (${item.weight} gw)`;
+                        
+                        const removeBtn = document.createElement('button');
+                        removeBtn.textContent = 'x';
+                        removeBtn.className = 'remove-btn';
+                        removeBtn.onclick = () => removeItemFromHook(index);
+
+                        li.appendChild(nameSpan);
+                        li.appendChild(removeBtn);
+                        hookItemsEl.appendChild(li);
+                    });
+                }
+            }
+
+            function updateLever() {
+                const pivot = leverState.pivotPos;
+                const arm_s = steelyard.pos_CM - pivot;
+                const torque_s_cw = steelyard.weight * arm_s; 
+                const arm_o = steelyard.pos_H - pivot;
+                const torque_o_cw = leverState.hookLoad * arm_o;
+                const netTorque_cw = torque_s_cw + torque_o_cw;
+
+                // 修正：[ 最終 Bug 修正 ] 還原到*有效*的旋轉計算
+                const simpleTorque = netTorque_cw * 0.01;
+                leverState.targetRotation = Math.max(-45, Math.min(45, simpleTorque)); // 限制最大角度
+
+
+                if (Math.abs(netTorque_cw) < 1) { 
+                    leverStatusEl.textContent = "平衡！";
+                    leverStatusEl.className = "text-center text-xl font-bold mt-0 p-4 bg-green-100 text-green-800 rounded-lg";
+                } else if (netTorque_cw > 0) {
+                    leverStatusEl.textContent = "順時針轉動";
+                    leverStatusEl.className = "text-center text-xl font-bold mt-0 p-4 bg-blue-100 text-blue-800 rounded-lg";
+                } else {
+                    leverStatusEl.textContent = "逆時針轉動";
+                    leverStatusEl.className = "text-center text-xl font-bold mt-0 p-4 bg-red-100 text-red-800 rounded-lg";
+                }
+                
+                // 平衡時目標角度為 0
+                if (Math.abs(netTorque_cw) < 1) {
+                    leverState.targetRotation = 0;
+                }
+                
+                updateFormulaDisplay(arm_o, arm_s);
+            }
+
+            // 繪製槓桿
+            function drawLever() {
+                // 修正：在 try 外層重設狀態，確保一致
+                const baseFont = "20px 'Inter', 'Noto Sans TC', sans-serif";
+                const smallFont = "16px 'Inter', 'Noto Sans TC', sans-serif";
+                const itemFont = "14px 'Inter', 'Noto Sans TC', sans-serif";
+                
+                // 修正：每次繪製都重設
+                leverCtx.font = baseFont;
+                leverCtx.textAlign = 'left';
+                leverCtx.textBaseline = 'middle';
+                
+                // 修正：移除 try...catch
+                const w = leverCanvas.width;
+                const h = leverCanvas.height;
+                leverCtx.clearRect(0, 0, w, h);
+
+                // 修正：在旋轉前先畫支點
+                const pivotScreenX = steelyard.offsetX + leverState.pivotPos * steelyard.scale;
+                const pivotScreenY = 100;
+                leverCtx.fillStyle = '#3b82f6'; // blue-500
+                leverCtx.beginPath();
+                leverCtx.moveTo(pivotScreenX, pivotScreenY);
+                leverCtx.lineTo(pivotScreenX - 20, pivotScreenY + 40);
+                leverCtx.lineTo(pivotScreenX + 20, pivotScreenY + 40);
+                leverCtx.closePath();
+                leverCtx.fill();
+
+                // 儲存狀態、平移、旋轉
+                leverCtx.save();
+                
+                // 重設狀態 (以防萬一)
+                leverCtx.font = baseFont;
+                leverCtx.textAlign = 'left';
+                leverCtx.textBaseline = 'middle';
+
+                leverCtx.translate(pivotScreenX, pivotScreenY);
+                leverCtx.rotate(leverState.rotation * Math.PI / 180); // 旋轉 (度數)
+
+                const getScreenX = (pos) => (pos - leverState.pivotPos) * steelyard.scale;
+
+                // 繪製槓桿
+                const startX = getScreenX(steelyard.pos_CM - 1);
+                const endX = getScreenX(steelyard.pos_H + 1);
+                leverCtx.fillStyle = '#D2B48C'; // Tan
+                leverCtx.fillRect(startX, -5, endX - startX, 10);
+                
+                const cmX = getScreenX(steelyard.pos_CM);
+                leverCtx.fillStyle = '#8B4513'; // SaddleBrown
+                const bX = getScreenX(steelyard.pos_B);
+                leverCtx.fillRect(cmX, -5, bX - cmX, 10);
+                
+                leverCtx.fillStyle = '#ef4444'; // red-500
+                leverCtx.beginPath();
+                leverCtx.arc(cmX, 0, 5, 0, 2 * Math.PI);
+                leverCtx.fill();
+                
+                // 修正：重設狀態
+                leverCtx.font = baseFont;
+                leverCtx.textAlign = 'left';
+                leverCtx.fillText('CM (1000gw)', cmX - 25, 20);
+
+                // 修正：[ 最終 Bug 修正 ] 
+                // 還原*遺失*的 drawRing 函數
+                const drawRing = (pos, label) => {
+                    const x = getScreenX(pos);
+                    leverCtx.strokeStyle = '#6b7280'; // gray-500
+                    leverCtx.lineWidth = 3;
+                    leverCtx.beginPath();
+                    leverCtx.arc(x, -20, 15, 0, 2 * Math.PI);
+                    leverCtx.stroke();
+                    // 修正：重設狀態
+                    leverCtx.font = baseFont;
+                    leverCtx.textAlign = 'left';
+                    leverCtx.fillText(label, x - 5, -45);
+                };
+                drawRing(steelyard.pos_A, '甲');
+                drawRing(steelyard.pos_B, '乙');
+                
+                // 修正：[ 最終 Bug 修正 ] 
+                // 還原*遺失*的 drawDistance 函數
+                const drawDistance = (pos1, pos2, label, yOffset) => {
+                    leverCtx.font = smallFont; // 設定
+                    leverCtx.fillStyle = '#4b5563'; // gray-600
+                    
+                    const x1 = getScreenX(pos1);
+                    const x2 = getScreenX(pos2);
+                    const midX = (x1 + x2) / 2;
+                    
+                    leverCtx.strokeStyle = '#4b5563';
+                    leverCtx.lineWidth = 1;
+                    leverCtx.beginPath();
+                    leverCtx.moveTo(x1, yOffset - 15);
+                    leverCtx.lineTo(x1, yOffset + 15);
+                    leverCtx.moveTo(x2, yOffset - 15);
+                    leverCtx.lineTo(x2, yOffset + 15);
+                    leverCtx.moveTo(x1, yOffset);
+                    leverCtx.lineTo(x2, yOffset);
+                    leverCtx.stroke();
+                    
+                    leverCtx.textAlign = 'center'; // 距離文字置中
+                    leverCtx.fillText(label, midX, yOffset - 5);
+                };
+
+                // 修正：[ 最終 Bug 修正 ] 
+                // 修正這個錯字 (De -> drawDistance)
+                drawDistance(steelyard.pos_CM, steelyard.pos_B, '1 cm', -80); // CM to B
+                drawDistance(steelyard.pos_B, steelyard.pos_A, '3 cm', -80);  // B to A
+                drawDistance(steelyard.pos_A, steelyard.pos_H, '1 cm', -80);  // A to Hook
+                
+                leverCtx.font = baseFont; // 恢復字體
+                leverCtx.textAlign = 'left'; // 恢復對齊
+
+                // 繪製掛勾
+                const hookX = getScreenX(steelyard.pos_H);
+                leverCtx.strokeStyle = '#f59e0b'; // Amber-500
+                leverCtx.lineWidth = 3;
+                leverCtx.beginPath();
+                leverCtx.moveTo(hookX, 0);
+                leverCtx.lineTo(hookX, 30);
+                leverCtx.arc(hookX, 40, 10, Math.PI, 0);
+                leverCtx.stroke();
+                
+                // 修正：繪製掛物 (堆疊)
+                if (leverState.hookItems.length > 0) {
+                    const itemHeight = 30;
+                    let currentY = 50; // 掛勾下方
+                    
+                    leverCtx.font = itemFont; // 物品使用小字體
+                    leverCtx.textAlign = 'center'; // 置中
+                    
+                    leverState.hookItems.forEach(item => {
+                        const itemWidth = 40 + item.weight / 50;
+                        leverCtx.fillStyle = '#d8b4fe'; // Purple-300
+                        leverCtx.fillRect(hookX - itemWidth / 2, currentY, itemWidth, itemHeight);
+                        leverCtx.fillStyle = '#374151'; // gray-700
+                        leverCtx.fillText(`${item.weight} gw`, hookX, currentY + 15); // 修正 Y 座標
+                        currentY += itemHeight + 2; // 堆疊
+                    });
+
+                    // 修正：在迴圈後恢復狀態
+                    leverCtx.font = baseFont;
+                    leverCtx.textAlign = 'left';
+                }
+
+                leverCtx.restore(); // 還原畫布狀態
+            }
+            
+            // 槓桿動畫迴圈
+            // 修正：[ 最終 Bug 修正 ] 還原「永久迴圈」邏輯
+            function animateLever() {
+                // 檢查頁籤是否*不在*
+                if (!isLeverAnimating) { // 由頁籤按鈕控制
+                    // 不在，100ms 後再檢查一次
+                    // 修正：[ 最終 Bug 修正 ] 
+                    // 這裡的 setTimeout 是*錯誤*的，它會導致迴圈堆疊
+                    // 應該只在*啟動時*呼叫
+                    
+                    // 修正：[ 最終 Bug 修正 ] 
+                    // 不，之前的 `setTimeout` 是對的，
+                    // 而是 `isLeverLoopRunning` 變數才是多餘的。
+                    setTimeout(animateLever, 100);
+                    return; 
+                }
+                
+                const diff = leverState.targetRotation - leverState.rotation;
+                
+                if (Math.abs(diff) > 0.01) {
+                    // 還沒到目標，繼續移動
+                    leverState.rotation += diff * 0.15;
+                } else {
+                    // 已經很接近了
+                    leverState.rotation = leverState.targetRotation;
+                }
+                
+                drawLever(); // 每一幀都重繪
+                
+                requestAnimationFrame(animateLever); // 請求下一幀
+            }
+            
+            pivotSelect.addEventListener('change', () => {
+                leverState.pivotPos = pivotSelect.value === 'A' ? steelyard.pos_A : steelyard.pos_B;
+                resetLever(); // resetLever 只會呼叫 updateLever
+            });
+
+            // --- 槓桿公式 ---
+            const formulaObjWeight = document.getElementById('formula-obj-weight');
+            const formulaArmObj = document.getElementById('formula-arm-obj');
+            const formulaArmSteelyard = document.getElementById('formula-arm-steelyard');
+            const formulaTorqueObj = document.getElementById('formula-torque-obj');
+            const formulaTorqueSteelyard = document.getElementById('formula-torque-steelyard');
+            const checkFormulaBtn = document.getElementById('check-formula-btn');
+            const formulaResult = document.getElementById('formula-result');
+
+            let currentArm_o = 0;
+            let currentArm_s = 0;
+
+            function updateFormulaDisplay(arm_o, arm_s) {
+                currentArm_o = arm_o;
+                currentArm_s = arm_s;
+                
+                const arm_o_abs = Math.abs(arm_o);
+                const arm_s_abs = Math.abs(arm_s);
+
+                formulaArmObj.textContent = arm_o_abs;
+                formulaArmSteelyard.textContent = arm_s_abs;
+
+                formulaObjWeight.value = leverState.hookLoad;
+                
+                const torque_o_val = leverState.hookLoad * arm_o_abs;
+                const torque_s_val = 1000 * arm_s_abs;
+                
+                formulaTorqueObj.textContent = torque_o_val.toFixed(0);
+                formulaTorqueSteelyard.textContent = torque_s_val.toFixed(0);
+                
+                formulaResult.textContent = '';
+            }
+
+            checkFormulaBtn.addEventListener('click', () => {
+                const userWeight = Number(formulaObjWeight.value);
+                const correctWeight = (1000 * Math.abs(currentArm_s)) / Math.abs(currentArm_o);
+                
+                if (userWeight !== leverState.hookLoad) {
+                     formulaResult.textContent = "重量填寫錯誤 (與掛上物品不符)。";
+                     formulaResult.className = "ml-4 font-semibold text-red-600";
+                     return;
+                }
+                
+                if (Math.abs(leverState.hookLoad - correctWeight) < 1) { 
+                    formulaResult.textContent = "答對了！力矩平衡！";
+                    formulaResult.className = "ml-4 font-semibold text-green-600";
+                } else {
+                    formulaResult.textContent = "重量正確，但未平衡。";
+                    formulaResult.className = "ml-4 font-semibold text-yellow-600";
+                }
+            });
+            
+            // --- 初始化 ---
+            // 頁面載入時，所有動畫都停止
+            isTorqueAnimating = false;
+            isComboAnimating = false;
+            isLeverAnimating = false; // 修正：[ 最終 Bug 修正 ] 預設為暫停
+            
+            // 初始化第一部分
+            resetTorqueState(); 
+            resetComboState(); 
+            
+            // 初始化第二部分
+            updateHookDisplay();
+            updateLever(); 
+            
+            // 靜態繪製
+            drawTorque();
+            drawCombo();
+            drawLever(); 
+            
+            // 修正：[ 最終 Bug 修正 ] 在 DOMContentLoaded 結束時，*啟動* 永久的槓桿動畫迴圈
+            // 這次 `isLeverAnimating` 會在頁籤被點擊時才設為 true
+            animateLever();
+        });
+    </script>
+</body>
+</html>

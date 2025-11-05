@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>力矩與槓桿原理互動教學</title>
+    <!-- 載入 Tailwind CSS --><script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 設置基本字體 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f0f4f8; /* 柔和的背景色 */
+        }
+
+        /* 槓桿的樣式 */
+        #lever {
+            position: relative;
+            width: 100%;
+            height: 16px;
+            background: linear-gradient(to right, #6b7280, #a1a1aa, #6b7280); /* 金屬漸層 */
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.5s ease-in-out;
+            transform-origin: 50% center; /* 預設支點在中間 */
+        }
+
+        /* 支點 (三角形) - 調整高度與定位使其尖端碰到槓桿 */
+        #fulcrum {
+            position: absolute;
+            bottom: -8px; /* 槓桿高度一半，使其尖端碰到槓桿中心 */
+            left: 50%; /* 預設在中間 */
+            width: 0;
+            height: 0;
+            border-left: 20px solid transparent;
+            border-right: 20px solid transparent;
+            border-bottom: 30px solid #f59e0b; /* 橘色 */
+            transform: translateX(-50%);
+            transition: left 0.5s ease-in-out;
+            z-index: 10;
+        }
+
+        /* 槓桿上的標記點 (錨點) */
+        .lever-point {
+            position: absolute;
+            top: 50%; /* 槓桿中心線 */
+            transform: translateY(-50%);
+            z-index: 20;
+            height: 1px; /* 錨點 */
+            width: 1px; /* 錨點 */
+        }
+
+        /* 標記點的圓形圖示 */
+        .point-marker {
+            position: absolute;
+            left: 50%;
+            top: 0; /* 在槓桿中心線 */
+            transform: translate(-50%, -50%); /* 讓圓心對準錨點 */
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            /* 確保質心在槓桿上 */
+            background-color: red; /* Default for COM */
+        }
+        
+        /* 甲環與乙環的中空樣式 (位於槓桿上方) */
+        #point-a .point-marker,
+        #point-b .point-marker {
+            background-color: transparent !important; /* 中空 */
+            border-width: 3px;
+            /* 調整位置到槓桿上方 */
+            transform: translate(-50%, -150%); /* 向上移動 */
+        }
+        #point-a .point-marker {
+            border-color: #3b82f6; /* 藍色 */
+        }
+        #point-b .point-marker {
+            border-color: #16a34a; /* 綠色 */
+        }
+
+        /* 質心文字標籤，確保在槓桿下方 */
+        #point-com .point-label {
+            top: 28px;
+        }
+
+        /* 甲環與乙環文字標籤，確保在圓環上方 (NEW) */
+        #point-a .point-label,
+        #point-b .point-label {
+            top: -50px; /* 位於中空圓環的上方 */
+        }
+
+
+        /* 掛勾的樣式 (懸掛在下方) */
+        #hook {
+            width: 30px;
+            height: 30px;
+            border: 4px solid #9ca3af;
+            border-top-color: transparent; /* 開口朝上 */
+            border-radius: 0 0 15px 15px;
+            background-color: #f0f4f8;
+            cursor: pointer; /* 點擊移除 */
+            z-index: 25; 
+            box-shadow: inset 0 -2px 3px rgba(0,0,0,0.1);
+        }
+        
+        /* 掛勾的拖曳區域 */
+        #hook-dropzone {
+            position: absolute;
+            top: 8px; /* 槓桿高度一半 (16px/2), 使其從槓桿下方開始 */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px; /* 加大拖曳區域 */
+            height: 40px;
+            padding-top: 5px;
+            display: flex;
+            justify-content: center;
+            border-radius: 8px;
+            z-index: 24;
+        }
+
+        /* 掛勾上的總重量顯示 */
+        #hook-total-weight {
+            position: absolute;
+            top: 45px; /* 位於掛勾下方 */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            padding: 8px;
+            background-color: #e0f2fe; /* 淺藍色背景 */
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+            font-size: 0.95rem;
+            font-weight: bold;
+            color: #0d47a1; /* 深藍色文字 */
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.3;
+            transition: opacity 0.3s;
+            z-index: 26;
+        }
+
+
+        /* 標記點的文字標籤 */
+        .point-label {
+            position: absolute;
+            left: 50%;
+            top: 28px; /* 在圓點下方 (預設) */
+            transform: translateX(-50%);
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #4b5563;
+            width: 100px;
+            text-align: center;
+            pointer-events: none; /* 讓點擊穿透到下面的元素 */
+        }
+
+        /* 可拖曳的物品 */
+        .draggable-item {
+            cursor: grab;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .draggable-item:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.15);
+        }
+        .dragging {
+            opacity: 0.5;
+            cursor: grabbing;
+        }
+
+        /* 拖曳放置區域高亮 */
+        #hook-dropzone.drag-over {
+            background-color: #fef9c3; /* 淺黃色 */
+        }
+        #hook-dropzone.drag-over #hook {
+            border-color: #f59e0b; /* 橘色邊框 */
+        }
+
+        /* 距離標籤 */
+        .distance-label {
+            position: absolute;
+            top: -40px; /* 位於槓桿上方 */
+            font-size: 0.75rem;
+            color: #555;
+            padding: 2px 5px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border-radius: 3px;
+            border: 1px solid #ccc;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            z-index: 15;
+        }
+        .distance-line {
+            position: absolute;
+            top: -20px;
+            height: 1px;
+            background-color: #ccc;
+            z-index: 14;
+        }
+        .distance-line::before, .distance-line::after {
+            content: '';
+            position: absolute;
+            top: -2px;
+            width: 1px;
+            height: 5px;
+            background-color: #ccc;
+        }
+        .distance-line::before { left: 0; }
+        .distance-line::after { right: 0; }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-8">
+            力矩與槓桿原理 
+            <span class="text-xl block md:inline text-gray-600">(互動教學)</span>
+        </h1>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+
+            <!-- NEW Left: 可拖曳物品清單 -->
+            <div class="lg:w-1/4 w-full">
+                <div class="bg-white rounded-xl shadow-xl p-6">
+                    <h2 class="text-2xl font-bold mb-6 text-center text-gray-800">物品清單</h2>
+                    <p class="text-center text-gray-600 mb-6">請將物品拖曳到槓桿的「掛勾」上。點擊物品旁的 ❌ 可將其取下。</p>
+                    
+                    <div id="item-list" class="flex flex-col gap-3">
+                        <div id="item-keys" class="draggable-item flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm" draggable="true" data-name="鑰匙圈" data-weight="50">
+                            <span class="font-medium">🔑 鑰匙圈</span>
+                            <span class="font-bold text-gray-700">50 gw</span>
+                        </div>
+                        <div id="item-notebook" class="draggable-item flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm" draggable="true" data-name="線圈筆記本" data-weight="200">
+                            <span class="font-medium">📓 線圈筆記本</span>
+                            <span class="font-bold text-gray-700">200 gw</span>
+                        </div>
+                        <div id="item-bottle" class="draggable-item flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm" draggable="true" data-name="水壺" data-weight="1000">
+                            <span class="font-medium">💧 水壺</span>
+                            <span class="font-bold text-gray-700">1000 gw</span>
+                        </div>
+                        <div id="item-backpack" class="draggable-item flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm" draggable="true" data-name="書包" data-weight="2000">
+                            <span class="font-medium">🎒 書包</span>
+                            <span class="font-bold text-gray-700">2000 gw</span>
+                        </div>
+                        <div id="item-lunchbag" class="draggable-item flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm" draggable="true" data-name="餐袋" data-weight="500">
+                            <span class="font-medium">🍱 餐袋</span>
+                            <span class="font-bold text-gray-700">500 gw</span>
+                        </div>
+                        <div id="item-doll" class="draggable-item flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm" draggable="true" data-name="玩偶娃娃" data-weight="150">
+                            <span class="font-medium">🧸 玩偶娃娃</span>
+                            <span class="font-bold text-gray-700">150 gw</span>
+                        </div>
+                        <div id="item-wallet" class="draggable-item flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm" draggable="true" data-name="錢包" data-weight="250">
+                            <span class="font-medium">👛 錢包</span>
+                            <span class="font-bold text-gray-700">250 gw</span>
+                        </div>
+                        <div id="item-candy" class="draggable-item flex justify-between items-center p-4 bg-gray-100 rounded-lg shadow-sm" draggable="true" data-name="一包糖果" data-weight="50">
+                            <span class="font-medium">🍬 一包糖果</span>
+                            <span class="font-bold text-gray-700">50 gw</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- NEW Right: 槓桿模擬區域 -->
+            <div class="lg:w-3/4 w-full">
+                <div class="bg-white rounded-xl shadow-xl p-6 md:p-10">
+                    
+                    <!-- 槓桿與支點的容器 -->
+                    <div class="relative w-full h-48 md:h-56 flex items-center justify-center">
+                        
+                        <!-- 槓桿本體 -->
+                        <div id="lever-container" class="relative w-full h-16">
+                            
+                            <!-- 支點 -->
+                            <div id="fulcrum"></div>
+
+                            <!-- 槓桿 -->
+                            <div id="lever">
+                                <!-- 質心 (COM) - NEW POS -->
+                                <div id="point-com" class="lever-point" style="left: 10%;">
+                                    <div class="point-marker bg-red-600"></div>
+                                    <span class="point-label">質心 (1000gw)</span>
+                                </div>
+                                
+                                <!-- 乙環 (B) - NEW POS -->
+                                <div id="point-b" class="lever-point" style="left: 26%;">
+                                    <div class="point-marker"></div> <!-- CSS 會套用中空樣式 -->
+                                    <span class="point-label">乙環</span>
+                                </div>
+                                
+                                <!-- 甲環 (A) - NEW POS -->
+                                <div id="point-a" class="lever-point" style="left: 74%;">
+                                    <div class="point-marker"></div> <!-- CSS 會套用中空樣式 -->
+                                    <span class="point-label">甲環</span>
+                                </div>
+                                
+                                <!-- 掛勾 (Hook) - NEW POS -->
+                                <div id="point-hook" class="lever-point" style="left: 90%;">
+                                    <div class="point-marker" style="display:none;"></div>
+                                    <span class="point-label" style="top: -30px;">掛勾</span>
+                                    
+                                    <div id="hook-dropzone">
+                                        <div id="hook"></div>
+                                    </div>
+                                    
+                                    <!-- 掛勾上的總重量顯示 -->
+                                    <div id="hook-total-weight" class="opacity-0">無物品</div>
+                                </div>
+
+                                <!-- 距離標示 - 動態生成，這裡只放容器 -->
+                                <div id="distance-labels"></div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <!-- 即時狀態顯示區 -->
+                    <div id="status-display" class="mt-4 p-4 bg-gray-100 rounded-lg shadow-inner">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                            <div>
+                                <h4 class="font-semibold text-gray-700">總懸掛重量：</h4>
+                                <p id="total-hook-weight" class="text-xl font-bold text-gray-500">0 gw</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">目前轉動：</h4>
+                                <p id="status-rotation" class="text-xl font-bold text-gray-500">-</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-gray-700">合力矩：</h4>
+                                <p id="status-net-torque" class="text-xl font-bold text-gray-500">-</p>
+                            </div>
+                        </div>
+                        <!-- NEW: 已懸掛物品清單 (橫向) -->
+                        <div class="mt-4">
+                            <h4 class="font-semibold text-gray-700 mb-2 text-center">已懸掛物品清單：</h4>
+                            <ul id="hung-item-list" class="flex flex-row flex-wrap gap-2 justify-center min-h-[2.5rem] items-center">
+                                <li id="no-item-message" class="text-gray-500 italic">無物品</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- 控制按鈕 -->
+                    <div class="flex justify-center gap-4 mt-8 mb-4">
+                        <button id="set-fulcrum-a" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-300">
+                            1. 以「甲環」為支點
+                        </button>
+                        <button id="set-fulcrum-b" class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-300">
+                            2. 以「乙環」為支點
+                        </button>
+                    </div>
+
+                    <!-- NEW: 即時力矩計算 (Moved from qa-section) -->
+                    <div id="torque-calculation-block" class="mt-6 bg-gray-50 p-6 rounded-lg border border-gray-200 min-h-[200px] hidden">
+                        <h4 class="font-semibold text-lg mb-2 text-center">3. 即時力矩計算 (平衡公式)</h4>
+                        
+                        <p class="text-center text-lg font-mono tracking-wide">
+                            施力 &times; 施力臂 = 抗力 &times; 抗力臂
+                        </p>
+                        
+                        <p class="text-center text-lg font-mono tracking-wide mt-2">
+                            (<span id="calc-item-total-weight" class="font-bold text-green-600">0</span> gw &times; <span id="calc-hook-arm" class="font-bold">...</span> cm) = (<span id="calc-lever-weight" class="font-bold">1000</span> gw &times; <span id="calc-lever-arm" class="font-bold">...</span> cm)
+                        </p>
+                        
+                        <div class="flex justify-around mt-4">
+                            <div class="text-center">
+                                <p class="font-semibold">施力力矩 (順時針)</p>
+                                <p class="font-bold text-green-600 text-xl"><span id="t-hook">0</span> gw-cm</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="font-semibold">抗力力矩 (逆時針)</p>
+                                <p class="font-bold text-red-600 text-xl"><span id="t-lever">0</span> gw-cm</p>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-4">
+                            <p class="text-lg font-bold">
+                                合力矩 = 
+                                <span id="t-hook-val">0</span> (順) - 
+                                <span id="t-lever-val">0</span> (逆) = 
+                                <span id="t-net" class="text-2xl text-blue-800">...</span> gw-cm
+                            </p>
+                            <p id="net-torque-direction" class="text-xl font-bold text-gray-500 mt-1"></p>
+                        </div>
+                    </div>
+
+                    <!-- 問題與計算區域 (只剩 1 & 2) -->
+                    <div id="qa-section" class="mt-6 bg-gray-50 p-6 rounded-lg border border-gray-200 min-h-[200px]">
+                        <p class="text-gray-500 text-center">請先選擇一個支點開始模擬。</p>
+                    </div>
+
+                </div>
+            </div>
+         </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- DOM 元素 ---
+            const lever = document.getElementById('lever');
+            const fulcrum = document.getElementById('fulcrum');
+            const qaSection = document.getElementById('qa-section');
+            const hookDropZone = document.getElementById('hook-dropzone');
+            const hookTotalWeightDisplay = document.getElementById('hook-total-weight'); // 總重量顯示
+            const setFulcrumAButton = document.getElementById('set-fulcrum-a');
+            const setFulcrumBButton = document.getElementById('set-fulcrum-b');
+            const draggableItems = document.querySelectorAll('.draggable-item');
+            const hookVisual = document.getElementById('hook'); 
+            
+            // 狀態顯示區元素
+            const totalHookWeightEl = document.getElementById('total-hook-weight');
+            const statusRotationEl = document.getElementById('status-rotation');
+            const statusNetTorqueEl = document.getElementById('status-net-torque');
+            const hungItemListEl = document.getElementById('hung-item-list');
+            // const noItemMessageEl = document.getElementById('no-item-message'); // <-- BUGGY, REMOVED
+            const distanceLabelsContainer = document.getElementById('distance-labels');
+            
+            // NEW: 力矩計算區塊
+            const torqueCalcBlock = document.getElementById('torque-calculation-block');
+            const calcHookArmEl = document.getElementById('calc-hook-arm');
+            const calcLeverWeightEl = document.getElementById('calc-lever-weight');
+            const calcLeverArmEl = document.getElementById('calc-lever-arm');
+            const tLeverEl_static = document.getElementById('t-lever'); // The one in the middle
+
+            // --- 狀態變數 ---
+            let currentFulcrum = null; // 'A' 或 'B'
+            let itemsOnHook = []; // 儲存多個 { id: uniqueId, name: '...', weight: ... } 物件
+            const leverWeight = 1000; // 槓桿重量
+
+            // NEW: 根據使用者要求更新距離
+            const positions = {
+                COM: -1, 
+                B: 0,    
+                A: 3,    
+                HOOK: 4  
+            };
+            const visualPositions = {
+                COM: '10%', 
+                B: '26%',
+                A: '74%',
+                HOOK: '90%'
+            };
+
+            // --- 輔助函數 ---
+            function generateUniqueId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            }
+
+            /**
+             * 根據兩個百分比位置計算並繪製距離標籤
+             */
+            function drawDistanceLabel(id, startPosPercent, endPosPercent, distance) {
+                const startNum = parseFloat(startPosPercent);
+                const endNum = parseFloat(endPosPercent);
+                const minPos = Math.min(startNum, endNum);
+                const maxPos = Math.max(startNum, endNum);
+
+                const labelElement = document.createElement('div');
+                labelElement.id = `dist-label-${id}`;
+                labelElement.className = 'distance-label';
+                labelElement.style.left = `${(minPos + maxPos) / 2}%`;
+                labelElement.textContent = `${distance} cm`;
+
+                const lineElement = document.createElement('div');
+                lineElement.id = `dist-line-${id}`;
+                lineElement.className = 'distance-line';
+                lineElement.style.left = `${minPos}%`;
+                lineElement.style.width = `${maxPos - minPos}%`;
+
+                distanceLabelsContainer.appendChild(labelElement);
+                distanceLabelsContainer.appendChild(lineElement);
+            }
+
+            /**
+             * 清除所有距離標籤
+             */
+            function clearDistanceLabels() {
+                distanceLabelsContainer.innerHTML = '';
+            }
+
+            // --- 函數 ---
+
+            /**
+             * 設置支點 (A 或 B)
+             */
+            function setFulcrum(point) {
+                currentFulcrum = point;
+                removeAllItemsFromHook(); // 切換支點時，清空物品
+                
+                let fulcrumPosPercent;
+                
+                if (point === 'A') {
+                    fulcrumPosPercent = visualPositions.A; // 74%
+                    setFulcrumAButton.classList.add('ring-4', 'ring-blue-400');
+                    setFulcrumBButton.classList.remove('ring-4', 'ring-green-400');
+                } else {
+                    fulcrumPosPercent = visualPositions.B; // 26%
+                    setFulcrumBButton.classList.add('ring-4', 'ring-green-400');
+                    setFulcrumAButton.classList.remove('ring-4', 'ring-blue-400');
+                }
+
+                // 移動支點視覺 (橘色三角形)
+                fulcrum.style.left = fulcrumPosPercent;
+                // 改變槓桿的旋轉中心 (非常重要!)
+                lever.style.transformOrigin = `${fulcrumPosPercent} center`;
+
+                // 重置即時狀態顯示
+                statusRotationEl.textContent = '...';
+                statusRotationEl.className = 'text-xl font-bold text-gray-500';
+                statusNetTorqueEl.textContent = '...';
+                statusNetTorqueEl.className = 'text-xl font-bold text-gray-500';
+
+                // 更新 Q&A 區域
+                loadQuestions();
+                // 更新槓桿狀態 (計算初始旋轉)
+                updateLeverState();
+            }
+
+            /**
+             * 載入對應的問題與計算公式
+             */
+            function loadQuestions() {
+                if (!currentFulcrum) {
+                    qaSection.innerHTML = '<p class="text-gray-500 text-center">請先選擇一個支點開始模擬。</p>';
+                    torqueCalcBlock.classList.add('hidden'); // 隱藏計算區
+                    return;
+                }
+                
+                // 槓桿重力臂 (抗力臂)
+                const leverArm = Math.abs(positions[currentFulcrum] - positions.COM);
+                // 物品施力臂
+                const hookArm = Math.abs(positions.HOOK - positions[currentFulcrum]);
+                // 槓桿重力造成的力矩 (抗力矩)
+                const leverTorque = leverWeight * leverArm; 
+                // 達成平衡所需的施力 (物品重)
+                const balanceWeight = (leverTorque / hookArm).toFixed(1); 
+                
+                // NEW: 顯示並填寫獨立的計算區塊
+                torqueCalcBlock.classList.remove('hidden');
+                calcHookArmEl.textContent = hookArm;
+                calcLeverArmEl.textContent = leverArm;
+                calcLeverWeightEl.textContent = leverWeight;
+                tLeverEl_static.textContent = leverTorque.toFixed(1); // 靜態顯示抗力力矩
+                
+                // NEW: Q&A 區塊只剩 1 & 2
+                qaSection.innerHTML = `
+                    <h3 class="text-xl font-bold mb-4 text-center">
+                        當以「${currentFulcrum === 'A' ? '甲環' : '乙環'}」為支點時
+                    </h3>
+                    
+                    <div class="mb-4 p-4 bg-white rounded-lg shadow-inner">
+                        <h4 class="font-semibold text-lg mb-2">1. 桿秤初始轉動方向</h4>
+                        <p>槓桿本身的重量 (${leverWeight} gw) 作用在支點到質心的距離 (${leverArm} cm)，會造成 <span class="font-bold text-red-600">${leverTorque} gw-cm</span> 的逆時針 (CCW) 力矩。</p>
+                        <p class="mt-2">因此，在未掛物品前，初始轉動方向為: <strong class="text-xl text-red-700">逆時針 (CCW)</strong></p>
+                    </div>
+
+                    <div class="mb-4 p-4 bg-white rounded-lg shadow-inner">
+                        <h4 class="font-semibold text-lg mb-2">2. 達成平衡所需重量</h4>
+                        <p>請拖曳物品到掛勾上，觀察槓桿轉動與合力矩，使槓桿平衡。</p>
+                        <p>(提示: 你需要一個 <span class="font-bold text-green-700">${hookArm} cm</span> 的施力臂來平衡 <span class="font-bold text-red-700">${leverTorque} gw-cm</span> 的逆時針力矩。)</p>
+                        <p>(計算: ${leverTorque} / ${hookArm} = <strong class="text-green-700">${balanceWeight} gw</strong> 的物品，或多個物品總重為此值)</p>
+                        <p id="balance-status" class="text-xl font-bold text-center mt-3 h-8"></p>
+                    </div>
+                `;
+            }
+
+            /**
+             * 計算合力矩並更新槓桿旋轉與 UI
+             */
+            function updateLeverState() {
+                if (!currentFulcrum) return;
+
+                const leverArm = Math.abs(positions[currentFulcrum] - positions.COM);
+                const hookArm = Math.abs(positions.HOOK - positions[currentFulcrum]);
+                
+                const leverTorque = leverWeight * leverArm; // CCW (逆時針), 視為負
+                let totalHookWeight = itemsOnHook.reduce((sum, item) => sum + item.weight, 0);
+                let hookTorque = totalHookWeight * hookArm; // CW (順時針), 視為正
+
+                const netTorque = hookTorque - leverTorque; // 合力矩
+
+                // 1. 更新槓桿旋轉
+                let rotation = 0;
+                let rotationText = '';
+                let rotationClass = '';
+                let netTorqueDirectionText = ''; // NEW
+
+                if (Math.abs(netTorque) < 0.1) { // 允許小誤差視為平衡
+                    rotation = 0;
+                    rotationText = '平衡';
+                    rotationClass = 'text-xl font-bold text-green-600';
+                    netTorqueDirectionText = '合力矩為零 (平衡)';
+                } else if (netTorque > 0) {
+                    rotation = 10; // 順時針
+                    rotationText = '順時針';
+                    rotationClass = 'text-xl font-bold text-blue-600';
+                    netTorqueDirectionText = `合力矩方向： 順時針`;
+                } else { // netTorque < 0
+                    rotation = -10; // 逆時針
+                    rotationText = '逆時針';
+                    rotationClass = 'text-xl font-bold text-red-600';
+                    netTorqueDirectionText = `合力矩方向： 逆時針`;
+                }
+                lever.style.transform = `rotate(${rotation}deg)`;
+
+                // 2. 更新 Q&A 區的平衡狀態文字
+                const statusEl = document.getElementById('balance-status');
+                if (statusEl) {
+                    if (rotation === 0 && totalHookWeight > 0) { // 平衡且有掛東西
+                        statusEl.textContent = '🎉 恭喜！槓桿平衡了！';
+                        statusEl.className = 'text-xl font-bold text-center mt-3 h-8 text-green-600';
+                    } else if (rotation > 0) {
+                        statusEl.textContent = '... 順時針轉動 ...';
+                        statusEl.className = 'text-xl font-bold text-center mt-3 h-8 text-blue-600';
+                    } else if (rotation < 0) {
+                        statusEl.textContent = '... 逆時針轉動 ...';
+                        statusEl.className = 'text-xl font-bold text-center mt-3 h-8 text-red-600';
+                    } else { // rotation === 0 但沒掛東西 (或初始狀態)
+                        statusEl.textContent = ''; // 清空，因為初始狀態已在 #1 顯示
+                    }
+                }
+                
+                // 3. 更新即時狀態顯示區
+                totalHookWeightEl.textContent = `${totalHookWeight} gw`;
+                hookTotalWeightDisplay.textContent = `${totalHookWeight} gw`;
+                hookTotalWeightDisplay.classList.toggle('opacity-0', totalHookWeight === 0);
+
+                statusRotationEl.textContent = rotationText;
+                statusRotationEl.className = rotationClass;
+
+                statusNetTorqueEl.textContent = `${netTorque.toFixed(1)} gw-cm`;
+                statusNetTorqueEl.className = rotationClass; 
+
+                // 4. 更新 Q&A 區的力矩計算 (現在是獨立的區塊)
+                const calcItemTotalWeightEl = document.getElementById('calc-item-total-weight');
+                const tHookEl = document.getElementById('t-hook');
+                const tHookValEl = document.getElementById('t-hook-val');
+                const tNetEl = document.getElementById('t-net');
+                const netTorqueDirectionEl = document.getElementById('net-torque-direction'); 
+                const tLeverValEl = document.getElementById('t-lever-val'); 
+
+                if (calcItemTotalWeightEl) calcItemTotalWeightEl.textContent = totalHookWeight;
+                if (tHookEl) tHookEl.textContent = hookTorque.toFixed(1);
+                if (tHookValEl) tHookValEl.textContent = hookTorque.toFixed(1);
+                if (tNetEl) tNetEl.textContent = netTorque.toFixed(1);
+                if (tLeverValEl) tLeverValEl.textContent = leverTorque.toFixed(1); // 確保 t-lever-val 也更新
+                if (netTorqueDirectionEl) { 
+                    netTorqueDirectionEl.textContent = netTorqueDirectionText;
+                    netTorqueDirectionEl.className = rotationClass.replace('text-xl', 'text-lg') + ' mt-1'; // Use same color
+                }
+            }
+
+            /**
+             * 將物品掛上掛勾
+             */
+            function placeItemOnHook(name, weight) {
+                const newItem = { id: generateUniqueId(), name, weight };
+                itemsOnHook.push(newItem);
+                renderHungItems(); // 重新渲染已懸掛物品清單
+                updateLeverState();
+            }
+
+            /**
+             * 從掛勾取下單一物品
+             * @param {string} id 要移除物品的唯一 ID
+             */
+            function removeItemById(id) {
+                itemsOnHook = itemsOnHook.filter(item => item.id !== id);
+                renderHungItems();
+                updateLeverState();
+            }
+
+            /**
+             * 從掛勾取下所有物品
+             */
+            function removeAllItemsFromHook() {
+                itemsOnHook = [];
+                renderHungItems();
+                // 如果沒有支點，則直接重置槓桿，否則 updateLeverState 會根據 currentFulcrum 計算
+                if (!currentFulcrum) {
+                    lever.style.transform = `rotate(0deg)`; 
+                    // 重置即時狀態
+                    totalHookWeightEl.textContent = '0 gw';
+                    hookTotalWeightDisplay.classList.add('opacity-0');
+                    statusRotationEl.textContent = '-';
+                    statusRotationEl.className = 'text-xl font-bold text-gray-500';
+                    statusNetTorqueEl.textContent = '-';
+                    statusNetTorqueEl.className = 'text-xl font-bold text-gray-500';
+                    
+                    // NEW: Hide calc block
+                    torqueCalcBlock.classList.add('hidden');
+                    qaSection.innerHTML = '<p class="text-gray-500 text-center text-lg">請點擊上方按鈕，選擇「甲環」或「乙環」作為支點來開始模擬。</p>';
+
+                } else {
+                    // 這裡不需要呼叫 updateLeverState()，因為 setFulcrum 會在 loadQuestions() 之後呼叫它
+                }
+            }
+
+            /**
+             * 渲染已懸掛物品清單 (NEW: 橫向)
+             */
+            function renderHungItems() {
+                hungItemListEl.innerHTML = ''; // 清空現有列表
+                if (itemsOnHook.length === 0) {
+                    // ** BUG FIX ** // The previous bug was trying to append a node that was destroyed.
+                    // This creates the element from scratch.
+                    hungItemListEl.innerHTML = '<li id="no-item-message" class="text-gray-500 italic">無物品</li>';
+                } else {
+                    itemsOnHook.forEach(item => {
+                        const li = document.createElement('li');
+                        li.className = 'inline-flex items-center bg-gray-200 rounded-full px-3 py-1 text-sm font-medium text-gray-800 shadow-sm';
+                        li.innerHTML = `
+                            <span>${item.name} (${item.weight} gw)</span>
+                            <button data-id="${item.id}" class="remove-item-btn ml-2 -mr-1 text-red-500 hover:text-red-700 font-bold" title="移除此物品">
+                                &times;
+                            </button>
+                        `;
+                        hungItemListEl.appendChild(li);
+                    });
+                    // 為新渲染的按鈕添加事件監聽器
+                    document.querySelectorAll('.remove-item-btn').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            removeItemById(e.currentTarget.dataset.id); // Using currentTarget for safety
+                        });
+                    });
+                }
+            }
+
+            // --- 事件監聽 ---
+
+            // 設置支點按鈕
+            setFulcrumAButton.addEventListener('click', () => setFulcrum('A'));
+            setFulcrumBButton.addEventListener('click', () => setFulcrum('B'));
+
+            // --- 拖曳功能 (Drag and Drop) ---
+            let draggedItem = null;
+
+            draggableItems.forEach(item => {
+                item.addEventListener('dragstart', (e) => {
+                    draggedItem = {
+                        name: item.dataset.name,
+                        weight: parseInt(item.dataset.weight, 10)
+                    };
+                    item.classList.add('dragging');
+                    hookTotalWeightDisplay.classList.remove('opacity-0'); // 拖曳時顯示總重提示
+                    hookTotalWeightDisplay.textContent = "放開以放置";
+                });
+
+                item.addEventListener('dragend', (e) => {
+                    item.classList.remove('dragging');
+                    draggedItem = null;
+                    if (itemsOnHook.length === 0) {
+                        hookTotalWeightDisplay.classList.add('opacity-0');
+                        hookTotalWeightDisplay.textContent = "無物品";
+                    } else {
+                        updateLeverState(); // 更新顯示為實際總重
+                    }
+                });
+            });
+
+            // 拖曳到掛勾上方
+            hookDropZone.addEventListener('dragover', (e) => {
+                e.preventDefault(); 
+                hookDropZone.classList.add('drag-over');
+            });
+
+            // 離開掛勾區域
+            hookDropZone.addEventListener('dragleave', (e) => {
+                hookDropZone.classList.remove('drag-over');
+            });
+
+            // 放開
+            hookDropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                hookDropZone.classList.remove('drag-over');
+                if (draggedItem && currentFulcrum) {
+                    placeItemOnHook(draggedItem.name, draggedItem.weight);
+                } else if (!currentFulcrum) {
+                    hookTotalWeightDisplay.classList.remove('opacity-0');
+                    hookTotalWeightDisplay.textContent = "請先選支點!";
+                    setTimeout(() => {
+                        if (itemsOnHook.length === 0) {
+                            hookTotalWeightDisplay.classList.add('opacity-0');
+                            hookTotalWeightDisplay.textContent = "無物品";
+                        } else {
+                            updateLeverState();
+                        }
+                    }, 1500);
+                }
+            });
+
+            // --- 初始設定 ---
+            // 繪製距離標籤
+            clearDistanceLabels();
+            // 掛勾到甲環
+            drawDistanceLabel('hook-a', visualPositions.A, visualPositions.HOOK, positions.HOOK - positions.A);
+            // 甲環到乙環
+            drawDistanceLabel('a-b', visualPositions.B, visualPositions.A, positions.A - positions.B);
+            // 乙環到質心
+            drawDistanceLabel('b-com', visualPositions.COM, visualPositions.B, positions.B - positions.COM);
+
+            // 初始提示
+            qaSection.innerHTML = '<p class="text-gray-500 text-center text-lg">請點擊上方按鈕，選擇「甲環」或「乙環」作為支點來開始模擬。</p>';
+            renderHungItems(); // 首次渲染空的物品清單
+        });
+    </script>
+</body>
+</html>
