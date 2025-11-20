@@ -1,487 +1,528 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowRight, ArrowLeft, RefreshCw, Layers, Scissors, Activity, Mountain, Info } from 'lucide-react';
-
-// --- 資料設定區 ---
-
-const SCENARIOS = {
-  STANDARD: 'standard', // 課本模式：岩脈 -> 斷層
-  REVERSE: 'reverse',   // 實驗模式：斷層 -> 岩脈
-};
-
-const STEPS_DATA = [
-  {
-    id: 0,
-    title: "1. 礫岩層沉積",
-    desc: "礫石在水底沉積，經過長時間的壓密與膠結，形成了水平且表面平整的礫岩層。",
-    principle: "原始水平定律：沉積物在重力作用下傾向於水平堆積。",
-    icon: <Layers className="w-6 h-6 text-stone-600" />
-  },
-  {
-    id: 1,
-    title: "2. 傾斜與侵蝕",
-    desc: "地殼變動使礫岩層傾斜。抬升後表面受到風化侵蝕，原本平整的表面變得凹凸不平（形成不整合面）。",
-    principle: "不整合面形成：代表地層沉積中斷、抬升侵蝕的證據。",
-    icon: <Mountain className="w-6 h-6 text-amber-700" />
-  },
-  {
-    id: 2,
-    title: "3. 砂岩層沉積",
-    desc: "地層再次下沉，砂岩沉積在凹凸不平的侵蝕面上，填補了空隙，形成新的水平岩層。",
-    principle: "疊置定律：在未受擾動的地層中，下方的岩層比上方的岩層老。",
-    icon: <Layers className="w-6 h-6 text-yellow-600" />
-  },
-  {
-    // 步驟 3 (Index 3)
-    standard: {
-      title: "4. 岩漿入侵 (岩脈)",
-      desc: "熾熱岩漿順著裂隙由下而上侵入，貫穿了礫岩與砂岩，並在地表噴發形成三角形的火山錐。",
-      principle: "截切定律：被截切者（周圍岩層）較老，截切者（岩脈）較年輕。",
-      icon: <Activity className="w-6 h-6 text-red-600" />
-    },
-    reverse: {
-      title: "4. 逆斷層發生 (實驗)",
-      desc: "受到擠壓力，斷層發生。依照您的設定，左側的地塊沿著斷層面向上推移。",
-      principle: "構造運動：斷層是岩石破裂並沿破裂面發生相對位移的構造。",
-      icon: <Scissors className="w-6 h-6 text-purple-600" />
-    }
-  },
-  {
-    // 步驟 4 (Index 4)
-    standard: {
-      title: "5. 逆斷層發生",
-      desc: "強大的擠壓力造成逆斷層！左側地塊（包含岩脈）沿著斷層面向上錯動，切斷了原有的岩脈。",
-      principle: "截切定律驗證：斷層切過了岩脈，所以斷層比岩脈更晚發生。",
-      icon: <Scissors className="w-6 h-6 text-purple-600" />
-    },
-    reverse: {
-      title: "5. 岩漿入侵 (實驗)",
-      desc: "斷層發生後，岩漿才入侵。請注意，岩脈頂端完美銜接在已經錯動的砂岩層表面，沒有被切斷。",
-      principle: "截切定律驗證：岩脈切過了斷層，所以岩脈比斷層更晚發生。",
-      icon: <Activity className="w-6 h-6 text-red-600" />
-    }
-  },
-  {
-    id: 5,
-    title: "6. 最終侵蝕",
-    desc: "長期的風化侵蝕作用將地表突出的部分削平，形成今日凹凸不平的地貌。",
-    principle: "侵蝕夷平作用：地表高低起伏被外營力逐漸磨平的過程。",
-    icon: <Mountain className="w-6 h-6 text-green-700" />
-  }
-];
-
-// --- SVG 圖形組件 ---
-
-const GeologySimV11 = () => {
-  const [step, setStep] = useState(0);
-  const [scenario, setScenario] = useState(SCENARIOS.STANDARD);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
-
-  // 取得當前步驟的文字資料
-  const currentData = STEPS_DATA[step][scenario] || STEPS_DATA[step];
-
-  // 自動播放
-  useEffect(() => {
-    let interval;
-    if (isAutoPlaying) {
-      interval = setInterval(() => {
-        setStep((prev) => {
-          if (prev < 5) return prev + 1;
-          setIsAutoPlaying(false);
-          return prev;
-        });
-      }, 2500);
-    }
-    return () => clearInterval(interval);
-  }, [isAutoPlaying]);
-
-  // 切換情境
-  const toggleScenario = () => {
-    setScenario(prev => prev === SCENARIOS.STANDARD ? SCENARIOS.REVERSE : SCENARIOS.STANDARD);
-    setStep(0);
-    setIsAutoPlaying(false);
-  };
-
-  // --- 視覺參數與路徑定義 ---
-  
-  const width = 800;
-  const height = 500;
-  
-  // 關鍵高度參數
-  const sandstoneTopY = 150; // 砂岩層表面高度
-  const erosionY = 280;      // 礫岩侵蝕面高度
-  
-  // 斷層位移參數
-  const FAULT_DX = 22;
-  const FAULT_DY = -60;
-
-  // 波浪曲線數據 (Bézier Curve)
-  const wavyCurveData = "C 50,260 150,290 250,270 S 450,290 550,270 C 650,250 750,280 900,260";
-  const finalErosionWavyData = "C 50,140 150,170 250,150 S 450,170 550,150 C 650,130 750,160 900,140";
-  
-  // 1. 天空遮罩路徑
-  const skyBlockPath = (isWavy) => {
-    const bottomEdge = isWavy 
-      ? `M -200,${erosionY} ${wavyCurveData} L 1000,${erosionY}` 
-      : `M -200,${erosionY} L 1000,${erosionY}`;                 
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地質事件演變模擬器 v11</title>
     
-    return `${bottomEdge} L 1000,-500 L -200,-500 Z`;
-  };
+    <!-- 載入 React 和 Babel (讓瀏覽器看懂程式碼) -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 載入 Tailwind CSS (美化樣式) -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-  // 2. 砂岩層路徑
-  const sandstonePath = 
-    `M -200,${erosionY} ${wavyCurveData} ` + 
-    `L 1000,${erosionY - 20} ` +            
-    `L 1000,${sandstoneTopY} ` +            
-    `L -200,${sandstoneTopY} Z`;                          
+    <!-- 定義樣式與動畫 -->
+    <style>
+        body { font-family: "Microsoft JhengHei", sans-serif; }
+    </style>
+</head>
+<body class="bg-stone-50">
 
-  // 3. 岩脈路徑生成函數 (動態高度)
-  // surfaceLevel: 岩脈三角形底部的Y座標
-  const getDykePath = (surfaceLevel) => `
-    M 380,600 L 410,600 L 410,${surfaceLevel} 
-    L 430,${surfaceLevel} 
-    L 395,${surfaceLevel - 60} 
-    L 360,${surfaceLevel} 
-    L 380,${surfaceLevel} 
-    Z
-  `;
+    <div id="root"></div>
 
-  // 4. 斷層線 (Fault Line) - 由右上到左下
-  const faultX_TopRight = 550;
-  const faultY_TopRight = -100;
-  const faultX_BottomLeft = 250;
-  const faultY_BottomLeft = 700;
+    <script type="text/babel">
+        const { useState, useEffect } = React;
 
-  // ClipPath
-  const leftBlockClipPath = `
-    M ${faultX_BottomLeft},${faultY_BottomLeft} 
-    L -200,${faultY_BottomLeft} 
-    L -200,${faultY_TopRight} 
-    L ${faultX_TopRight},${faultY_TopRight} 
-    Z
-  `;
-  
-  const rightBlockClipPath = `
-    M ${faultX_BottomLeft},${faultY_BottomLeft} 
-    L 1000,${faultY_BottomLeft} 
-    L 1000,${faultY_TopRight} 
-    L ${faultX_TopRight},${faultY_TopRight} 
-    Z
-  `;
-  
-  // --- 狀態判斷 ---
-  const showConglomerate = step >= 0;
-  const isTilted = step >= 1;
-  const showSandstone = step >= 2;
-  
-  const showDyke = scenario === SCENARIOS.STANDARD ? step >= 3 : step >= 4;
-  const isFaulted = scenario === SCENARIOS.STANDARD ? step >= 4 : step >= 3;
-  const isFinalErosion = step >= 5;
+        // --- 圖示組件 (內建 SVG) ---
+        const IconWrapper = ({ children, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
 
-  // --- 動態樣式計算 ---
-  
-  // 礫岩層的 Transform
-  const conglomerateStyle = {
-    transformOrigin: "400px 400px", 
-    transform: isTilted ? "rotate(15deg)" : "none",
-    transition: "transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)"
-  };
+        const ArrowRight = ({ className }) => <IconWrapper className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></IconWrapper>;
+        const ArrowLeft = ({ className }) => <IconWrapper className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></IconWrapper>;
+        const RefreshCw = ({ className }) => <IconWrapper className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconWrapper>;
+        const Layers = ({ className }) => <IconWrapper className={className}><path d="m12.83 2.44 9.8 5.5a.5.5 0 0 1 .27.43v7a.5.5 0 0 1-.25.43l-10.2 6a.5.5 0 0 1-.51 0l-10.2-6a.5.5 0 0 1-.25-.43v-7a.5.5 0 0 1 .27-.43l9.8-5.5a.5.5 0 0 1 .51 0Z"/><path d="m4.93 10.9 6.66 3.92a.5.5 0 0 0 .51 0l6.96-3.97"/><path d="m4.93 15.15 6.66 3.92a.5.5 0 0 0 .51 0l6.96-3.97"/></IconWrapper>;
+        const Scissors = ({ className }) => <IconWrapper className={className}><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" x2="8.12" y1="4" y2="15.88"/><line x1="14.47" x2="20" y1="14.48" y2="20"/><line x1="8.12" x2="12" y1="8.12" y2="12"/></IconWrapper>;
+        const Activity = ({ className }) => <IconWrapper className={className}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></IconWrapper>;
+        const Mountain = ({ className }) => <IconWrapper className={className}><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></IconWrapper>;
+        const Info = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></IconWrapper>;
 
-  // 斷層錯動
-  const faultMovementOffset = isFaulted ? `translate(${FAULT_DX}px, ${FAULT_DY}px)` : "translate(0, 0)";
-  
-  // 最終侵蝕 (設為 40 以確保覆蓋砂岩層頂部)
-  const finalErosionTranslateY = isFinalErosion ? 40 : -500; 
+        // --- 資料設定區 ---
 
-  // --- 內部組件：地質岩層 (GeologicalStack) ---
-  const GeologicalStack = () => (
-    <g>
-       {/* 1. 礫岩層 */}
-       {showConglomerate && (
-         <g style={conglomerateStyle}>
-            <rect x="-200" y="100" width="1200" height="800" fill="url(#conglomeratePattern)" stroke="none" />
-         </g>
-       )}
+        const SCENARIOS = {
+            STANDARD: 'standard', // 課本模式：岩脈 -> 斷層
+            REVERSE: 'reverse',   // 實驗模式：斷層 -> 岩脈
+        };
 
-       {/* 2. 中間侵蝕層 */}
-       <path 
-         d={skyBlockPath(isTilted)} 
-         fill="#e0f2fe" 
-         stroke="none"
-         style={{ transition: "d 1s ease" }} 
-       />
+        const STEPS_DATA = [
+            {
+                id: 0,
+                title: "1. 礫岩層沉積",
+                desc: "礫石在水底沉積，經過長時間的壓密與膠結，形成了水平且表面平整的礫岩層。",
+                principle: "原始水平定律：沉積物在重力作用下傾向於水平堆積。",
+                icon: <Layers className="w-6 h-6 text-stone-600" />
+            },
+            {
+                id: 1,
+                title: "2. 傾斜與侵蝕",
+                desc: "地殼變動使礫岩層傾斜。抬升後表面受到風化侵蝕，原本平整的表面變得凹凸不平（形成不整合面）。",
+                principle: "不整合面形成：代表地層沉積中斷、抬升侵蝕的證據。",
+                icon: <Mountain className="w-6 h-6 text-amber-700" />
+            },
+            {
+                id: 2,
+                title: "3. 砂岩層沉積",
+                desc: "地層再次下沉，砂岩沉積在凹凸不平的侵蝕面上，填補了空隙，形成新的水平岩層。",
+                principle: "疊置定律：在未受擾動的地層中，下方的岩層比上方的岩層老。",
+                icon: <Layers className="w-6 h-6 text-yellow-600" />
+            },
+            {
+                // 步驟 3 (Index 3)
+                standard: {
+                    title: "4. 岩漿入侵 (岩脈)",
+                    desc: "熾熱岩漿順著裂隙由下而上侵入，貫穿了礫岩與砂岩，並在地表噴發形成三角形的火山錐。",
+                    principle: "截切定律：被截切者（周圍岩層）較老，截切者（岩脈）較年輕。",
+                    icon: <Activity className="w-6 h-6 text-red-600" />
+                },
+                reverse: {
+                    title: "4. 逆斷層發生 (實驗)",
+                    desc: "受到擠壓力，斷層發生。依照您的設定，左側的地塊沿著斷層面向上推移。",
+                    principle: "構造運動：斷層是岩石破裂並沿破裂面發生相對位移的構造。",
+                    icon: <Scissors className="w-6 h-6 text-purple-600" />
+                }
+            },
+            {
+                // 步驟 4 (Index 4)
+                standard: {
+                    title: "5. 逆斷層發生",
+                    desc: "強大的擠壓力造成逆斷層！左側地塊（包含岩脈）沿著斷層面向上錯動，切斷了原有的岩脈。",
+                    principle: "截切定律驗證：斷層切過了岩脈，所以斷層比岩脈更晚發生。",
+                    icon: <Scissors className="w-6 h-6 text-purple-600" />
+                },
+                reverse: {
+                    title: "5. 岩漿入侵 (實驗)",
+                    desc: "斷層發生後，岩漿才入侵。請注意，岩脈頂端完美銜接在已經錯動的砂岩層表面，沒有被切斷。",
+                    principle: "截切定律驗證：岩脈切過了斷層，所以岩脈比斷層更晚發生。",
+                    icon: <Activity className="w-6 h-6 text-red-600" />
+                }
+            },
+            {
+                id: 5,
+                title: "6. 最終侵蝕",
+                desc: "長期的風化侵蝕作用將地表突出的部分削平，形成今日凹凸不平的地貌。",
+                principle: "侵蝕夷平作用：地表高低起伏被外營力逐漸磨平的過程。",
+                icon: <Mountain className="w-6 h-6 text-green-700" />
+            }
+        ];
 
-       {/* 3. 砂岩層 */}
-       {showSandstone && (
-         <g>
-            <path 
-              d={sandstonePath} 
-              fill="url(#sandstonePattern)" 
-              style={{ opacity: 0, animation: "fadeIn 1s forwards" }}
-              stroke="none"
-            />
-            {/* 砂岩底部線條 */}
-            <path 
-              d={`M -200,${erosionY} ${wavyCurveData} L 1000,${erosionY - 20}`} 
-              fill="none" 
-              stroke="#b45309" 
-              strokeWidth="1.5"
-              opacity="0.7"
-            />
-         </g>
-       )}
-    </g>
-  );
+        // --- SVG 圖形組件 ---
 
-  // --- 連續岩脈 (Reverse Mode 專用) ---
-  const ContinuousDyke = () => {
-    if (showDyke && scenario === SCENARIOS.REVERSE) {
-      // 在 Reverse 模式下，左側岩層已經向上移動
-      // 所以岩脈的三角形底部也應該向上移動，以銜接新的砂岩表面
-      // 新的表面高度 = 原本高度 (sandstoneTopY) + 斷層位移 (FAULT_DY)
-      const reverseDykeSurfaceY = sandstoneTopY + FAULT_DY; // 150 + (-60) = 90
+        const GeologySimV11 = () => {
+            const [step, setStep] = useState(0);
+            const [scenario, setScenario] = useState(SCENARIOS.STANDARD);
+            const [isAutoPlaying, setIsAutoPlaying] = useState(false);
 
-      return (
-        <path 
-            d={getDykePath(reverseDykeSurfaceY)} 
-            fill="#ef4444" 
-            stroke="#7f1d1d" 
-            strokeWidth="2"
-            style={{ 
-              opacity: 0, 
-              animation: "magmaRise 0.8s ease-out forwards" 
-            }}
-          />
-      );
-    }
-    return null;
-  };
+            // 取得當前步驟的文字資料
+            const currentData = STEPS_DATA[step][scenario] || STEPS_DATA[step];
 
+            // 自動播放
+            useEffect(() => {
+                let interval;
+                if (isAutoPlaying) {
+                    interval = setInterval(() => {
+                        setStep((prev) => {
+                            if (prev < 5) return prev + 1;
+                            setIsAutoPlaying(false);
+                            return prev;
+                        });
+                    }, 2500);
+                }
+                return () => clearInterval(interval);
+            }, [isAutoPlaying]);
 
-  return (
-    <div className="flex flex-col items-center min-h-screen bg-stone-50 font-sans text-slate-800 p-4 pb-12">
-      
-      {/* SVG Pattern Definitions */}
-      <svg width="0" height="0" className="absolute">
-        <defs>
-          {/* 礫岩紋理 */}
-          <pattern id="conglomeratePattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
-            <rect width="40" height="40" fill="#d6c0a3" />
-            <circle cx="10" cy="10" r="6" fill="#a18e75" opacity="0.8"/>
-            <circle cx="30" cy="30" r="8" fill="#8f7a5e" opacity="0.8"/>
-            <circle cx="25" cy="10" r="4" fill="#b09d82" opacity="0.8"/>
-            <circle cx="10" cy="35" r="3" fill="#b09d82" opacity="0.8"/>
-          </pattern>
-          {/* 砂岩紋理 */}
-          <pattern id="sandstonePattern" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
-            <rect width="10" height="10" fill="#fde68a" />
-            <circle cx="2" cy="2" r="1" fill="#d97706" opacity="0.5"/>
-            <circle cx="7" cy="7" r="1" fill="#d97706" opacity="0.5"/>
-          </pattern>
-          
-          {/* 斷層遮罩 */}
-          <clipPath id="clipLeft"><path d={leftBlockClipPath} /></clipPath>
-          <clipPath id="clipRight"><path d={rightBlockClipPath} /></clipPath>
+            // 切換情境
+            const toggleScenario = () => {
+                setScenario(prev => prev === SCENARIOS.STANDARD ? SCENARIOS.REVERSE : SCENARIOS.STANDARD);
+                setStep(0);
+                setIsAutoPlaying(false);
+            };
 
-          {/* 動畫 Keyframes */}
-          <style>
-            {`
-              @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-              @keyframes magmaRise { 
-                from { transform: translateY(200px); opacity: 0; } 
-                to { transform: translateY(0); opacity: 1; } 
-              }
-            `}
-          </style>
-        </defs>
-      </svg>
-
-      {/* 標題列 */}
-      <header className="w-full max-w-5xl mb-6 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm border-b-4 border-blue-500">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <Layers className="text-blue-600 w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">互動地質實驗室 v11</h1>
-            <p className="text-xs text-slate-500">模擬地質事件的先後順序與構造特徵</p>
-          </div>
-        </div>
-        
-        <div className="flex gap-2 mt-4 md:mt-0 bg-slate-100 p-1 rounded-lg">
-          <button
-            onClick={() => { setScenario(SCENARIOS.STANDARD); setStep(0); }}
-            className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${scenario === SCENARIOS.STANDARD ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            標準模式 (教科書)
-          </button>
-          <button
-            onClick={() => { setScenario(SCENARIOS.REVERSE); setStep(0); }}
-            className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${scenario === SCENARIOS.REVERSE ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            實驗模式 (逆序)
-          </button>
-        </div>
-      </header>
-
-      {/* 主視窗區域 */}
-      <main className="relative w-full max-w-5xl aspect-[16/9] bg-blue-50 rounded-2xl overflow-hidden border-4 border-slate-200 shadow-inner mb-6 group">
-        <svg viewBox="0 0 800 500" className="w-full h-full bg-[#e0f2fe]">
+            // --- 視覺參數與路徑定義 ---
             
-            {/* 1. 左側地塊 (左邊岩層) */}
-            <g clipPath="url(#clipLeft)" style={{ 
-                transform: faultMovementOffset, 
-                transition: "transform 1s cubic-bezier(0.25, 1, 0.5, 1)" 
-              }}>
-              <GeologicalStack />
-              {/* 標準模式岩脈 (左) */}
-              {showDyke && scenario === SCENARIOS.STANDARD && (
-                <path 
-                  d={getDykePath(sandstoneTopY)}
-                  fill="#ef4444" 
-                  stroke="#7f1d1d" 
-                  strokeWidth="2"
-                  style={{ 
-                    opacity: 0, 
-                    animation: "magmaRise 0.8s ease-out forwards",
-                  }}
-                />
-              )}
-            </g>
-
-            {/* 2. 右側地塊 (右邊岩層) */}
-            <g clipPath="url(#clipRight)">
-              <GeologicalStack />
-              {/* 標準模式岩脈 (右) */}
-              {showDyke && scenario === SCENARIOS.STANDARD && (
-                <path 
-                  d={getDykePath(sandstoneTopY)}
-                  fill="#ef4444" 
-                  stroke="#7f1d1d" 
-                  strokeWidth="2"
-                  style={{ 
-                    opacity: 0, 
-                    animation: "magmaRise 0.8s ease-out forwards" 
-                  }}
-                />
-              )}
-            </g>
+            const width = 800;
+            const height = 500;
             
-            {/* 3. 連續岩脈 (Reverse Mode) */}
-            <ContinuousDyke />
+            // 關鍵高度參數
+            const sandstoneTopY = 150; // 砂岩層表面高度
+            const erosionY = 280;      // 礫岩侵蝕面高度
+            
+            // 斷層位移參數
+            const FAULT_DX = 22;
+            const FAULT_DY = -60;
 
-            {/* 4. 斷層線 */}
-            {isFaulted && (
-               <line 
-                 x1={faultX_TopRight} y1={faultY_TopRight} 
-                 x2={faultX_BottomLeft} y2={faultY_BottomLeft} 
-                 stroke="#1e293b" strokeWidth="2" strokeDasharray="8,4" opacity="0.4" 
-               />
-            )}
+            // 波浪曲線數據 (Bézier Curve)
+            const wavyCurveData = "C 50,260 150,290 250,270 S 450,290 550,270 C 650,250 750,280 900,260";
+            const finalErosionWavyData = "C 50,140 150,170 250,150 S 450,170 550,150 C 650,130 750,160 900,140";
+            
+            // 1. 天空遮罩路徑
+            const skyBlockPath = (isWavy) => {
+                const bottomEdge = isWavy 
+                    ? `M -200,${erosionY} ${wavyCurveData} L 1000,${erosionY}` 
+                    : `M -200,${erosionY} L 1000,${erosionY}`;                 
+                
+                return `${bottomEdge} L 1000,-500 L -200,-500 Z`;
+            };
 
-            {/* 5. 最終侵蝕層 */}
-            <g style={{ transform: `translateY(${finalErosionTranslateY}px)`, transition: "transform 1.5s ease-in-out" }}>
-               {/* 天空層，下降後蓋住砂岩層頂部 */}
-               <path 
-                 d={`M -200,${sandstoneTopY} ${finalErosionWavyData} L 1000,${sandstoneTopY} L 1000,-600 L -200,-600 Z`}
-                 fill="#e0f2fe" // Sky color
-                 stroke="none"
-               />
-               {/* 侵蝕基準線 */}
-               <path 
-                  d={`M -200,${sandstoneTopY} ${finalErosionWavyData} L 1000,${sandstoneTopY}`} 
-                  fill="none"
-                  stroke="#10b981"
-                  strokeWidth="3"
-                  opacity={isFinalErosion ? 0.3 : 0}
-                  strokeDasharray="4,4"
-               />
-            </g>
+            // 2. 砂岩層路徑
+            const sandstonePath = 
+                `M -200,${erosionY} ${wavyCurveData} ` + 
+                `L 1000,${erosionY - 20} ` +            
+                `L 1000,${sandstoneTopY} ` +            
+                `L -200,${sandstoneTopY} Z`;                          
 
-        </svg>
+            // 3. 岩脈路徑生成函數 (動態高度)
+            // surfaceLevel: 岩脈三角形底部的Y座標
+            const getDykePath = (surfaceLevel) => `
+                M 380,600 L 410,600 L 410,${surfaceLevel} 
+                L 430,${surfaceLevel} 
+                L 395,${surfaceLevel - 60} 
+                L 360,${surfaceLevel} 
+                L 380,${surfaceLevel} 
+                Z
+            `;
 
-        {/* 步驟指示器 */}
-        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-sm border border-slate-200">
-           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Step</span>
-           <div className="text-2xl font-bold text-blue-600">{step + 1} <span className="text-lg text-slate-400 font-normal">/ 6</span></div>
-        </div>
-      </main>
+            // 4. 斷層線 (Fault Line) - 由右上到左下
+            const faultX_TopRight = 550;
+            const faultY_TopRight = -100;
+            const faultX_BottomLeft = 250;
+            const faultY_BottomLeft = 700;
 
-      {/* 控制與解說區 */}
-      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 gap-6">
-        
-        {/* 左側控制盤 */}
-        <div className="md:col-span-4 bg-white rounded-xl p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-2 mb-2">
-             <button 
-               onClick={() => { setIsAutoPlaying(false); setStep(Math.max(0, step - 1)); }}
-               disabled={step === 0}
-               className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg py-3 flex justify-center transition-colors disabled:opacity-50"
-             >
-               <ArrowLeft className="w-5 h-5" />
-             </button>
-             <button 
-               onClick={() => { setIsAutoPlaying(false); setStep(Math.min(5, step + 1)); }}
-               disabled={step === 5}
-               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-3 flex justify-center transition-colors disabled:opacity-50 shadow-md shadow-blue-200"
-             >
-               <ArrowRight className="w-5 h-5" />
-             </button>
-          </div>
-          
-          <button 
-            onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-            className={`w-full py-3 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2 ${isAutoPlaying ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
-          >
-            {isAutoPlaying ? '❚❚ 暫停播放' : '▶ 自動播放演示'}
-          </button>
-          
-          <button onClick={() => {setStep(0); setIsAutoPlaying(false);}} className="text-slate-400 text-xs hover:text-slate-600 flex items-center justify-center gap-1 mt-2">
-            <RefreshCw className="w-3 h-3" /> 重置模擬
-          </button>
+            // ClipPath
+            const leftBlockClipPath = `
+                M ${faultX_BottomLeft},${faultY_BottomLeft} 
+                L -200,${faultY_BottomLeft} 
+                L -200,${faultY_TopRight} 
+                L ${faultX_TopRight},${faultY_TopRight} 
+                Z
+            `;
+            
+            const rightBlockClipPath = `
+                M ${faultX_BottomLeft},${faultY_BottomLeft} 
+                L 1000,${faultY_BottomLeft} 
+                L 1000,${faultY_TopRight} 
+                L ${faultX_TopRight},${faultY_TopRight} 
+                Z
+            `;
+            
+            // --- 狀態判斷 ---
+            const showConglomerate = step >= 0;
+            const isTilted = step >= 1;
+            const showSandstone = step >= 2;
+            
+            const showDyke = scenario === SCENARIOS.STANDARD ? step >= 3 : step >= 4;
+            const isFaulted = scenario === SCENARIOS.STANDARD ? step >= 4 : step >= 3;
+            const isFinalErosion = step >= 5;
 
-          <div className="mt-auto pt-6 border-t border-slate-100">
-            <div className="flex items-start gap-3">
-              <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
-              <div className="text-xs text-slate-500 leading-relaxed">
-                <strong className="block text-slate-700 mb-1">觀察重點：</strong>
-                {scenario === SCENARIOS.STANDARD ? (
-                  <span>注意看 <span className="text-red-500 font-bold">紅色岩脈</span>，它被斷層切斷並錯開了。這證明岩脈比斷層<span className="underline decoration-wavy decoration-blue-300">更早形成</span>。</span>
-                ) : (
-                  <span>注意看 <span className="text-red-500 font-bold">紅色岩脈</span>，它完整地穿過了已經錯動的地層。這證明岩脈是<span className="underline decoration-wavy decoration-purple-300">最後才發生</span>的。</span>
+            // --- 動態樣式計算 ---
+            
+            // 礫岩層的 Transform
+            const conglomerateStyle = {
+                transformOrigin: "400px 400px", 
+                transform: isTilted ? "rotate(15deg)" : "none",
+                transition: "transform 1.5s cubic-bezier(0.4, 0, 0.2, 1)"
+            };
+
+            // 斷層錯動
+            const faultMovementOffset = isFaulted ? `translate(${FAULT_DX}px, ${FAULT_DY}px)` : "translate(0, 0)";
+            
+            // 最終侵蝕 (設為 40 以確保覆蓋砂岩層頂部)
+            const finalErosionTranslateY = isFinalErosion ? 40 : -500; 
+
+            // --- 內部組件：地質岩層 (GeologicalStack) ---
+            const GeologicalStack = () => (
+                <g>
+                {/* 1. 礫岩層 */}
+                {showConglomerate && (
+                    <g style={conglomerateStyle}>
+                        <rect x="-200" y="100" width="1200" height="800" fill="url(#conglomeratePattern)" stroke="none" />
+                    </g>
                 )}
-              </div>
-            </div>
-          </div>
-        </div>
 
-        {/* 右側解說卡 */}
-        <div className="md:col-span-8 bg-white rounded-xl p-8 shadow-sm border-t-4 border-amber-400 relative overflow-hidden">
-           <div className="absolute top-0 right-0 p-4 opacity-10">
-             {currentData.icon}
-           </div>
-           
-           <div className="flex flex-col h-full justify-center">
-             <div className="flex items-center gap-3 mb-4">
-               <span className="p-2 bg-amber-100 text-amber-700 rounded-lg">
-                 {currentData.icon}
-               </span>
-               <h2 className="text-2xl font-bold text-slate-800">{currentData.title}</h2>
-             </div>
-             
-             <p className="text-slate-600 text-lg leading-relaxed mb-6">
-               {currentData.desc}
-             </p>
-             
-             <div className="bg-slate-50 rounded-lg p-4 border-l-4 border-slate-400">
-               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Geological Principle</span>
-               <p className="text-slate-800 font-medium text-lg">{currentData.principle}</p>
-             </div>
-           </div>
-        </div>
+                {/* 2. 中間侵蝕層 */}
+                <path 
+                    d={skyBlockPath(isTilted)} 
+                    fill="#e0f2fe" 
+                    stroke="none"
+                    style={{ transition: "d 1s ease" }} 
+                />
 
-      </div>
-    </div>
-  );
-};
+                {/* 3. 砂岩層 */}
+                {showSandstone && (
+                    <g>
+                        <path 
+                        d={sandstonePath} 
+                        fill="url(#sandstonePattern)" 
+                        style={{ opacity: 0, animation: "fadeIn 1s forwards" }}
+                        stroke="none"
+                        />
+                        {/* 砂岩底部線條 */}
+                        <path 
+                        d={`M -200,${erosionY} ${wavyCurveData} L 1000,${erosionY - 20}`} 
+                        fill="none" 
+                        stroke="#b45309" 
+                        strokeWidth="1.5"
+                        opacity="0.7"
+                        />
+                    </g>
+                )}
+                </g>
+            );
 
-export default GeologySimV11;
+            // --- 連續岩脈 (Reverse Mode 專用) ---
+            const ContinuousDyke = () => {
+                if (showDyke && scenario === SCENARIOS.REVERSE) {
+                    const reverseDykeSurfaceY = sandstoneTopY + FAULT_DY; // 150 + (-60) = 90
+
+                    return (
+                        <path 
+                            d={getDykePath(reverseDykeSurfaceY)} 
+                            fill="#ef4444" 
+                            stroke="#7f1d1d" 
+                            strokeWidth="2"
+                            style={{ 
+                            opacity: 0, 
+                            animation: "magmaRise 0.8s ease-out forwards" 
+                            }}
+                        />
+                    );
+                }
+                return null;
+            };
+
+
+            return (
+                <div className="flex flex-col items-center min-h-screen bg-stone-50 font-sans text-slate-800 p-4 pb-12">
+                
+                {/* SVG Pattern Definitions */}
+                <svg width="0" height="0" className="absolute">
+                    <defs>
+                    {/* 礫岩紋理 */}
+                    <pattern id="conglomeratePattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <rect width="40" height="40" fill="#d6c0a3" />
+                        <circle cx="10" cy="10" r="6" fill="#a18e75" opacity="0.8"/>
+                        <circle cx="30" cy="30" r="8" fill="#8f7a5e" opacity="0.8"/>
+                        <circle cx="25" cy="10" r="4" fill="#b09d82" opacity="0.8"/>
+                        <circle cx="10" cy="35" r="3" fill="#b09d82" opacity="0.8"/>
+                    </pattern>
+                    {/* 砂岩紋理 */}
+                    <pattern id="sandstonePattern" x="0" y="0" width="10" height="10" patternUnits="userSpaceOnUse">
+                        <rect width="10" height="10" fill="#fde68a" />
+                        <circle cx="2" cy="2" r="1" fill="#d97706" opacity="0.5"/>
+                        <circle cx="7" cy="7" r="1" fill="#d97706" opacity="0.5"/>
+                    </pattern>
+                    
+                    {/* 斷層遮罩 */}
+                    <clipPath id="clipLeft"><path d={leftBlockClipPath} /></clipPath>
+                    <clipPath id="clipRight"><path d={rightBlockClipPath} /></clipPath>
+
+                    {/* 動畫 Keyframes */}
+                    <style>
+                        {`
+                        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+                        @keyframes magmaRise { 
+                            from { transform: translateY(200px); opacity: 0; } 
+                            to { transform: translateY(0); opacity: 1; } 
+                        }
+                        `}
+                    </style>
+                    </defs>
+                </svg>
+
+                {/* 標題列 */}
+                <header className="w-full max-w-5xl mb-6 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm border-b-4 border-blue-500">
+                    <div className="flex items-center gap-3">
+                    <div className="bg-blue-100 p-2 rounded-lg">
+                        <Layers className="text-blue-600 w-6 h-6" />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-bold text-slate-800">互動地質實驗室 v11</h1>
+                        <p className="text-xs text-slate-500">模擬地質事件的先後順序與構造特徵</p>
+                    </div>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-4 md:mt-0 bg-slate-100 p-1 rounded-lg">
+                    <button
+                        onClick={() => { setScenario(SCENARIOS.STANDARD); setStep(0); }}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${scenario === SCENARIOS.STANDARD ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        標準模式 (教科書)
+                    </button>
+                    <button
+                        onClick={() => { setScenario(SCENARIOS.REVERSE); setStep(0); }}
+                        className={`px-4 py-2 rounded-md text-sm font-bold transition-all ${scenario === SCENARIOS.REVERSE ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        實驗模式 (逆序)
+                    </button>
+                    </div>
+                </header>
+
+                {/* 主視窗區域 */}
+                <main className="relative w-full max-w-5xl aspect-[16/9] bg-blue-50 rounded-2xl overflow-hidden border-4 border-slate-200 shadow-inner mb-6 group">
+                    <svg viewBox="0 0 800 500" className="w-full h-full bg-[#e0f2fe]">
+                        
+                        {/* 1. 左側地塊 (左邊岩層) */}
+                        <g clipPath="url(#clipLeft)" style={{ 
+                            transform: faultMovementOffset, 
+                            transition: "transform 1s cubic-bezier(0.25, 1, 0.5, 1)" 
+                        }}>
+                        <GeologicalStack />
+                        {/* 標準模式岩脈 (左) */}
+                        {showDyke && scenario === SCENARIOS.STANDARD && (
+                            <path 
+                            d={getDykePath(sandstoneTopY)}
+                            fill="#ef4444" 
+                            stroke="#7f1d1d" 
+                            strokeWidth="2"
+                            style={{ 
+                                opacity: 0, 
+                                animation: "magmaRise 0.8s ease-out forwards",
+                            }}
+                            />
+                        )}
+                        </g>
+
+                        {/* 2. 右側地塊 (右邊岩層) */}
+                        <g clipPath="url(#clipRight)">
+                        <GeologicalStack />
+                        {/* 標準模式岩脈 (右) */}
+                        {showDyke && scenario === SCENARIOS.STANDARD && (
+                            <path 
+                            d={getDykePath(sandstoneTopY)}
+                            fill="#ef4444" 
+                            stroke="#7f1d1d" 
+                            strokeWidth="2"
+                            style={{ 
+                                opacity: 0, 
+                                animation: "magmaRise 0.8s ease-out forwards" 
+                            }}
+                            />
+                        )}
+                        </g>
+                        
+                        {/* 3. 連續岩脈 (Reverse Mode) */}
+                        <ContinuousDyke />
+
+                        {/* 4. 斷層線 */}
+                        {isFaulted && (
+                        <line 
+                            x1={faultX_TopRight} y1={faultY_TopRight} 
+                            x2={faultX_BottomLeft} y2={faultY_BottomLeft} 
+                            stroke="#1e293b" strokeWidth="2" strokeDasharray="8,4" opacity="0.4" 
+                        />
+                        )}
+
+                        {/* 5. 最終侵蝕層 */}
+                        <g style={{ transform: `translateY(${finalErosionTranslateY}px)`, transition: "transform 1.5s ease-in-out" }}>
+                        {/* 天空層，下降後蓋住砂岩層頂部 */}
+                        <path 
+                            d={`M -200,${sandstoneTopY} ${finalErosionWavyData} L 1000,${sandstoneTopY} L 1000,-600 L -200,-600 Z`}
+                            fill="#e0f2fe" // Sky color
+                            stroke="none"
+                        />
+                        {/* 侵蝕基準線 */}
+                        <path 
+                            d={`M -200,${sandstoneTopY} ${finalErosionWavyData} L 1000,${sandstoneTopY}`} 
+                            fill="none"
+                            stroke="#10b981"
+                            strokeWidth="3"
+                            opacity={isFinalErosion ? 0.3 : 0}
+                            strokeDasharray="4,4"
+                        />
+                        </g>
+
+                    </svg>
+
+                    {/* 步驟指示器 */}
+                    <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg shadow-sm border border-slate-200">
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Current Step</span>
+                    <div className="text-2xl font-bold text-blue-600">{step + 1} <span className="text-lg text-slate-400 font-normal">/ 6</span></div>
+                    </div>
+                </main>
+
+                {/* 控制與解說區 */}
+                <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 gap-6">
+                    
+                    {/* 左側控制盤 */}
+                    <div className="md:col-span-4 bg-white rounded-xl p-6 shadow-sm border border-slate-100 flex flex-col gap-4">
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                        <button 
+                        onClick={() => { setIsAutoPlaying(false); setStep(Math.max(0, step - 1)); }}
+                        disabled={step === 0}
+                        className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg py-3 flex justify-center transition-colors disabled:opacity-50"
+                        >
+                        <ArrowLeft className="w-5 h-5" />
+                        </button>
+                        <button 
+                        onClick={() => { setIsAutoPlaying(false); setStep(Math.min(5, step + 1)); }}
+                        disabled={step === 5}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg py-3 flex justify-center transition-colors disabled:opacity-50 shadow-md shadow-blue-200"
+                        >
+                        <ArrowRight className="w-5 h-5" />
+                        </button>
+                    </div>
+                    
+                    <button 
+                        onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+                        className={`w-full py-3 rounded-lg font-bold text-sm transition-colors flex items-center justify-center gap-2 ${isAutoPlaying ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'}`}
+                    >
+                        {isAutoPlaying ? '❚❚ 暫停播放' : '▶ 自動播放演示'}
+                    </button>
+                    
+                    <button onClick={() => {setStep(0); setIsAutoPlaying(false);}} className="text-slate-400 text-xs hover:text-slate-600 flex items-center justify-center gap-1 mt-2">
+                        <RefreshCw className="w-3 h-3" /> 重置模擬
+                    </button>
+
+                    <div className="mt-auto pt-6 border-t border-slate-100">
+                        <div className="flex items-start gap-3">
+                        <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+                        <div className="text-xs text-slate-500 leading-relaxed">
+                            <strong className="block text-slate-700 mb-1">觀察重點：</strong>
+                            {scenario === SCENARIOS.STANDARD ? (
+                            <span>注意看 <span className="text-red-500 font-bold">紅色岩脈</span>，它被斷層切斷並錯開了。這證明岩脈比斷層<span className="underline decoration-wavy decoration-blue-300">更早形成</span>。</span>
+                            ) : (
+                            <span>注意看 <span className="text-red-500 font-bold">紅色岩脈</span>，它完整地穿過了已經錯動的地層。這證明岩脈是<span className="underline decoration-wavy decoration-purple-300">最後才發生</span>的。</span>
+                            )}
+                        </div>
+                        </div>
+                    </div>
+                    </div>
+
+                    {/* 右側解說卡 */}
+                    <div className="md:col-span-8 bg-white rounded-xl p-8 shadow-sm border-t-4 border-amber-400 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-10">
+                        {currentData.icon}
+                    </div>
+                    
+                    <div className="flex flex-col h-full justify-center">
+                        <div className="flex items-center gap-3 mb-4">
+                        <span className="p-2 bg-amber-100 text-amber-700 rounded-lg">
+                            {currentData.icon}
+                        </span>
+                        <h2 className="text-2xl font-bold text-slate-800">{currentData.title}</h2>
+                        </div>
+                        
+                        <p className="text-slate-600 text-lg leading-relaxed mb-6">
+                        {currentData.desc}
+                        </p>
+                        
+                        <div className="bg-slate-50 rounded-lg p-4 border-l-4 border-slate-400">
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1 block">Geological Principle</span>
+                        <p className="text-slate-800 font-medium text-lg">{currentData.principle}</p>
+                        </div>
+                    </div>
+                    </div>
+
+                </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<GeologySimV11 />);
+    </script>
+</body>
+</html>
