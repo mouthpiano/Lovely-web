@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地質蛋糕工坊 v12</title>
+    
+    <!-- 載入 React 和 Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <style>
+        body { font-family: "Microsoft JhengHei", "Heiti TC", sans-serif; }
+    </style>
+</head>
+<body class="bg-stone-50">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- 圖示組件 ---
+        const IconWrapper = ({ children, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                {children}
+            </svg>
+        );
+
+        const ArrowRight = ({ className }) => <IconWrapper className={className}><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></IconWrapper>;
+        const ArrowLeft = ({ className }) => <IconWrapper className={className}><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></IconWrapper>;
+        const RefreshCw = ({ className }) => <IconWrapper className={className}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></IconWrapper>;
+        const ChefHat = ({ className }) => <IconWrapper className={className}><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 9.08 0A5.11 5.11 0 0 1 18.59 6 4 4 0 0 1 20 13.87V21H6Z"/><line x1="6" x2="20" y1="17" y2="17"/></IconWrapper>;
+        const Utensils = ({ className }) => <IconWrapper className={className}><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></IconWrapper>;
+        const Info = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></IconWrapper>;
+
+        // --- 資料設定區 ---
+        const STEPS = [
+          {
+            id: 0,
+            title: "1. 濃郁巧克力蛋糕底 (陸相沉積)",
+            action: "烘焙動作：放入超大份量的黑巧克力蛋糕，裡面埋藏著 3 隻恐龍化石！",
+            geo_analogy: "地質對應：【早期陸地沉積】。最古老的岩層在最下方。多樣的恐龍化石證明當時生態豐富的陸地環境。",
+            color: "#3E2723"
+          },
+          {
+            id: 1,
+            title: "2. 薄荷珍珠夾層 (海相沉積)",
+            action: "烘焙動作：疊上一層厚厚的薄荷慕斯，混入大量飽滿的白色珍珠粉圓。",
+            geo_analogy: "地質對應：【海洋沉積】。環境改變，海水入侵。大量白色珍珠代表豐富的海相化石群。",
+            color: "#80CBC4"
+          },
+          {
+            id: 2,
+            title: "3. 核桃千層 - 第一層 (交互沉積開始)",
+            action: "烘焙動作：鋪上第一層寬闊的蛋皮，並「均勻」撒上滿滿的核桃碎。",
+            geo_analogy: "地質對應：【砂岩/礫岩互層 - 初期】。沉積範圍廣大，顆粒分佈均勻。",
+            color: "#FFF59D"
+          },
+          {
+            id: 3,
+            title: "3. 核桃千層 - 第二層",
+            action: "烘焙動作：疊上第二層蛋皮，再撒上一層核桃碎。",
+            geo_analogy: "地質對應：【砂岩/礫岩互層 - 持續】。",
+            color: "#FFF59D"
+          },
+          {
+            id: 4,
+            title: "3. 核桃千層 - 第三層",
+            action: "烘焙動作：疊上第三層蛋皮，再撒上一層核桃碎。",
+            geo_analogy: "地質對應：【砂岩/礫岩互層 - 持續】。",
+            color: "#FFF59D"
+          },
+          {
+            id: 5,
+            title: "3. 核桃千層 - 第四層",
+            action: "烘焙動作：疊上第四層蛋皮，再撒上一層核桃碎。",
+            geo_analogy: "地質對應：【砂岩/礫岩互層 - 持續】。",
+            color: "#FFF59D"
+          },
+          {
+            id: 6,
+            title: "3. 核桃千層 - 第五層 (交互沉積完成)",
+            action: "烘焙動作：疊上最後一層蛋皮和核桃碎，巨大的千層蛋糕體完成！",
+            geo_analogy: "地質對應：【砂岩/礫岩互層 - 完成】。",
+            color: "#FFF59D"
+          },
+          {
+            id: 7,
+            title: "4. 頂部裝飾 (地表特徵)",
+            action: "烘焙動作：在蛋糕的【右側】擠上巨無霸鮮奶油，並放上一顆紅寶石般的大櫻桃。",
+            geo_analogy: "地質對應：【地表特徵】。代表地層形成後的堆積物，不均勻分布模擬地表地形的差異。",
+            color: "#FFEBEE"
+          },
+          {
+            id: 8,
+            title: "5. 插上慶生蠟燭 (岩脈入侵)",
+            action: "烘焙動作：為了慶祝，用力將一根蠟燭「插入」蛋糕中，穿透了所有蛋糕層。",
+            geo_analogy: "地質對應：【岩脈入侵】。蠟燭（岩漿）必須穿過已經存在的岩層。根據截切定律，蠟燭比它切過的岩層都年輕。",
+            color: "#FF5252"
+          },
+          {
+            id: 9,
+            title: "6. 用刀子切開 (斷層發生)",
+            action: "烘焙動作：拿刀子切下去！蛋糕被切開後稍微分開了，蠟燭也被切成兩半錯開了。",
+            geo_analogy: "地質對應：【斷層發生】。斷層切過了所有岩層和岩脈，代表它是最後發生的構造事件。",
+            color: "#B0BEC5"
+          },
+          {
+            id: 10,
+            title: "7. 偷吃兩三口 (局部侵蝕)",
+            action: "烘焙動作：忍不住了！先偷挖了頂部的奶油和幾口千層蛋糕。",
+            geo_analogy: "地質對應：【風化與侵蝕 - 初期】。地表開始受到外力作用，部分岩層（蛋糕）被移除，地貌變得破碎。",
+            color: "transparent"
+          },
+          {
+            id: 11,
+            title: "8. 湯匙大口挖 (大規模侵蝕)",
+            action: "烘焙動作：最後直接拿湯匙狠狠挖了一大塊走！露出了深深的缺口。",
+            geo_analogy: "地質對應：【顯著的不整合面】。經過長時間的侵蝕，地層產生了明顯的缺失，形成巨大的凹槽。",
+            color: "transparent"
+          }
+        ];
+
+        // --- 主組件 ---
+        const CakeGeologySimV12 = () => {
+          const [step, setStep] = useState(0);
+          const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+
+          // 自動播放邏輯
+          useEffect(() => {
+            let interval;
+            if (isAutoPlaying) {
+              interval = setInterval(() => {
+                setStep((prev) => {
+                  if (prev < STEPS.length - 1) return prev + 1;
+                  setIsAutoPlaying(false);
+                  return prev;
+                });
+              }, 2500);
+            }
+            return () => clearInterval(interval);
+          }, [isAutoPlaying]);
+
+          const currentStepData = STEPS[step];
+
+          // --- 視覺參數 ---
+          const startY = 530; 
+          const cutLineX = 380; 
+          const faultOffset = step >= 9 ? "translate(25px, 20px)" : "translate(0, 0)";
+          const clipLeftPath = `M 0,0 L ${cutLineX},0 L ${cutLineX},1000 L 0,1000 Z`;
+          const clipRightPath = `M ${cutLineX},0 L 900,0 L 900,1000 L ${cutLineX},1000 Z`;
+
+          return (
+            <div className="flex flex-col items-center min-h-screen bg-amber-50 font-sans text-slate-800 p-4 pb-12">
+              
+              <svg width="0" height="0" className="absolute">
+                <defs>
+                  <pattern id="chocoRichPattern" x="0" y="0" width="15" height="15" patternUnits="userSpaceOnUse">
+                    <circle cx="2" cy="2" r="1.5" fill="#3E2723" opacity="0.3" />
+                    <circle cx="8" cy="9" r="1" fill="#3E2723" opacity="0.3" />
+                  </pattern>
+                  <pattern id="crepeSkinPattern" x="0" y="0" width="10" height="4" patternUnits="userSpaceOnUse">
+                    <path d="M 0,2 Q 5,0 10,2" stroke="#F9A825" strokeWidth="0.5" fill="none" opacity="0.3" />
+                  </pattern>
+                  
+                  <symbol id="whiteBobaBig">
+                     <circle r="8" fill="#FAFAFA" stroke="#EEEEEE" strokeWidth="1" />
+                     <circle r="2.5" cx="-3" cy="-3" fill="white" opacity="0.9" />
+                     <path d="M -4,5 Q 0,6 4,5" stroke="#E0E0E0" strokeWidth="1" fill="none" opacity="0.5"/>
+                  </symbol>
+                  
+                  <symbol id="walnutBig">
+                    <path d="M0,0 Q3,-3 6,0 Q9,3 6,6 Q3,9 0,6 Q-3,3 0,0 Z" fill="#8D6E63" stroke="#5D4037" strokeWidth="1"/>
+                    <path d="M1,1 L5,5 M5,1 L1,5" stroke="#5D4037" strokeWidth="0.5" />
+                  </symbol>
+
+                  <symbol id="dinoFossil" viewBox="0 0 50 40">
+                     <path d="M 10,20 q 10,-20 30,-10 q 10,5 5,15 q -5,10 -20,10 q -5,10 -10,10 q -5,0 -5,-5 l -10,5 q -5,0 -5,-5 z" fill="#66BB6A" stroke="#2E7D32" strokeWidth="2" />
+                     <circle cx="35" cy="15" r="2" fill="white" />
+                     <circle cx="35.5" cy="15" r="1" fill="black" />
+                     <path d="M 10,20 l -2,-3 l -2,3 M 15,15 l -2,-3 l -2,3 M 20,12 l -2,-3 l -2,3" stroke="#2E7D32" strokeWidth="2" fill="none" />
+                     <path d="M 15,30 l -2,5 l 3,0 M 35,35 l -2,5 l 3,0" stroke="#2E7D32" strokeWidth="2" fill="none" />
+                  </symbol>
+
+                  <symbol id="walnutSmall">
+                    <path d="M0,0 Q2,-2 4,0 Q6,2 4,4 Q2,6 0,4 Q-2,2 0,0 Z" fill="#8D6E63" stroke="#5D4037" strokeWidth="1"/>
+                    <path d="M0.8,0.8 L3.2,3.2 M3.2,0.8 L0.8,3.2" stroke="#5D4037" strokeWidth="0.5" />
+                  </symbol>
+
+                  <clipPath id="clipLeft"><path d={clipLeftPath} /></clipPath>
+                  <clipPath id="clipRight"><path d={clipRightPath} /></clipPath>
+
+                  <mask id="biteMaskV10">
+                     <rect x="0" y="0" width="900" height="1000" fill="white" />
+                     {step >= 10 && (
+                        <g>
+                           <circle cx="520" cy="200" r="30" fill="black" />
+                           <circle cx="550" cy="210" r="25" fill="black" />
+                           <circle cx="500" cy="220" r="20" fill="black" />
+                        </g>
+                     )}
+                     {step >= 11 && (
+                       <path d={`M 300,${startY-400} C 350,${startY-300} 450,${startY-200} 520,${startY-250} L 600,${startY-350} L 600,0 L 300,0 Z`} fill="black" />
+                     )}
+                  </mask>
+
+                  <style>
+                    {`
+                      @keyframes dropInBounce { 0% { transform: translateY(-150px); opacity: 0; } 70% { transform: translateY(10px); opacity: 1; } 100% { transform: translateY(0); opacity: 1; } }
+                      @keyframes layerIn { 0% { opacity: 0; transform: translateY(-20px); } 100% { opacity: 1; transform: translateY(0); } }
+                      @keyframes candleAnim { from { transform: translateY(-200px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                      @keyframes knifeAnim { 0% { opacity: 0; transform: translateY(-50px); } 50% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(0); } }
+                      @keyframes creamPop { 0% { transform: scale(0); } 80% { transform: scale(1.2); } 100% { transform: scale(1); } }
+                      @keyframes spoonDig { 
+                         0% { transform: translate(700px, -100px) rotate(-30deg); opacity: 0; }
+                         30% { transform: translate(500px, 100px) rotate(-45deg); opacity: 1; }
+                         50% { transform: translate(450px, 250px) rotate(-70deg); } 
+                         100% { transform: translate(150px, 150px) rotate(-60deg); opacity: 0; }
+                      }
+                    `}
+                  </style>
+                </defs>
+              </svg>
+
+              <header className="w-full max-w-4xl mb-6 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl shadow-xl border-4 border-amber-200">
+                <div className="flex items-center gap-3">
+                  <div className="bg-amber-100 p-3 rounded-full shadow-inner">
+                    <ChefHat className="text-amber-600 w-10 h-10" />
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight">地質蛋糕工坊：終極版</h1>
+                    <p className="text-sm text-amber-600 font-bold">3隻恐龍、滿滿珍珠與最後的湯匙大考驗</p>
+                  </div>
+                </div>
+                <div className="mt-2 md:mt-0 px-5 py-2 bg-amber-500 text-white rounded-full text-sm font-bold shadow-md animate-pulse">
+                  互動式教具 v12
+                </div>
+              </header>
+
+              <main className="relative w-full max-w-4xl aspect-[16/11] bg-white rounded-3xl overflow-hidden border-8 border-white shadow-2xl mb-6 group">
+                <div className="absolute inset-0 bg-amber-50" style={{ backgroundImage: 'radial-gradient(#fff8e1 3px, transparent 3px)', backgroundSize: '24px 24px' }}></div>
+                
+                <svg viewBox="0 0 800 650" className="relative w-full h-full" style={{ mask: 'url(#biteMaskV10)' }}>
+                    
+                    <ellipse cx="400" cy={startY + 40} rx="380" ry="50" fill="#ECEFF1" stroke="#CFD8DC" strokeWidth="2" />
+                    <ellipse cx="400" cy={startY + 35} rx="360" ry="45" fill="#FFFFFF" />
+                    <ellipse cx="400" cy={startY + 60} rx="320" ry="30" fill="black" opacity="0.1" filter="blur(10px)" />
+
+                    <g clipPath="url(#clipLeft)">
+                      <SuperRichCakeContent step={step} startY={startY} cutLineX={cutLineX} />
+                    </g>
+                    <g clipPath="url(#clipRight)" style={{ transform: faultOffset, transition: 'transform 0.8s cubic-bezier(0.25, 0.1, 0.25, 1.5)' }}>
+                      <SuperRichCakeContent step={step} startY={startY} cutLineX={cutLineX} />
+                    </g>
+
+                    {step === 9 && (
+                       <g style={{ animation: 'knifeAnim 1s forwards', transformOrigin: 'center' }}>
+                          <path d={`M ${cutLineX},${startY-500} L ${cutLineX},${startY+40}`} stroke="#B0BEC5" strokeWidth="3" />
+                          <path d={`M ${cutLineX},${startY-500} L ${cutLineX},${startY-180}`} stroke="#78909C" strokeWidth="10" strokeLinecap="round" />
+                          <rect x={cutLineX-15} y={startY-560} width="30" height="100" rx="10" fill="#37474F" />
+                       </g>
+                    )}
+
+                </svg>
+                
+                {step === 11 && (
+                   <div className="absolute inset-0 pointer-events-none" style={{ overflow: 'hidden' }}>
+                      <svg width="100%" height="100%" viewBox="0 0 800 650">
+                         <g style={{ animation: 'spoonDig 1.5s forwards' }}>
+                            <rect x="-10" y="-100" width="20" height="200" fill="#B0BEC5" rx="5" />
+                            <ellipse cx="0" cy="120" rx="40" ry="60" fill="#CFD8DC" stroke="#90A4AE" strokeWidth="2" />
+                            <ellipse cx="0" cy="120" rx="30" ry="50" fill="#ECEFF1" opacity="0.5" />
+                         </g>
+                      </svg>
+                   </div>
+                )}
+
+                <div className="absolute top-4 left-4 bg-white/95 backdrop-blur-md px-6 py-3 rounded-2xl shadow-lg border-2 border-amber-200">
+                   <span className="text-xs font-bold text-amber-500 uppercase tracking-wider block mb-1">Step</span>
+                   <div className="text-3xl font-black text-amber-600">{step + 1} <span className="text-xl text-amber-300 font-medium">/ {STEPS.length}</span></div>
+                </div>
+              </main>
+
+              <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-amber-100 flex flex-col justify-between">
+                  <div>
+                     <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-lg">
+                       <Utensils className="w-6 h-6 text-amber-500"/> 廚房控制台
+                     </h3>
+                     <div className="flex items-center justify-between gap-3 mb-4">
+                        <button 
+                          onClick={() => { setIsAutoPlaying(false); setStep(Math.max(0, step - 1)); }}
+                          disabled={step === 0}
+                          className="p-4 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-2xl transition-colors disabled:opacity-50 shadow-sm"
+                        >
+                          <ArrowLeft className="w-5 h-5" />
+                        </button>
+                        <button 
+                          onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+                          className={`flex-1 py-4 rounded-2xl font-bold text-lg transition-colors shadow-md ${isAutoPlaying ? 'bg-red-50 text-red-500 border-2 border-red-100' : 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-200'}`}
+                        >
+                          {isAutoPlaying ? '暫停製作' : '自動烘焙'}
+                        </button>
+                        <button 
+                          onClick={() => { setIsAutoPlaying(false); setStep(Math.min(STEPS.length - 1, step + 1)); }}
+                          disabled={step === STEPS.length - 1}
+                          className="p-4 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-2xl transition-colors disabled:opacity-50 shadow-sm"
+                        >
+                          <ArrowRight className="w-6 h-6" />
+                        </button>
+                     </div>
+                  </div>
+                  <button onClick={() => {setStep(0); setIsAutoPlaying(false);}} className="text-slate-400 text-sm hover:text-slate-600 flex items-center justify-center gap-2 self-center py-2 px-4 hover:bg-slate-50 rounded-full transition-colors">
+                    <RefreshCw className="w-4 h-4" /> 重新製作一個新蛋糕
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-3xl p-8 shadow-lg border-b-8 border-amber-400 relative overflow-hidden">
+                   <div className="absolute right-0 top-0 p-6 opacity-10 text-amber-500">
+                      <ChefHat className="w-24 h-24" />
+                   </div>
+                   <h2 className="text-2xl font-bold text-slate-800 mb-3 relative z-10">{currentStepData.title}</h2>
+                   <div className="h-1.5 w-16 bg-amber-400 rounded-full mb-5 relative z-10"></div>
+                   <div className="space-y-4 relative z-10">
+                     <div className="bg-amber-50 p-4 rounded-2xl border border-amber-100">
+                       <span className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1 block">Action</span>
+                       <p className="text-slate-700 font-medium text-sm leading-relaxed">{currentStepData.action}</p>
+                     </div>
+                     <div className="bg-indigo-50 p-4 rounded-2xl border-l-4 border-indigo-400">
+                       <div className="flex items-start gap-3">
+                         <Info className="w-5 h-5 text-indigo-500 mt-0.5 shrink-0" />
+                         <div>
+                            <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-1 block">Geology Concept</span>
+                            <p className="text-indigo-900 text-sm leading-relaxed font-medium">{currentStepData.geo_analogy}</p>
+                         </div>
+                       </div>
+                     </div>
+                   </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const SuperRichCakeContent = ({ step, startY, cutLineX }) => {
+          const centerX = 400;
+          const halfW = 300; 
+          const topW = halfW - 25; 
+
+          const baseHeight = 90; 
+          const crepeTotalHeight = 90; 
+          const crepeLayers = 5; 
+          const singleCrepeHeight = crepeTotalHeight / crepeLayers; 
+
+          const getPath = (yBottom, height, widthBottom, widthTop) => {
+            return `M ${centerX - widthBottom},${yBottom} L ${centerX + widthBottom},${yBottom} L ${centerX + widthTop},${yBottom - height} L ${centerX - widthTop},${yBottom - height} Z`;
+          };
+
+          const getWidthAtY = (y) => {
+              const totalHeight = baseHeight * 2 + crepeTotalHeight;
+              const progress = (startY - y) / totalHeight;
+              return halfW - (halfW - topW) * progress;
+          };
+          
+          const chocoPath = getPath(startY, baseHeight, halfW, getWidthAtY(startY - baseHeight));
+          const mintPath = getPath(startY - baseHeight, baseHeight, getWidthAtY(startY - baseHeight), getWidthAtY(startY - baseHeight * 2));
+
+          const candleX = 370; 
+          const candleW = 22;
+          const candleBottomY = startY - 20;
+          const candleTopY = startY - baseHeight * 2 - crepeTotalHeight - 70;
+
+          const pearls = useMemo(() => {
+              const calculatedPearls = [];
+              const pearlRows = [15, 45, 75]; 
+              const pearlCols = [-200, -150, -100, -50, 0, 50, 100, 150, 200];
+              pearlRows.forEach((yOffset, rIdx) => {
+                pearlCols.forEach((xOffset, cIdx) => {
+                  if ((rIdx + cIdx) % 2 === 0) {
+                      calculatedPearls.push({ x: xOffset + (Math.random() * 20 - 10), y: yOffset + (Math.random() * 10 - 5) });
+                  }
+                });
+              });
+              return calculatedPearls;
+          }, []);
+
+          return (
+            <React.Fragment>
+              {step >= 0 && (
+                <g style={{ animation: 'dropInBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+                   <path d={chocoPath} fill="#5D4037" stroke="#3E2723" strokeWidth="3" />
+                   <path d={chocoPath} fill="url(#chocoRichPattern)" />
+                   
+                   <use href="#dinoFossil" x={centerX - 200} y={startY - 70} width="50" height="40" transform={`rotate(-5 ${centerX - 200} ${startY - 70})`} />
+                   <use href="#dinoFossil" x={centerX - 130} y={startY - 75} width="50" height="40" transform={`rotate(0 ${centerX - 130} ${startY - 75})`} />
+                   <use href="#dinoFossil" x={centerX + 150} y={startY - 65} width="50" height="40" transform={`scale(-1, 1) translate(-${(centerX + 150)*2 + 50}, 0)`} />
+                </g>
+              )}
+
+              {step >= 1 && (
+                <g style={{ animation: 'dropInBounce 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+                   <path d={mintPath} fill="#B2DFDB" stroke="#80CBC4" strokeWidth="3" />
+                   
+                   {pearls.map((p, i) => (
+                     <use key={i} href="#whiteBobaBig" x={centerX + p.x} y={startY - baseHeight - p.y} />
+                   ))}
+                </g>
+              )}
+
+              {[...Array(crepeLayers)].map((_, i) => {
+                  const currentLayerStep = 2 + i; 
+                  const layerY = startY - baseHeight * 2 - singleCrepeHeight * i;
+                  const nextLayerY = layerY - singleCrepeHeight;
+                  
+                  const layerPath = getPath(layerY, singleCrepeHeight, getWidthAtY(layerY), getWidthAtY(nextLayerY));
+                  
+                  const currentWidth = getWidthAtY(layerY) * 2 - 40; 
+                  const walnutCount = 7; 
+                  const walnutSpacing = currentWidth / (walnutCount - 1);
+                  
+                  return step >= currentLayerStep && (
+                    <g key={i} style={{ animation: 'layerIn 0.4s ease-out' }}>
+                        <path d={layerPath} fill="#FFF9C4" stroke="#FBC02D" strokeWidth="1" />
+                        <path d={layerPath} fill="url(#crepeSkinPattern)" />
+                        
+                        {[...Array(walnutCount)].map((_, wIndex) => {
+                            const xOffset = - (currentWidth/2) + walnutSpacing * wIndex;
+                            const yPos = layerY - singleCrepeHeight/2 - 2;
+
+                            return <use key={wIndex} href="#walnutSmall" x={centerX + xOffset + (Math.random() * 4 - 2)} y={yPos + (Math.random() * 4 - 2)} />;
+                        })}
+                    </g>
+                  );
+              })}
+
+              {step >= 7 && (
+                <g transform={`translate(${centerX + 120}, ${startY - baseHeight * 2 - crepeTotalHeight})`} style={{ animation: 'creamPop 0.6s 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards' }}>
+                     <path d="M -60,15 Q 0,-25 60,15 Q 70,35 0,40 Q -70,35 -60,15" fill="#FAFAFA" stroke="#E0E0E0" strokeWidth="1" />
+                     <path d="M -45,-5 Q 0,-35 45,-5 Q 50,15 0,20 Q -50,15 -45,-5" fill="#FFFFFF" stroke="#EEEEEE" strokeWidth="1" />
+                     <circle cx="0" cy="-15" r="18" fill="#D32F2F" stroke="#B71C1C" strokeWidth="1" />
+                     <circle cx="-5" cy="-20" r="4" fill="white" opacity="0.6" />
+                     <path d="M 0,-33 Q 5,-50 20,-45" stroke="#558B2F" strokeWidth="3" fill="none" />
+                </g>
+              )}
+
+              {step >= 8 && (
+                <g style={{ animation: 'candleAnim 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}>
+                   <rect x={candleX} y={candleTopY} width={candleW} height={candleBottomY - candleTopY} fill="#FF5252" stroke="#D32F2F" strokeWidth="2" />
+                   <path d={`M ${candleX},${candleTopY+30} L ${candleX+candleW},${candleTopY+40}`} stroke="#FFCDD2" strokeWidth="2" />
+                   <path d={`M ${candleX},${candleTopY+70} L ${candleX+candleW},${candleTopY+80}`} stroke="#FFCDD2" strokeWidth="2" />
+                   <path d={`M ${candleX},${candleTopY+110} L ${candleX+candleW},${candleTopY+120}`} stroke="#FFCDD2" strokeWidth="2" />
+                   
+                   <path d={`M ${candleX+candleW/2},${candleTopY} Q ${candleX-5},${candleTopY-30} ${candleX+candleW/2},${candleTopY-50} Q ${candleX+candleW+5},${candleTopY-30} ${candleX+candleW/2},${candleTopY}`} fill="#FFEB3B" stroke="#FBC02D" strokeWidth="1" />
+                   <path d={`M ${candleX+candleW/2},${candleTopY-10} Q ${candleX+2},${candleTopY-25} ${candleX+candleW/2},${candleTopY-40} Q ${candleX+candleW-2},${candleTopY-25} ${candleX+candleW/2},${candleTopY-10}`} fill="#FF9800" />
+                </g>
+              )}
+            </React.Fragment>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<CakeGeologySimV12 />);
+    </script>
+</body>
+</html>
