@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>112-114年會考自然科等級對照分析</title>
+    <!-- 引入 Tailwind CSS CDN --><script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Chart.js CDN (用於繪製圖表) --><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        /* 設定字體為 Inter (常用於簡報的清晰字體)，並對中文進行調整 */
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f7f7f7; /* 淺灰色背景 */
+        }
+    </style>
+</head>
+<body class="p-4 md:p-10">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- 標題區塊 --><header class="text-center mb-12">
+            <h1 class="text-3xl md:text-5xl font-extrabold text-blue-700 mb-2">
+                112~114年國中會考自然科等級對照分析
+            </h1>
+            <p class="text-xl text-gray-600">所需答對題數變化與平均表現</p>
+        </header>
+
+        <!-- 主要內容容器 (表格與圖表) --><div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+
+            <!-- 1. 簡明數據表格 (已調整：水平置中、加粗、字體加大) --><div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl transition duration-300 hover:shadow-3xl">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-3">
+                    等級所需答對題數一覽表 (總題數 50 題)
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-center text-base lg:text-lg"> <!-- text-center 應用於整個表格 --><thead class="text-white bg-blue-600 rounded-lg">
+                            <tr>
+                                <th scope="col" class="py-3 px-4 rounded-tl-lg font-bold text-xl">等級</th> <!-- 加粗、加大 --><th scope="col" class="py-3 px-4 font-bold text-xl">112 年</th>
+                                <th scope="col" class="py-3 px-4 font-bold text-xl">113 年</th>
+                                <th scope="col" class="py-3 px-4 font-bold text-xl">114 年</th>
+                                <th scope="col" class="py-3 px-4 rounded-tr-lg font-extrabold bg-green-600 text-xl">平均</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Data rows - 順序已調整為 112, 113, 114 年 --><tr class="border-b bg-blue-50/70 font-semibold">
+                                <td class="py-3 px-4 text-lg font-bold">A++</td> <!-- 加粗、加大 --><td class="py-3 px-4 text-lg font-bold">48</td> <!-- 加粗、加大 --><td class="py-3 px-4 text-lg font-bold">48</td> <!-- 加粗、加大 --><td class="py-3 px-4 text-lg font-bold">48</td> <!-- 加粗、加大 --><td class="py-3 px-4 text-green-700 text-lg font-bold">48.0</td> <!-- 加粗、加大 --></tr>
+                            <tr class="border-b">
+                                <td class="py-3 px-4 text-lg font-bold">A+</td>
+                                <td class="py-3 px-4 text-lg font-bold">45</td>
+                                <td class="py-3 px-4 text-lg font-bold">47</td>
+                                <td class="py-3 px-4 text-lg font-bold">45</td>
+                                <td class="py-3 px-4 text-green-700 text-lg font-bold">45.7</td>
+                            </tr>
+                            <tr class="border-b bg-blue-50/70">
+                                <td class="py-3 px-4 text-lg font-bold">A</td>
+                                <td class="py-3 px-4 text-lg font-bold">42</td>
+                                <td class="py-3 px-4 text-lg font-bold">44</td>
+                                <td class="py-3 px-4 text-lg font-bold">43</td>
+                                <td class="py-3 px-4 text-green-700 text-lg font-bold">43.0</td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="py-3 px-4 text-lg font-bold">B++</td>
+                                <td class="py-3 px-4 text-lg font-bold">37</td>
+                                <td class="py-3 px-4 text-lg font-bold">37</td>
+                                <td class="py-3 px-4 text-lg font-bold">41</td>
+                                <td class="py-3 px-4 text-green-700 text-lg font-bold">38.3</td>
+                            </tr>
+                            <tr class="border-b bg-blue-50/70">
+                                <td class="py-3 px-4 text-lg font-bold">B+</td>
+                                <td class="py-3 px-4 text-lg font-bold">29</td>
+                                <td class="py-3 px-4 text-lg font-bold">30</td>
+                                <td class="py-3 px-4 text-lg font-bold">29</td>
+                                <td class="py-3 px-4 text-green-700 text-lg font-bold">29.3</td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="py-3 px-4 text-lg font-bold">B</td>
+                                <td class="py-3 px-4 text-lg font-bold">18</td>
+                                <td class="py-3 px-4 text-lg font-bold">19</td>
+                                <td class="py-3 px-4 text-lg font-bold">18</td>
+                                <td class="py-3 px-4 text-green-700 text-lg font-bold">18.3</td>
+                            </tr>
+                            <tr>
+                                <td class="py-3 px-4 text-lg font-bold">C</td>
+                                <td class="py-3 px-4 text-lg font-bold">17</td>
+                                <td class="py-3 px-4 text-lg font-bold">18</td>
+                                <td class="py-3 px-4 text-lg font-bold">17</td>
+                                <td class="py-3 px-4 text-green-700 text-lg font-bold">17.3</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-6 p-4 bg-yellow-100 rounded-lg border-l-4 border-yellow-500">
+                    <p class="font-bold text-lg text-yellow-800">觀察重點:</p> <!-- 加粗 --><ul class="list-disc list-inside text-gray-700 space-y-1 ml-2 text-lg"> <!-- 加大字體 --><li><strong class="font-bold">A++ 等級</strong>要求始終為 48 題，表現非常穩定。</li>
+                        <li><strong class="font-bold">114 年 B++ 等級</strong>要求的答對題數 (41 題) 顯著高於 112、113 年 (37 題)，趨勢圖能更直觀呈現此變化。</li>
+                        <li>各等級的答對題數要求普遍穩定，僅 A+、A、B++、B 等級在年度間有微幅變動。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 2. 趨勢圖表 (Chart.js) --><div class="bg-white p-6 md:p-8 rounded-xl shadow-2xl transition duration-300 hover:shadow-3xl">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-3">
+                    各等級所需答對題數趨勢圖 (112-114年)
+                </h2>
+                <canvas id="gradeChart" class="w-full h-full"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript for Chart.js initialization --><script>
+        // 原始數據，已調整為 [112年, 113年, 114年] 的時間順序
+        const data = {
+            A_plus_plus: [48, 48, 48], // 112, 113, 114
+            A_plus: [45, 47, 45],     // 112, 113, 114
+            A: [42, 44, 43],          // 112, 113, 114
+            B_plus_plus: [37, 37, 41], // 112, 113, 114
+            B_plus: [29, 30, 29],     // 112, 113, 114
+            B: [18, 19, 18],          // 112, 113, 114
+            C: [17, 18, 17],          // 112, 113, 114
+        };
+
+        const labels = ['112年', '113年', '114年']; // X 軸標籤已調整
+
+        const ctx = document.getElementById('gradeChart').getContext('2d');
+
+        const gradeChart = new Chart(ctx, {
+            type: 'line', // 使用線圖來顯示趨勢
+            data: {
+                labels: labels,
+                datasets: [
+                    // 1. A++: 紅色 (Red)
+                    {
+                        label: 'A++',
+                        data: data.A_plus_plus,
+                        borderColor: '#EF4444', 
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)', // Light Red
+                        tension: 0.3,
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#EF4444',
+                        hidden: false // 顯示
+                    },
+                    // 2. A+: 橙色 (Orange)
+                    {
+                        label: 'A+',
+                        data: data.A_plus,
+                        borderColor: '#F97316', 
+                        backgroundColor: 'rgba(249, 115, 22, 0.2)', // Light Orange
+                        tension: 0.3,
+                        borderWidth: 3, 
+                        pointRadius: 6,
+                        pointBackgroundColor: '#F97316',
+                        hidden: false // 顯示
+                    },
+                    // 3. A: 鵝黃色 (Goose Yellow)
+                    {
+                        label: 'A',
+                        data: data.A,
+                        borderColor: '#FACC15', 
+                        backgroundColor: 'rgba(250, 204, 21, 0.2)', // Light Yellow
+                        tension: 0.3,
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#FACC15',
+                        hidden: false // 顯示
+                    },
+                    // 4. B++: 綠色 (Green)
+                    {
+                        label: 'B++',
+                        data: data.B_plus_plus,
+                        borderColor: '#10B981', 
+                        backgroundColor: 'rgba(16, 185, 129, 0.2)', // Light Green
+                        tension: 0.3,
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#10B981',
+                        hidden: false // 顯示
+                    },
+                    // 5. B+: 藍色 (Blue)
+                    {
+                        label: 'B+',
+                        data: data.B_plus,
+                        borderColor: '#3B82F6', 
+                        backgroundColor: 'rgba(59, 130, 246, 0.2)', // Light Blue
+                        tension: 0.3,
+                        borderWidth: 3, 
+                        pointRadius: 6,
+                        pointBackgroundColor: '#3B82F6',
+                        hidden: false // 顯示
+                    },
+                    // 6. B: 靛色 (Indigo)
+                    {
+                        label: 'B',
+                        data: data.B,
+                        borderColor: '#4F46E5', 
+                        backgroundColor: 'rgba(79, 70, 229, 0.2)', // Light Indigo
+                        tension: 0.3,
+                        borderWidth: 3,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#4F46E5',
+                        hidden: false // 顯示
+                    },
+                    // 7. C: 紫色 (Purple)
+                    {
+                        label: 'C',
+                        data: data.C,
+                        borderColor: '#8B5CF6', 
+                        backgroundColor: 'rgba(139, 92, 246, 0.2)', // Light Purple
+                        tension: 0.3,
+                        borderWidth: 3, 
+                        pointRadius: 6,
+                        pointBackgroundColor: '#8B5CF6',
+                        hidden: false // 顯示
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 16, // 圖例文字加粗
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    title: {
+                        display: false,
+                        text: '各等級所需答對題數趨勢圖'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        title: {
+                            display: true,
+                            text: '所需答對題數',
+                            font: {
+                                size: 18, // Y軸標題加粗、加大
+                                weight: 'bold'
+                            }
+                        },
+                        min: 15,
+                        max: 50,
+                        ticks: {
+                            stepSize: 5,
+                            font: {
+                                size: 16, // Y軸刻度數字加粗、加大
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: '年份',
+                            font: {
+                                size: 18, // X軸標題加粗、加大
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            font: {
+                                size: 16, // X軸刻度數字加粗、加大
+                                weight: 'bold'
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+
+</body>
+</html>
