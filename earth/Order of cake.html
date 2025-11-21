@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地質蛋糕工坊 v12</title>
+    <title>地質蛋糕工坊 v16</title>
     
     <!-- 載入 React 和 Babel -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -17,9 +17,9 @@
         body { font-family: "Microsoft JhengHei", "Heiti TC", sans-serif; }
     </style>
 </head>
-<body class="bg-stone-50">
+<body class="bg-amber-50"> <!-- 網頁背景維持米黃色 -->
 
-    <div id="root"></div>
+<div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect, useMemo } = React;
@@ -39,6 +39,7 @@
         const Info = ({ className }) => <IconWrapper className={className}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></IconWrapper>;
 
         // --- 資料設定區 ---
+
         const STEPS = [
           {
             id: 0,
@@ -54,6 +55,7 @@
             geo_analogy: "地質對應：【海洋沉積】。環境改變，海水入侵。大量白色珍珠代表豐富的海相化石群。",
             color: "#80CBC4"
           },
+          // --- 千層蛋糕堆疊開始 ---
           {
             id: 2,
             title: "3. 核桃千層 - 第一層 (交互沉積開始)",
@@ -89,6 +91,7 @@
             geo_analogy: "地質對應：【砂岩/礫岩互層 - 完成】。",
             color: "#FFF59D"
           },
+          // --- 千層蛋糕堆疊結束 ---
           {
             id: 7,
             title: "4. 頂部裝飾 (地表特徵)",
@@ -110,6 +113,7 @@
             geo_analogy: "地質對應：【斷層發生】。斷層切過了所有岩層和岩脈，代表它是最後發生的構造事件。",
             color: "#B0BEC5"
           },
+          // --- 新增步驟 ---
           {
             id: 10,
             title: "7. 偷吃兩三口 (局部侵蝕)",
@@ -127,7 +131,7 @@
         ];
 
         // --- 主組件 ---
-        const CakeGeologySimV12 = () => {
+        const CakeGeologySimV16 = () => {
           const [step, setStep] = useState(0);
           const [isAutoPlaying, setIsAutoPlaying] = useState(false);
 
@@ -152,11 +156,13 @@
           const startY = 530; 
           const cutLineX = 380; 
           const faultOffset = step >= 9 ? "translate(25px, 20px)" : "translate(0, 0)";
+          
+          // 加大 ClipPath，避免斷層位移時被切掉
           const clipLeftPath = `M 0,0 L ${cutLineX},0 L ${cutLineX},1000 L 0,1000 Z`;
           const clipRightPath = `M ${cutLineX},0 L 900,0 L 900,1000 L ${cutLineX},1000 Z`;
 
           return (
-            <div className="flex flex-col items-center min-h-screen bg-amber-50 font-sans text-slate-800 p-4 pb-12">
+            <div className="flex flex-col items-center min-h-screen font-sans text-slate-800 p-4 pb-12">
               
               <svg width="0" height="0" className="absolute">
                 <defs>
@@ -188,7 +194,7 @@
                   </symbol>
 
                   <symbol id="walnutSmall">
-                    <path d="M0,0 Q2,-2 4,0 Q6,2 4,4 Q2,6 0,4 Q-2,2 0,0 Z" fill="#8D6E63" stroke="#5D4037" strokeWidth="1"/>
+                    <path d="M0,0 Q2.4,-2.4 4.8,0 Q7.2,2.4 4.8,4.8 Q2.4,7.2 0,4.8 Q-2.4,2.4 0,0 Z" fill="#8D6E63" stroke="#5D4037" strokeWidth="1"/>
                     <path d="M0.8,0.8 L3.2,3.2 M3.2,0.8 L0.8,3.2" stroke="#5D4037" strokeWidth="0.5" />
                   </symbol>
 
@@ -197,6 +203,7 @@
 
                   <mask id="biteMaskV10">
                      <rect x="0" y="0" width="900" height="1000" fill="white" />
+                     {/* Step 10: 偷吃兩三口 */}
                      {step >= 10 && (
                         <g>
                            <circle cx="520" cy="200" r="30" fill="black" />
@@ -204,8 +211,13 @@
                            <circle cx="500" cy="220" r="20" fill="black" />
                         </g>
                      )}
+                     {/* Step 11: 湯匙大口挖 - 加入延遲顯示 */}
                      {step >= 11 && (
-                       <path d={`M 300,${startY-400} C 350,${startY-300} 450,${startY-200} 520,${startY-250} L 600,${startY-350} L 600,0 L 300,0 Z`} fill="black" />
+                       <path 
+                         d={`M 300,${startY-400} C 350,${startY-300} 450,${startY-200} 520,${startY-250} L 600,${startY-350} L 600,0 L 300,0 Z`} 
+                         fill="black"
+                         style={{ opacity: 0, animation: 'holeAppear 0.1s 0.7s forwards' }} // 延遲 0.7秒 出現
+                       />
                      )}
                   </mask>
 
@@ -222,11 +234,13 @@
                          50% { transform: translate(450px, 250px) rotate(-70deg); } 
                          100% { transform: translate(150px, 150px) rotate(-60deg); opacity: 0; }
                       }
+                      @keyframes holeAppear { to { opacity: 1; } }
                     `}
                   </style>
                 </defs>
               </svg>
 
+              {/* 標題 */}
               <header className="w-full max-w-4xl mb-6 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-3xl shadow-xl border-4 border-amber-200">
                 <div className="flex items-center gap-3">
                   <div className="bg-amber-100 p-3 rounded-full shadow-inner">
@@ -238,19 +252,23 @@
                   </div>
                 </div>
                 <div className="mt-2 md:mt-0 px-5 py-2 bg-amber-500 text-white rounded-full text-sm font-bold shadow-md animate-pulse">
-                  互動式教具 v12
+                  互動式教具 v16
                 </div>
               </header>
 
+              {/* 主舞台 */}
               <main className="relative w-full max-w-4xl aspect-[16/11] bg-white rounded-3xl overflow-hidden border-8 border-white shadow-2xl mb-6 group">
-                <div className="absolute inset-0 bg-amber-50" style={{ backgroundImage: 'radial-gradient(#fff8e1 3px, transparent 3px)', backgroundSize: '24px 24px' }}></div>
+                {/* 蛋糕區塊背景：調整為淺紫色 #F1E1FF */}
+                <div className="absolute inset-0" style={{ backgroundColor: '#F1E1FF', backgroundImage: 'radial-gradient(#fff 2px, transparent 2px)', backgroundSize: '24px 24px' }}></div>
                 
                 <svg viewBox="0 0 800 650" className="relative w-full h-full" style={{ mask: 'url(#biteMaskV10)' }}>
                     
+                    {/* 盤子 */}
                     <ellipse cx="400" cy={startY + 40} rx="380" ry="50" fill="#ECEFF1" stroke="#CFD8DC" strokeWidth="2" />
                     <ellipse cx="400" cy={startY + 35} rx="360" ry="45" fill="#FFFFFF" />
                     <ellipse cx="400" cy={startY + 60} rx="320" ry="30" fill="black" opacity="0.1" filter="blur(10px)" />
 
+                    {/* === 蛋糕繪製群組 === */}
                     <g clipPath="url(#clipLeft)">
                       <SuperRichCakeContent step={step} startY={startY} cutLineX={cutLineX} />
                     </g>
@@ -258,6 +276,7 @@
                       <SuperRichCakeContent step={step} startY={startY} cutLineX={cutLineX} />
                     </g>
 
+                    {/* 刀子 */}
                     {step === 9 && (
                        <g style={{ animation: 'knifeAnim 1s forwards', transformOrigin: 'center' }}>
                           <path d={`M ${cutLineX},${startY-500} L ${cutLineX},${startY+40}`} stroke="#B0BEC5" strokeWidth="3" />
@@ -268,6 +287,7 @@
 
                 </svg>
                 
+                {/* 湯匙動畫 */}
                 {step === 11 && (
                    <div className="absolute inset-0 pointer-events-none" style={{ overflow: 'hidden' }}>
                       <svg width="100%" height="100%" viewBox="0 0 800 650">
@@ -286,7 +306,9 @@
                 </div>
               </main>
 
+              {/* 控制區 */}
               <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 控制面板 */}
                 <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-amber-100 flex flex-col justify-between">
                   <div>
                      <h3 className="font-bold text-slate-700 mb-4 flex items-center gap-2 text-lg">
@@ -320,6 +342,7 @@
                   </button>
                 </div>
 
+                {/* 解說 */}
                 <div className="bg-white rounded-3xl p-8 shadow-lg border-b-8 border-amber-400 relative overflow-hidden">
                    <div className="absolute right-0 top-0 p-6 opacity-10 text-amber-500">
                       <ChefHat className="w-24 h-24" />
@@ -464,7 +487,7 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<CakeGeologySimV12 />);
+        root.render(<CakeGeologySimV16 />);
     </script>
 </body>
 </html>
