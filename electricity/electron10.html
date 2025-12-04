@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>電子的旅行 - 互動教學 (完整修正版)</title>
+    <style>
+        :root {
+            --primary: #2563EB;
+            --accent: #FACC15;
+            --bg: #F3F4F6;
+            --panel: #FFFFFF;
+            --text: #1F2937;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 100;
+        }
+
+        h1 { margin: 0; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+        .page-info { background: rgba(255,255,255,0.2); padding: 5px 15px; border-radius: 15px; font-weight: bold; }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 70px);
+        }
+
+        .sidebar {
+            width: 260px;
+            background: var(--panel);
+            border-right: 1px solid #E5E7EB;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+        }
+
+        .menu-item {
+            padding: 12px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.95rem;
+            transition: background 0.2s;
+            color: #555;
+        }
+
+        .menu-item:hover { background-color: #EFF6FF; }
+        .menu-item.active {
+            background-color: #DBEAFE;
+            color: var(--primary);
+            font-weight: bold;
+            border-left: 5px solid var(--primary);
+        }
+
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            position: relative;
+        }
+
+        .desc-box {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            border-left: 6px solid var(--accent);
+            min-height: 80px;
+        }
+        .desc-box h2 { margin: 0 0 10px 0; color: var(--primary); }
+        .desc-box p { margin: 0; line-height: 1.6; font-size: 1.1rem; }
+
+        .canvas-wrapper {
+            flex: 1;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            border: 2px solid #e5e7eb;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+            max-width: 900px;
+            max-height: 600px;
+            background-color: #ffffff;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            display: flex;
+            gap: 15px;
+            background: rgba(255,255,255,0.95);
+            padding: 10px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            border: 1px solid #eee;
+        }
+
+        .btn {
+            border: none;
+            background: var(--primary);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover { transform: scale(1.1); background: #1d4ed8; }
+        .btn:active { transform: scale(0.95); }
+        .btn.secondary { background: #6B7280; }
+
+        /* Game UI */
+        .game-ui { width: 100%; height: 100%; padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; }
+        
+        .game-cards { display: flex; gap: 40px; margin-bottom: 20px; }
+        .mtn-card { 
+            padding: 10px; border: 2px solid #ccc; border-radius: 8px; cursor: pointer; 
+            text-align: center; background: white; transition: 0.2s; width: 120px; height: 100px;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .mtn-card:hover { transform: translateY(-3px); box-shadow: 0 5px 10px rgba(0,0,0,0.1); }
+        .mtn-card.selected { border-color: var(--primary); background: #EFF6FF; transform: scale(1.05); box-shadow: 0 0 0 3px rgba(37,99,235,0.3); }
+        
+        .drop-zones { display: flex; gap: 20px; width: 100%; justify-content: center; align-items: stretch; height: 320px; }
+        .zone { 
+            width: 30%; border: 3px dashed #bbb; border-radius: 15px; 
+            display: flex; flex-direction: column; align-items: center; 
+            background: #fafafa; cursor: pointer; position: relative;
+            padding-top: 10px;
+        }
+        .zone:hover { background: #f0fdf4; border-color: #22c55e; }
+        .zone.correct { border-style: solid; border-color: #22c55e; background: #dcfce7; }
+        
+        .zone-label { font-weight: bold; font-size: 1.1rem; color: #374151; margin-bottom: 5px; z-index: 2;}
+        .zone-msg { color: #aaa; margin-top: auto; margin-bottom: 10px; z-index: 2; font-weight: bold;}
+        
+        /* 遊戲內電路圖 SVG 容器 */
+        .zone-circuit {
+            width: 100%;
+            height: 180px;
+            position: relative;
+        }
+        /* 山的放置點 */
+        .mountain-slot {
+            position: absolute;
+            top: 30px; 
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+        }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>⚡ 電子的旅行</h1>
+    <div class="page-info" id="page-display">畫面 1 / 50</div>
+</header>
+
+<div class="main-container">
+    <div class="sidebar" id="sidebar"></div>
+    <div class="content-area">
+        <div class="desc-box">
+            <h2 id="scene-title">標題</h2>
+            <p id="scene-desc">說明...</p>
+        </div>
+        <div class="canvas-wrapper" id="canvas-wrapper"></div>
+        <div class="controls">
+            <button class="btn secondary" onclick="changeScene(-1)">◀</button>
+            <button class="btn" onclick="togglePlay()" id="play-btn">❚❚</button>
+            <button class="btn secondary" onclick="resetScene()">↻</button>
+            <button class="btn secondary" onclick="changeScene(1)">▶</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 1. 場景設定 ---
+    const SCENES = [
+        { id: 1, title: "1. 電路方向", desc: "電池移至下方。電子從負極(左側)出發，順時針繞行，回到正極(右側)。能量維持飽滿。", type: "loop", comps: [], eNum: 6, mode: "const" },
+        { id: 2, title: "2. 能量攜帶", desc: "線性變化：離開負極時全滿，沿路均勻消耗，碰到正極瞬間歸零。", type: "loop", comps: [], eNum: 6, mode: "linear" },
+        
+        { id: 3, title: "3. 一座山 (現實)", desc: "出發耗1/10，抵達山中心瞬間耗8/10，回家耗1/10。", type: "series", comps: [{t:'mtn', h:60, x:0.5}], eNum: 6, mode: "real_precise" },
+        { id: 4, title: "4. 一顆燈泡 (現實)", desc: "燈泡初始暗。電子抵達燈泡中心瞬間，燈泡亮起並維持，電子能量驟降。", type: "series", comps: [{t:'bulb', v:1, x:0.5}], eNum: 6, mode: "real_precise", persistent: true },
+        
+        { id: 5, title: "5. 一座山 (理想模型)", desc: "理想：電子抵達山中心瞬間，能量耗盡(變灰)。", type: "series", comps: [{t:'mtn', h:60, x:0.5}], eNum: 6, mode: "ideal" },
+        { id: 6, title: "6. 一顆燈泡 (理想模型)", desc: "理想：電子抵達燈泡中心瞬間變灰，燈泡同時亮起並維持。", type: "series", comps: [{t:'bulb', v:1, x:0.5}], eNum: 6, mode: "ideal", persistent: true },
+        
+        // 串聯
+        { id: 9, title: "9. 串聯兩座山", desc: "一次1顆。抵達第一座山中心耗50%，抵達第二座山中心耗盡(變灰)。", type: "series", comps: [{t:'mtn',h:60,x:0.33}, {t:'mtn',h:60,x:0.66}], eNum: 6, batch: 1, interval: 500, mode: "step_precise" },
+        { id: 10, title: "10. 串聯兩顆燈泡", desc: "一次1顆。抵達燈泡中心瞬間亮起並維持。", type: "series", comps: [{t:'bulb',v:0.5,x:0.33}, {t:'bulb',v:0.5,x:0.66}], eNum: 6, batch: 1, interval: 500, mode: "step_precise", persistent: true },
+        
+        { id: 11, title: "11. 串聯三座山", desc: "一次1顆。每座耗1/3。", type: "series", comps: [{t:'mtn',h:60,x:0.25}, {t:'mtn',h:60,x:0.5}, {t:'mtn',h:60,x:0.75}], eNum: 6, batch: 1, interval: 500, mode: "step_precise" },
+        { id: 12, title: "12. 串聯三顆燈泡", desc: "一次1顆。逐一經過中心時亮起並維持。", type: "series", comps: [{t:'bulb',v:0.33,x:0.25}, {t:'bulb',v:0.33,x:0.5}, {t:'bulb',v:0.33,x:0.75}], eNum: 6, batch: 1, interval: 500, mode: "step_precise", persistent: true },
+        
+        // 電子流
+        { id: 13, title: "13. 電子流 (1顆)", desc: "1顆通過中心時瞬間變灰，燈泡亮起。", type: "series", comps: [{t:'bulb',v:1,x:0.5}], eNum: 6, batch: 1, interval: 350, mode: "ideal", persistent: true },
+        { id: 14, title: "14. 電子流 (2顆)", desc: "2顆緊貼，第一顆碰到中心時全部一起變灰，燈泡亮。", type: "series", comps: [{t:'bulb',v:1.5,x:0.5}], eNum: 10, batch: 2, interval: 350, mode: "ideal", persistent: true },
+        { id: 15, title: "15. 電子流 (3顆)", desc: "3顆緊貼，第一顆碰到中心時全部一起變灰，燈泡亮。", type: "series", comps: [{t:'bulb',v:2.0,x:0.5}], eNum: 12, batch: 3, interval: 350, mode: "ideal", persistent: true },
+        
+        { id: 16, title: "16. 小遊戲：配對", desc: "請將高山、中山、矮山拖曳到對應的電路圖(電子數不同)。", type: "game", comps: [], eNum: 0 },
+        
+        { id: 18, title: "18. 無岔路", desc: "12顆電子。", type: "loop", comps: [], eNum: 12, mode: "linear" },
+        { id: 19, title: "19. 兩條岔路", desc: "各走6顆。", type: "para2", comps: [], eNum: 12, split:[0.5,0.5], mode: "linear" },
+        { id: 20, title: "20. 三條岔路", desc: "各走4顆。", type: "para3", comps: [], eNum: 12, split:[0.33,0.33,0.33], mode: "linear" },
+        
+        { id: 23, title: "23. 阻礙：一座山", desc: "一次6顆。", type: "series", comps: [{t:'mtn',h:60,x:0.5}], eNum: 12, batch: 6, interval: 500, mode: "ideal" },
+        // --- 新增：阻礙一顆燈泡 ---
+        { id: 24, title: "24. 阻礙：一顆燈泡", desc: "一次6顆。", type: "series", comps: [{t:'bulb',v:1,x:0.5}], eNum: 12, batch: 6, interval: 500, mode: "ideal", persistent: true },
+        
+        { id: 25, title: "25. 阻礙：兩座山", desc: "一次3顆。", type: "series", comps: [{t:'mtn',h:60,x:0.33}, {t:'mtn',h:60,x:0.66}], eNum: 12, batch: 3, interval: 500, mode: "step_precise" },
+        { id: 26, title: "26. 阻礙：兩顆燈泡", desc: "一次3顆，變暗。", type: "series", comps: [{t:'bulb',v:0.4,x:0.33}, {t:'bulb',v:0.4,x:0.66}], eNum: 12, batch: 3, interval: 500, mode: "step_precise", persistent: true },
+        
+        { id: 27, title: "27. 阻礙：三座山", desc: "一次2顆。", type: "series", comps: [{t:'mtn',h:60,x:0.25}, {t:'mtn',h:60,x:0.5}, {t:'mtn',h:60,x:0.75}], eNum: 12, batch: 2, interval: 500, mode: "step_precise" },
+        // --- 新增：阻礙三顆燈泡 ---
+        { id: 28, title: "28. 阻礙：三顆燈泡", desc: "一次2顆，更暗。", type: "series", comps: [{t:'bulb',v:0.3,x:0.25}, {t:'bulb',v:0.3,x:0.5}, {t:'bulb',v:0.3,x:0.75}], eNum: 12, batch: 2, interval: 500, mode: "step_precise", persistent: true },
+        
+        { id: 29, title: "29. 不同高度山", desc: "一次2顆，消耗不同。", type: "series", comps: [{t:'mtn',h:40,x:0.33, drain:0.33}, {t:'mtn',h:80,x:0.66, drain:0.67}], eNum: 12, batch: 2, interval: 500, mode: "step_precise" },
+        { id: 30, title: "30. 不同燈泡", desc: "一次2顆，亮度不同。", type: "series", comps: [{t:'bulb',v:0.15,x:0.33, drain:0.33}, {t:'bulb',v:0.45,x:0.66, drain:0.67}], eNum: 12, batch: 2, interval: 500, mode: "step_precise", persistent: true },
+        
+        { id: 37, title: "37. 並聯：兩座山", desc: "一次12顆。", type: "para2", comps: [{p:0,t:'mtn',h:60,x:0.5},{p:1,t:'mtn',h:60,x:0.5}], eNum: 18, batch: 12, split:[0.5,0.5], mode: "ideal" },
+        // --- 新增：並聯兩顆燈泡 ---
+        { id: 38, title: "38. 並聯：兩顆燈泡", desc: "一次12顆，亮度正常。", type: "para2", comps: [{p:0,t:'bulb',v:1,x:0.5},{p:1,t:'bulb',v:1,x:0.5}], eNum: 18, batch: 12, split:[0.5,0.5], mode: "ideal", persistent: true },
+        
+        { id: 41, title: "41. 並聯：不對稱", desc: "6顆走上，3顆走下。", type: "para2", comps: [{p:0,t:'mtn',h:60,x:0.5},{p:1,t:'mtn',h:60,x:0.33, drain:0.5}, {p:1,t:'mtn',h:60,x:0.66, drain:0.5}], eNum: 18, batch: 9, split:[0.66,0.33], mode: "step_precise" },
+        // --- 新增：並聯不對稱 (燈泡) ---
+        { id: 42, title: "42. 並聯：不對稱(燈泡)", desc: "上路亮，下路暗。", type: "para2", comps: [{p:0,t:'bulb',v:1,x:0.5},{p:1,t:'bulb',v:0.4,x:0.33, drain:0.5}, {p:1,t:'bulb',v:0.4,x:0.66, drain:0.5}], eNum: 18, batch: 9, split:[0.66,0.33], mode: "step_precise", persistent: true },
+        
+        { id: 45, title: "45. 短路", desc: "全部走平路。", type: "para2", comps: [{p:0,t:'mtn',h:60,x:0.5},{p:1,t:'wire',x:0.5}], eNum: 18, batch: 18, split:[0,1], mode: "linear" },
+        { id: 46, title: "46. 斷路", desc: "電路中斷，無法出發。", type: "broken", comps: [], eNum: 0 }
+    ];
+
+    let currentIdx = 0;
+    let isPlaying = true;
+    let electrons = [];
+    let frame = 0;
+    let svgElement = null;
+    let pathsCache = [];
+    let pathLengths = []; 
+    let animationId = null;
+    let bulbStates = []; 
+
+    window.onload = function() {
+        initSidebar();
+        loadScene(0);
+        animate();
+    };
+
+    function initSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.innerHTML = SCENES.map((s, i) => 
+            `<div class="menu-item" onclick="loadScene(${i})" id="menu-${i}">${s.title}</div>`
+        ).join('');
+    }
+
+    function loadScene(idx) {
+        if (idx < 0 || idx >= SCENES.length) return;
+        currentIdx = idx;
+        document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+        document.getElementById(`menu-${idx}`).classList.add('active');
+        document.getElementById('page-display').innerText = `畫面 ${SCENES[idx].id} / 50`;
+        document.getElementById('scene-title').innerText = SCENES[idx].title;
+        document.getElementById('scene-desc').innerText = SCENES[idx].desc;
+        electrons = [];
+        frame = 0;
+        isPlaying = true;
+        bulbStates = []; 
+        updatePlayBtn();
+        const wrapper = document.getElementById('canvas-wrapper');
+        wrapper.innerHTML = '';
+        if (SCENES[idx].type === 'game') initGame(wrapper);
+        else initSVG(wrapper);
+    }
+
+    // --- 路徑與幾何 ---
+    function getPaths(type) {
+        const BX_L = 320; 
+        const BX_R = 480; 
+        const BY = 400;   
+        const LX = 120; 
+        const RX = 680; 
+        const TY = 160; 
+
+        const mainLoop = [
+            {x: BX_L, y: BY}, {x: LX, y: BY}, {x: LX, y: TY}, {x: RX, y: TY}, {x: RX, y: BY}, {x: BX_R, y: BY}, {x: BX_L, y: BY}  
+        ];
+
+        if (type === 'para2') {
+            const outer = [ {x:BX_L,y:BY}, {x:LX,y:BY}, {x:LX,y:TY}, {x:RX,y:TY}, {x:RX,y:BY}, {x:BX_R,y:BY}, {x:BX_L,y:BY} ];
+            const MY = 280; 
+            const inner = [ {x:BX_L,y:BY}, {x:LX,y:BY}, {x:LX,y:MY}, {x:RX,y:MY}, {x:RX,y:BY}, {x:BX_R,y:BY}, {x:BX_L,y:BY} ];
+            return [outer, inner];
+        }
+
+        if (type === 'para3') {
+            const Y1=160, Y2=240, Y3=320;
+            return [
+                [{x:BX_L,y:BY}, {x:LX,y:BY}, {x:LX,y:Y1}, {x:RX,y:Y1}, {x:RX,y:BY}, {x:BX_R,y:BY}, {x:BX_L,y:BY}],
+                [{x:BX_L,y:BY}, {x:LX,y:BY}, {x:LX,y:Y2}, {x:RX,y:Y2}, {x:RX,y:BY}, {x:BX_R,y:BY}, {x:BX_L,y:BY}],
+                [{x:BX_L,y:BY}, {x:LX,y:BY}, {x:LX,y:Y3}, {x:RX,y:Y3}, {x:RX,y:BY}, {x:BX_R,y:BY}, {x:BX_L,y:BY}]
+            ];
+        }
+
+        if (type === 'broken') {
+             // 完整的迴圈，但在上方中間斷開
+             return [[
+                {x:BX_L,y:BY}, {x:LX,y:BY}, {x:LX,y:TY}, {x:380,y:TY}, // 左半
+                {x:420,y:TY}, {x:RX,y:TY}, {x:RX,y:BY}, {x:BX_R,y:BY}, {x:BX_L,y:BY} // 右半+電池
+             ]];
+        }
+        return [mainLoop];
+    }
+
+    function initSVG(container) {
+        const scene = SCENES[currentIdx];
+        const NS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(NS, "svg");
+        svg.setAttribute("viewBox", "0 0 800 500");
+        svgElement = svg;
+
+        // 圖例 (左上)
+        const legendG = document.createElementNS(NS, "g");
+        legendG.innerHTML = `
+            <rect x="10" y="10" width="130" height="60" fill="rgba(255,255,255,0.9)" stroke="#ccc" rx="5"/>
+            <circle cx="25" cy="30" r="10" fill="none" stroke="black" stroke-width="2"/>
+            <path d="M15,30 A10,10 0 0,0 35,30" fill="#FACC15" />
+            <text x="40" y="35" font-size="14" font-weight="bold">能量水位</text>
+        `;
+        svg.appendChild(legendG);
+
+        pathsCache = getPaths(scene.type);
+        
+        pathLengths = pathsCache.map(pts => {
+            if (pts.length < 2) return {total:0, circuit:0, dists:[]};
+            let total = 0;
+            let dists = [0];
+            for(let i=0; i<pts.length-1; i++) {
+                // 如果是 broken 場景，檢查是否有「跳躍」(斷點)
+                // 我們的 getPaths 裡，斷點是 index 3 -> 4 (380->420)
+                // 這裡我們不畫線，但長度計算還是要考慮嗎？
+                // 其實 SVG polyline 不會自動斷開，除非我們用兩個 polyline
+                // 為簡便，getPaths 回傳一條線，中間我們自己畫紅線表示斷開
+                const dx = pts[i+1].x - pts[i].x;
+                const dy = pts[i+1].y - pts[i].y;
+                const d = Math.sqrt(dx*dx + dy*dy);
+                
+                // Broken 場景特殊處理：中間有一段是不連通的
+                if(scene.type === 'broken' && i === 3) {
+                    // 跳過這段距離
+                } else {
+                    total += d;
+                }
+                dists.push(total);
+            }
+            // 最後一段是電池內部
+            const internalLen = 160; // 固定寬度
+            return { total: total, circuit: total - internalLen, internal: internalLen, dists: dists };
+        });
+
+        // 畫線
+        if (scene.type === 'broken') {
+            // 分兩段畫
+            const pts = pathsCache[0];
+            const p1 = pts.slice(0, 4); // 左半
+            const p2 = pts.slice(4); // 右半
+            
+            [p1, p2].forEach(subPts => {
+                const poly = document.createElementNS(NS, "polyline");
+                const ptrStr = subPts.map(p => `${p.x},${p.y}`).join(" ");
+                poly.setAttribute("points", ptrStr);
+                poly.setAttribute("fill", "none");
+                poly.setAttribute("stroke", "#4B5563");
+                poly.setAttribute("stroke-width", "8");
+                poly.setAttribute("stroke-linejoin", "round");
+                svg.appendChild(poly);
+            });
+            
+            // 畫紅色斷口
+            const breakLine = document.createElementNS(NS, "line");
+            breakLine.setAttribute("x1", 380); breakLine.setAttribute("y1", 160);
+            breakLine.setAttribute("x2", 420); breakLine.setAttribute("y2", 140); // 斜線
+            breakLine.setAttribute("stroke", "red");
+            breakLine.setAttribute("stroke-width", "4");
+            svg.appendChild(breakLine);
+            
+            const breakLine2 = document.createElementNS(NS, "line");
+            breakLine2.setAttribute("x1", 380); breakLine2.setAttribute("y1", 160);
+            breakLine2.setAttribute("x2", 420); breakLine2.setAttribute("y2", 180); // 斜線
+            // 或者簡單的紅色叉叉
+            // 根據需求「如圖十六，紅色補起來」，通常是畫斷掉的線頭
+            // 我們畫兩個紅點表示斷點
+            const d1 = document.createElementNS(NS, "circle");
+            d1.setAttribute("cx", 380); d1.setAttribute("cy", 160); d1.setAttribute("r", 6); d1.setAttribute("fill", "red");
+            svg.appendChild(d1);
+            const d2 = document.createElementNS(NS, "circle");
+            d2.setAttribute("cx", 420); d2.setAttribute("cy", 160); d2.setAttribute("r", 6); d2.setAttribute("fill", "red");
+            svg.appendChild(d2);
+
+        } else {
+            pathsCache.forEach(pts => {
+                const poly = document.createElementNS(NS, "polyline");
+                const ptrStr = pts.map(p => `${p.x},${p.y}`).join(" ");
+                poly.setAttribute("points", ptrStr);
+                poly.setAttribute("fill", "none");
+                poly.setAttribute("stroke", "#4B5563");
+                poly.setAttribute("stroke-width", "8");
+                poly.setAttribute("stroke-linejoin", "round");
+                svg.appendChild(poly);
+            });
+        }
+
+        drawBattery(svg, 400, 400);
+
+        // 預計算元件觸發點
+        scene.comps.forEach((comp, i) => {
+            const pathIdx = comp.p || 0;
+            const pts = pathsCache[pathIdx];
+            if (pts.length < 5) return;
+            // broken 場景沒有元件
+            
+            const pStart = pts[2]; // 左上
+            const pEnd = pts[3];   // 右上
+            
+            const cx = pStart.x + (pEnd.x - pStart.x) * comp.x;
+            const cy = pStart.y;
+            
+            // 計算 Trigger P
+            const lenInfo = pathLengths[pathIdx];
+            const distToLeftTop = lenInfo.dists[2]; 
+            const distOnTopWire = (pEnd.x - pStart.x) * comp.x;
+            const distToCenter = distToLeftTop + distOnTopWire;
+            
+            comp.triggerP = distToCenter / lenInfo.total; 
+            comp.triggerCircuitP = distToCenter / lenInfo.circuit; 
+
+            if (comp.t === 'bulb') {
+                bulbStates[i] = false; 
+                drawBulb(svg, cx, cy, 0, `bulb-${i}`);
+            } else if (comp.t === 'mtn') {
+                drawMountain(svg, cx, cy, comp.h);
+            } else if (comp.t === 'wire') {
+                drawWire(svg, cx, cy);
+            }
+        });
+
+        const eLayer = document.createElementNS(NS, "g");
+        eLayer.setAttribute("id", "electron-layer");
+        svg.appendChild(eLayer);
+        container.appendChild(svg);
+    }
+
+    // --- 繪圖函數 ---
+    function drawBattery(svg, x, y) {
+        const NS = "http://www.w3.org/2000/svg";
+        const g = document.createElementNS(NS, "g");
+        g.innerHTML = `
+            <rect x="${x-80}" y="${y-45}" width="160" height="90" rx="8" fill="#E5E7EB" stroke="#374151" stroke-width="4"/>
+            <text x="${x-75}" y="${y+15}" font-size="56" fill="#2563EB" font-weight="bold" text-anchor="start">-</text>
+            <text x="${x+75}" y="${y+15}" font-size="56" fill="#EF4444" font-weight="bold" text-anchor="end">+</text>
+            <text x="${x}" y="${y+60}" text-anchor="middle" font-size="16" fill="#666" font-weight="bold">電池</text>
+        `;
+        svg.appendChild(g);
+    }
+
+    function drawMountain(svg, x, y, h) {
+        const NS = "http://www.w3.org/2000/svg";
+        const pts = `${x-25},${y} ${x},${y-h} ${x+25},${y}`;
+        const poly = document.createElementNS(NS, "polygon");
+        poly.setAttribute("points", pts);
+        poly.setAttribute("fill", "#A8A29E");
+        poly.setAttribute("stroke", "#57534E");
+        poly.setAttribute("stroke-width", "3");
+        svg.appendChild(poly);
+    }
+
+    function drawBulb(svg, x, y, val, id) {
+        const NS = "http://www.w3.org/2000/svg";
+        const g = document.createElementNS(NS, "g");
+        if (id) g.setAttribute("id", id);
+        const r = 18;
+        const glow = document.createElementNS(NS, "circle");
+        glow.setAttribute("cx", x); glow.setAttribute("cy", y);
+        glow.setAttribute("r", r + val * 20);
+        glow.setAttribute("fill", `rgba(255, 230, 0, ${val > 0 ? Math.min(0.8, val*0.6) : 0})`);
+        glow.setAttribute("class", "bulb-glow");
+        g.appendChild(glow);
+        const body = document.createElementNS(NS, "circle");
+        body.setAttribute("cx", x); body.setAttribute("cy", y);
+        body.setAttribute("r", r);
+        body.setAttribute("fill", val > 0 ? '#FEF08A' : '#EEE'); 
+        body.setAttribute("stroke", "#374151");
+        body.setAttribute("stroke-width", "2");
+        body.setAttribute("class", "bulb-body");
+        g.appendChild(body);
+        g.innerHTML += `<path d="M${x-8},${y+5} L${x-5},${y-5} L${x},${y+5} L${x+5},${y-5} L${x+8},${y+5}" fill="none" stroke="#666"/>`;
+        svg.appendChild(g);
+    }
+
+    function drawWire(svg, x, y) {
+        const NS = "http://www.w3.org/2000/svg";
+        const line = document.createElementNS(NS, "line");
+        line.setAttribute("x1", x-25); line.setAttribute("y1", y);
+        line.setAttribute("x2", x+25); line.setAttribute("y2", y);
+        line.setAttribute("stroke", "#EF4444");
+        line.setAttribute("stroke-width", "6");
+        svg.appendChild(line);
+    }
+
+    // --- 能量邏輯 ---
+    function updateLogic() {
+        const scene = SCENES[currentIdx];
+        if (scene.type === 'broken') return;
+
+        if (frame % (scene.interval || 240) === 0 && (scene.eNum > 20 || electrons.length < scene.eNum)) {
+            const paths = pathsCache;
+            const split = scene.split || [1];
+            paths.forEach((p, pIdx) => {
+                let count = scene.batch || 1;
+                if (paths.length > 1) {
+                    const ratio = split[pIdx] || 0;
+                    count = Math.max(0, Math.round(count * ratio)); 
+                }
+                const batchId = frame + "_" + pIdx;
+                for(let i=0; i<count; i++) {
+                    const gap = scene.batch > 1 ? 0.005 : 0.03; 
+                    electrons.push({ 
+                        p: 0 - (i * gap), 
+                        pathIdx: pIdx, 
+                        energy: 1, 
+                        finished: false,
+                        batchId: batchId 
+                    });
+                }
+            });
+        }
+
+        const speed = 0.0008; 
+        
+        electrons.forEach(e => {
+            const prevP = e.p; 
+            e.p += speed;
+            if (e.p >= 1) { e.p = 0; e.energy = 1; }
+            if (e.p < 0) return;
+
+            const lenInfo = pathLengths[e.pathIdx];
+            if (!lenInfo) return;
+
+            const currentDist = e.p * lenInfo.total;
+            
+            if (currentDist > lenInfo.circuit) {
+                const internalProgress = (currentDist - lenInfo.circuit) / lenInfo.internal;
+                e.energy = internalProgress; 
+            } else {
+                if (scene.mode === 'const') {
+                    e.energy = 1; 
+                } else if (scene.mode === 'linear') {
+                    const circuitProgress = currentDist / lenInfo.circuit;
+                    e.energy = Math.max(0, 1 - circuitProgress);
+                } else if (scene.mode === 'real_precise') {
+                    const comp = scene.comps.find(c => (c.p||0) === e.pathIdx);
+                    if (comp) {
+                        const triggerDist = comp.triggerCircuitP * lenInfo.circuit;
+                        if (currentDist >= triggerDist) {
+                            const remainDist = lenInfo.circuit - triggerDist;
+                            const distAfterTrigger = currentDist - triggerDist;
+                            e.energy = 0.1 * (1 - (distAfterTrigger / remainDist));
+                            
+                            if (prevP < comp.triggerP && e.p >= comp.triggerP) {
+                                if (scene.persistent && comp.t === 'bulb') {
+                                    const globalIdx = scene.comps.indexOf(comp);
+                                    bulbStates[globalIdx] = true;
+                                }
+                            }
+                        } else {
+                            e.energy = 1.0 - (currentDist / triggerDist) * 0.1;
+                        }
+                    }
+                } else if (scene.mode === 'step_precise' || scene.mode === 'ideal') {
+                    let currentE = 1.0;
+                    const myComps = scene.comps.filter(c => (c.p||0) === e.pathIdx);
+                    myComps.sort((a,b) => a.x - b.x);
+
+                    myComps.forEach((c) => {
+                        const globalIdx = scene.comps.indexOf(c);
+                        if (e.p >= c.triggerP) {
+                            let drain = 0.1;
+                            if (c.drain) drain = c.drain;
+                            else if (scene.mode === 'ideal') drain = 1.0; 
+                            else if (scene.mode === 'step_precise') drain = 1.0 / myComps.length;
+                            
+                            currentE -= drain;
+                            
+                            if (prevP < c.triggerP) {
+                                if (scene.persistent && c.t === 'bulb') {
+                                    bulbStates[globalIdx] = true;
+                                }
+                                if (scene.batch > 1) {
+                                    electrons.filter(oe => oe.batchId === e.batchId).forEach(oe => {});
+                                }
+                            }
+                        }
+                    });
+                    e.energy = Math.max(0, currentE);
+                }
+            }
+        });
+
+        if (scene.persistent) {
+            scene.comps.forEach((c, i) => {
+                if (c.t === 'bulb') {
+                    const g = document.getElementById(`bulb-${i}`);
+                    if (g) {
+                        const glow = g.querySelector('.bulb-glow');
+                        const body = g.querySelector('.bulb-body');
+                        const targetV = c.v || 1;
+                        if (bulbStates[i]) {
+                            glow.setAttribute('fill', `rgba(255, 230, 0, 0.8)`);
+                            glow.setAttribute('r', 18 + targetV * 20);
+                            body.setAttribute('fill', '#FEF08A');
+                        } else {
+                            glow.setAttribute('fill', 'rgba(255,255,255,0)');
+                            glow.setAttribute('r', 18);
+                            body.setAttribute('fill', '#EEE');
+                        }
+                    }
+                }
+            });
+        }
+        frame++;
+    }
+
+    function renderElectrons() {
+        const group = document.getElementById("electron-layer");
+        if (!group) return;
+        while (group.firstChild) group.removeChild(group.firstChild);
+
+        const NS = "http://www.w3.org/2000/svg";
+        const radius = 24; 
+
+        electrons.forEach(e => {
+            if (e.p < 0) return;
+            const pts = pathsCache[e.pathIdx];
+            const pos = getPointAtProgress(pts, e.p);
+
+            const eGroup = document.createElementNS(NS, "g");
+            eGroup.setAttribute("transform", `translate(${pos.x}, ${pos.y})`);
+
+            const bgCircle = document.createElementNS(NS, "circle");
+            bgCircle.setAttribute("r", radius);
+            bgCircle.setAttribute("fill", "#9CA3AF");
+            bgCircle.setAttribute("stroke", "black");
+            bgCircle.setAttribute("stroke-width", "2");
+            eGroup.appendChild(bgCircle);
+
+            const clipId = `clip-${Math.random().toString(36).substr(2, 9)}`;
+            const defs = document.createElementNS(NS, "defs");
+            const clipPath = document.createElementNS(NS, "clipPath");
+            clipPath.setAttribute("id", clipId);
+            
+            const fillHeight = radius * 2 * e.energy;
+            const rectY = radius - fillHeight;
+
+            const clipRect = document.createElementNS(NS, "rect");
+            clipRect.setAttribute("x", -radius);
+            clipRect.setAttribute("y", rectY);
+            clipRect.setAttribute("width", radius * 2);
+            clipRect.setAttribute("height", fillHeight);
+            clipPath.appendChild(clipRect);
+            defs.appendChild(clipPath);
+            eGroup.appendChild(defs);
+
+            const fillCircle = document.createElementNS(NS, "circle");
+            fillCircle.setAttribute("r", radius);
+            fillCircle.setAttribute("fill", "#FACC15");
+            fillCircle.setAttribute("clip-path", `url(#${clipId})`);
+            eGroup.appendChild(fillCircle);
+
+            const shine = document.createElementNS(NS, "circle");
+            shine.setAttribute("cx", -radius * 0.3);
+            shine.setAttribute("cy", -radius * 0.3);
+            shine.setAttribute("r", radius * 0.3);
+            shine.setAttribute("fill", "white");
+            shine.setAttribute("opacity", "0.4");
+            eGroup.appendChild(shine);
+
+            group.appendChild(eGroup);
+        });
+    }
+
+    function getPointAtProgress(points, t) {
+        if (!points || points.length < 2) return {x:0, y:0};
+        let totalLen = 0;
+        const segs = [];
+        for(let i=0; i<points.length-1; i++){
+            const dx = points[i+1].x - points[i].x;
+            const dy = points[i+1].y - points[i].y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            segs.push(dist);
+            totalLen += dist;
+        }
+        const targetDist = t * totalLen;
+        let curDist = 0;
+        for(let i=0; i<segs.length; i++){
+            if (curDist + segs[i] >= targetDist) {
+                const ratio = (targetDist - curDist) / segs[i];
+                const p1 = points[i];
+                const p2 = points[i+1];
+                return {
+                    x: p1.x + (p2.x - p1.x) * ratio,
+                    y: p1.y + (p2.y - p1.y) * ratio
+                };
+            }
+            curDist += segs[i];
+        }
+        return points[points.length-1];
+    }
+
+    // --- 遊戲邏輯 (更新版) ---
+    let gameSelect = null;
+    let gameStatus = { low:false, mid:false, high:false };
+
+    function initGame(container) {
+        container.innerHTML = `
+            <div class="game-ui">
+                <div class="game-cards">
+                    <div class="mtn-card" onclick="selCard('high', this)">
+                        <div style="font-size:30px">⛰️</div>
+                        <div>高山</div>
+                    </div>
+                    <div class="mtn-card" onclick="selCard('mid', this)">
+                        <div style="font-size:25px">⛰️</div>
+                        <div>中山</div>
+                    </div>
+                    <div class="mtn-card" onclick="selCard('low', this)">
+                        <div style="font-size:20px">⛰️</div>
+                        <div>矮山</div>
+                    </div>
+                </div>
+                <div class="drop-zones">
+                    <div class="zone" onclick="tryDrop('high', this)">
+                        <div class="zone-label">1 顆電子</div>
+                        <div class="zone-circuit" id="circuit-1"></div>
+                        <div class="mountain-slot" id="slot-high"></div>
+                        <div class="zone-msg">拖曳山到此</div>
+                    </div>
+                    <div class="zone" onclick="tryDrop('mid', this)">
+                        <div class="zone-label">2 顆電子</div>
+                        <div class="zone-circuit" id="circuit-2"></div>
+                        <div class="mountain-slot" id="slot-mid"></div>
+                        <div class="zone-msg">拖曳山到此</div>
+                    </div>
+                    <div class="zone" onclick="tryDrop('low', this)">
+                        <div class="zone-label">3 顆電子</div>
+                        <div class="zone-circuit" id="circuit-3"></div>
+                        <div class="mountain-slot" id="slot-low"></div>
+                        <div class="zone-msg">拖曳山到此</div>
+                    </div>
+                </div>
+                <div id="game-win" style="margin-top:20px; font-size:24px; color:green; font-weight:bold;"></div>
+            </div>
+        `;
+        
+        // 延遲繪製小電路圖
+        setTimeout(() => {
+            drawMiniCircuit('circuit-1', 1);
+            drawMiniCircuit('circuit-2', 2);
+            drawMiniCircuit('circuit-3', 3);
+        }, 100);
+
+        gameSelect = null;
+        gameStatus = { low:false, mid:false, high:false };
+    }
+
+    // 繪製遊戲內的小電路圖
+    function drawMiniCircuit(id, count) {
+        const container = document.getElementById(id);
+        if(!container) return;
+        const NS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(NS, "svg");
+        svg.setAttribute("width", "100%");
+        svg.setAttribute("height", "100%");
+        svg.setAttribute("viewBox", "0 0 200 150"); 
+        
+        // 畫線 (矩形迴路)
+        const poly = document.createElementNS(NS, "polyline");
+        // 從下方中間(100,130) -> 左 -> 上 -> 右 -> 下 -> 回
+        poly.setAttribute("points", "100,130 40,130 40,40 160,40 160,130 100,130"); 
+        poly.setAttribute("fill", "none");
+        poly.setAttribute("stroke", "#555");
+        poly.setAttribute("stroke-width", "4");
+        svg.appendChild(poly);
+        
+        // 畫電池 (在底部中間 100,130)
+        const batt = document.createElementNS(NS, "g");
+        // 電池寬40, 高20
+        batt.innerHTML = `
+            <rect x="80" y="120" width="40" height="20" fill="#ddd" stroke="#666" stroke-width="2" rx="2" />
+            <text x="75" y="135" font-size="14" fill="blue">-</text>
+            <text x="125" y="135" font-size="14" fill="red">+</text>
+        `;
+        svg.appendChild(batt);
+        
+        // 畫電子 (在上路 y=40, x=100中心)
+        for(let i=0; i<count; i++) {
+            const circle = document.createElementNS(NS, "circle");
+            // 緊密排列
+            const cx = 100 - ((count-1)*8)/2 + i*8; 
+            circle.setAttribute("cx", cx);
+            circle.setAttribute("cy", 40);
+            circle.setAttribute("r", 6);
+            circle.setAttribute("fill", "#FACC15");
+            circle.setAttribute("stroke", "black");
+            
+            // 高光
+            const shine = document.createElementNS(NS, "circle");
+            shine.setAttribute("cx", cx-2); shine.setAttribute("cy", 38);
+            shine.setAttribute("r", 2); shine.setAttribute("fill", "white");
+            shine.setAttribute("opacity", "0.5");
+            
+            svg.appendChild(circle);
+            svg.appendChild(shine);
+        }
+        
+        container.appendChild(svg);
+    }
+
+    window.selCard = function(type, el) {
+        document.querySelectorAll('.mtn-card').forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        gameSelect = type;
+    }
+
+    window.tryDrop = function(targetType, el) {
+        if (!gameSelect) return;
+        if (gameSelect === targetType) {
+            el.classList.add('correct');
+            el.querySelector('.zone-msg').innerHTML = "<span style='color:green'>✔ 正確</span>";
+            
+            // 顯示山在插槽
+            const slotId = targetType==='high'?'slot-high':(targetType==='mid'?'slot-mid':'slot-low');
+            const slot = document.getElementById(slotId);
+            slot.innerHTML = `<div style="font-size:30px">⛰️</div>`;
+            
+            gameStatus[targetType] = true;
+            gameSelect = null;
+            document.querySelectorAll('.mtn-card').forEach(c => c.classList.remove('selected'));
+            if(gameStatus.low && gameStatus.mid && gameStatus.high) {
+                document.getElementById('game-win').innerText = "🎉 太棒了！電阻越小，電流越大！";
+            }
+        } else {
+            const msg = el.querySelector('.zone-msg');
+            msg.innerHTML = "<span style='color:red'>✘ 錯誤</span>";
+            setTimeout(() => { if(!gameStatus[targetType]) msg.innerHTML = "拖曳山到此"; }, 1000);
+        }
+    }
+
+    window.togglePlay = function() { isPlaying = !isPlaying; updatePlayBtn(); }
+    window.changeScene = function(dir) { let next = currentIdx + dir; if (next >= 0 && next < SCENES.length) loadScene(next); }
+    window.resetScene = function() { loadScene(currentIdx); }
+    function updatePlayBtn() { document.getElementById('play-btn').innerText = isPlaying ? "❚❚" : "▶"; }
+    function animate() { if (isPlaying && SCENES[currentIdx].type !== 'game') { updateLogic(); renderElectrons(); } requestAnimationFrame(animate); }
+</script>
+</body>
+</html>
