@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>無敵星星大作戰</title>
+    <!-- 引入 React 和 ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- 引入 Babel 用於解析 JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- 引入 Tailwind CSS 用於樣式 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入彩帶特效庫 -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes wiggle {
+            0%, 100% { transform: rotate(12deg); }
+            50% { transform: rotate(18deg); }
+        }
+        @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+        .animate-bounce-slow {
+            animation: bounce 2s infinite;
+        }
+        .animate-spin-slow {
+            animation: spin-slow 20s linear infinite;
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 3s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-slate-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- 圖示組件定義 (SVG) ---
+        const IconBase = ({ children, size = 24, className = "", ...props }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+                {children}
+            </svg>
+        );
+
+        const Star = (props) => <IconBase {...props}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></IconBase>;
+        const Moon = (props) => <IconBase {...props}><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></IconBase>;
+        const Tv = (props) => <IconBase {...props}><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></IconBase>;
+        const Gift = (props) => <IconBase {...props}><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></IconBase>;
+        const CalendarIcon = (props) => <IconBase {...props}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></IconBase>;
+        const Save = (props) => <IconBase {...props}><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></IconBase>;
+        const ChevronLeft = (props) => <IconBase {...props}><polyline points="15 18 9 12 15 6"></polyline></IconBase>;
+        const ChevronRight = (props) => <IconBase {...props}><polyline points="9 18 15 12 9 6"></polyline></IconBase>;
+        const Check = (props) => <IconBase {...props}><polyline points="20 6 9 17 4 12"></polyline></IconBase>;
+        const Sun = (props) => <IconBase {...props}><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></IconBase>;
+        const X = (props) => <IconBase {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></IconBase>;
+
+        const App = () => {
+          // --- 狀態管理 ---
+          const [stars, setStars] = useState(0);
+          const [tvBanWeeks, setTvBanWeeks] = useState(0);
+          const [records, setRecords] = useState({});
+          const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+          
+          // 表單狀態
+          const [inputTime, setInputTime] = useState("21:00");
+          const [morningRoutine, setMorningRoutine] = useState(false);
+          const [nagCount, setNagCount] = useState(0);
+          const [showGiftModal, setShowGiftModal] = useState(false);
+          const [viewDate, setViewDate] = useState(new Date());
+          
+          const starPositionsRef = useRef([]);
+
+          // --- 初始化與本地儲存 ---
+          useEffect(() => {
+            const savedStars = localStorage.getItem('kidStars');
+            const savedTv = localStorage.getItem('kidTvBan');
+            const savedRecords = localStorage.getItem('kidRecords');
+
+            if (savedStars) setStars(parseInt(savedStars));
+            if (savedTv) setTvBanWeeks(parseInt(savedTv));
+            if (savedRecords) setRecords(JSON.parse(savedRecords));
+          }, []);
+
+          // 當星星數量改變時，更新隨機位置
+          useEffect(() => {
+            const currentCount = starPositionsRef.current.length;
+            const targetCount = Math.min(stars, 50);
+            
+            if (targetCount > currentCount) {
+              const newPositions = Array.from({ length: targetCount - currentCount }).map(() => ({
+                left: Math.random() * 80 + 10,
+                bottom: Math.random() * 90 + 5,
+                size: Math.random() * 8 + 8,
+                duration: Math.random() * 3 + 2,
+                delay: Math.random() * 2
+              }));
+              starPositionsRef.current = [...starPositionsRef.current, ...newPositions];
+            } else if (targetCount < currentCount) {
+                starPositionsRef.current = starPositionsRef.current.slice(0, targetCount);
+            }
+          }, [stars]);
+
+          useEffect(() => {
+            localStorage.setItem('kidStars', stars);
+            localStorage.setItem('kidTvBan', tvBanWeeks);
+            localStorage.setItem('kidRecords', JSON.stringify(records));
+
+            // 當星星達到50顆時，觸發特效
+            if (stars >= 50) {
+              if (window.confetti) triggerConfetti();
+              playWinSound();
+            }
+          }, [stars, tvBanWeeks, records]);
+
+          // 音效函數：歡樂加長版
+          const playWinSound = () => {
+            try {
+              const AudioContext = window.AudioContext || window.webkitAudioContext;
+              if (!AudioContext) return;
+              
+              const ctx = new AudioContext();
+              const now = ctx.currentTime;
+              
+              const notes = [
+                { freq: 392.00, start: 0.0, dur: 0.1 }, // G4
+                { freq: 523.25, start: 0.1, dur: 0.1 }, // C5
+                { freq: 659.25, start: 0.2, dur: 0.1 }, // E5
+                { freq: 783.99, start: 0.3, dur: 0.1 }, // G5
+                { freq: 1046.50, start: 0.4, dur: 0.1 }, // C6
+                { freq: 1318.51, start: 0.5, dur: 0.4 }, // E6 (長一點)
+                { freq: 523.25, start: 0.9, dur: 0.8 }, // C5
+                { freq: 659.25, start: 0.9, dur: 0.8 }, // E5
+                { freq: 783.99, start: 0.9, dur: 0.8 }, // G5
+                { freq: 1046.50, start: 0.9, dur: 0.8 }, // C6
+              ];
+
+              notes.forEach(({ freq, start, dur }, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = i > 4 ? 'triangle' : 'sine';
+                osc.frequency.value = freq;
+                
+                gain.gain.setValueAtTime(0.01, now + start);
+                gain.gain.linearRampToValueAtTime(0.3, now + start + 0.05);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start(now + start);
+                osc.stop(now + start + dur);
+              });
+            } catch (e) {
+              console.error("Audio play failed", e);
+            }
+          };
+
+          const triggerConfetti = () => {
+            const duration = 5000;
+            const animationEnd = Date.now() + duration;
+            const defaults = { startVelocity: 45, spread: 360, ticks: 100, zIndex: 100, shapes: ['star', 'circle'] };
+
+            const randomInRange = (min, max) => Math.random() * (max - min) + min;
+
+            const interval = setInterval(function() {
+              const timeLeft = animationEnd - Date.now();
+
+              if (timeLeft <= 0) {
+                return clearInterval(interval);
+              }
+
+              const particleCount = 50 * (timeLeft / duration);
+              
+              window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 }, colors: ['#ff0', '#f0f', '#0ff'] }));
+              window.confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 }, colors: ['#ff0', '#f0f', '#0ff'] }));
+            }, 250);
+          };
+
+          // --- 核心邏輯 ---
+          const calculateSleepStars = (timeStr) => {
+            if (!timeStr) return 0;
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const totalMinutes = hours * 60 + minutes;
+            const t0930 = 21 * 60 + 30;
+            const t1030 = 22 * 60 + 30;
+            const t1100 = 23 * 60;
+            const t1130 = 23 * 60 + 30;
+
+            if (hours >= 0 && hours < 5) return -3;
+            if (totalMinutes < t0930) return 2;
+            if (totalMinutes >= t0930 && totalMinutes <= t1030) return 0;
+            if (totalMinutes > t1130) return -3;
+            if (totalMinutes > t1100) return -2;
+            if (totalMinutes > t1030) return -1;
+            return 0;
+          };
+
+          const handleSave = () => {
+            const sleepStars = calculateSleepStars(inputTime);
+            const morningStars = morningRoutine ? 1 : 0;
+            const totalStarChange = sleepStars + morningStars;
+            const tvPenalty = nagCount;
+
+            let newStars = stars;
+            let newTvBan = tvBanWeeks;
+
+            if (records[selectedDate]) {
+              const oldRecord = records[selectedDate];
+              newStars -= oldRecord.delta;
+              newTvBan -= oldRecord.nagCount; 
+            }
+
+            newStars += totalStarChange;
+            newTvBan += tvPenalty;
+
+            setStars(newStars);
+            setTvBanWeeks(Math.max(0, newTvBan));
+            setRecords({
+              ...records,
+              [selectedDate]: {
+                sleepTime: inputTime,
+                morningRoutine: morningRoutine,
+                nagCount: nagCount,
+                delta: totalStarChange,
+                timestamp: new Date().toISOString()
+              }
+            });
+
+            if (newStars >= 50) {
+                setTimeout(() => {
+                    triggerConfetti();
+                    playWinSound();
+                }, 300); 
+            }
+
+            alert(`紀錄完成！\n總計星星變化: ${totalStarChange > 0 ? '+' : ''}${totalStarChange} 顆`);
+          };
+
+          const handleRedeem = () => {
+            if (window.confirm("確定要兌換禮物並扣除 50 顆星星嗎？")) {
+                setStars(stars - 50);
+                setShowGiftModal(false);
+            }
+          };
+
+          const clearTvBan = () => {
+            if (window.confirm("確定禁令已經執行完畢了嗎？")) {
+              setTvBanWeeks(Math.max(0, tvBanWeeks - 1));
+            }
+          };
+
+          const generateCalendar = () => {
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDay = new Date(year, month, 1).getDay();
+
+            const days = [];
+            for (let i = 0; i < firstDay; i++) days.push(<div key={`empty-${i}`} />);
+            
+            for (let d = 1; d <= daysInMonth; d++) {
+              const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+              const record = records[dateStr];
+              const isSelected = dateStr === selectedDate;
+
+              let statusIcon = null;
+              let bgColor = 'bg-white';
+
+              if (record) {
+                if (record.delta > 0) {
+                  statusIcon = <span className="text-yellow-500 text-xs">+{record.delta}★</span>;
+                  bgColor = 'bg-yellow-50 border-yellow-200';
+                } else if (record.delta < 0) {
+                  statusIcon = <span className="text-gray-500 text-xs">{record.delta}★</span>;
+                  bgColor = 'bg-gray-100 border-gray-300';
+                } else {
+                  statusIcon = <span className="text-blue-400 text-xs">--</span>;
+                  bgColor = 'bg-blue-50 border-blue-200';
+                }
+              }
+
+              days.push(
+                <div 
+                  key={d}
+                  onClick={() => {
+                    setSelectedDate(dateStr);
+                    if (records[dateStr]) {
+                      setInputTime(records[dateStr].sleepTime || "21:00");
+                      setMorningRoutine(records[dateStr].morningRoutine || false);
+                      setNagCount(records[dateStr].nagCount || 0);
+                    } else {
+                      setNagCount(0);
+                      setMorningRoutine(false);
+                    }
+                  }}
+                  className={`
+                    h-16 border rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all relative
+                    ${isSelected ? 'ring-2 ring-indigo-500 shadow-md transform scale-105 z-10' : 'hover:bg-gray-50'}
+                    ${bgColor}
+                  `}
+                >
+                  <span className={`font-bold ${isSelected ? 'text-indigo-600' : 'text-gray-700'}`}>{d}</span>
+                  {statusIcon}
+                  {record && record.nagCount > 0 && (
+                    <div className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></div>
+                  )}
+                </div>
+              );
+            }
+            return days;
+          };
+
+          return (
+            <div className="min-h-screen bg-slate-100 font-sans pb-10 overflow-x-hidden">
+              {stars >= 50 && (
+                <div className="fixed inset-0 z-40 transition-all duration-1000 pointer-events-none flex items-center justify-center">
+                     <div className="absolute inset-0 bg-yellow-100/40 backdrop-blur-sm animate-pulse-slow"></div>
+                     <div className="absolute w-[200vw] h-[200vw] bg-[conic-gradient(from_0deg,transparent_0_10deg,#fbbf24_10deg_20deg,transparent_20deg_30deg,#fbbf24_30deg_40deg,transparent_40deg_50deg,#fbbf24_50deg_60deg,transparent_60deg_70deg,#fbbf24_70deg_80deg,transparent_80deg_90deg,#fbbf24_90deg_100deg,transparent_100deg_110deg,#fbbf24_110deg_120deg,transparent_120deg_130deg,#fbbf24_130deg_140deg,transparent_140deg_150deg,#fbbf24_150deg_160deg,transparent_160deg_170deg,#fbbf24_170deg_180deg,transparent_180deg_190deg,#fbbf24_190deg_200deg,transparent_200deg_210deg,#fbbf24_210deg_220deg,transparent_220deg_230deg,#fbbf24_230deg_240deg,transparent_240deg_250deg,#fbbf24_250deg_260deg,transparent_260deg_270deg,#fbbf24_270deg_280deg,transparent_280deg_290deg,#fbbf24_290deg_300deg,transparent_300deg_310deg,#fbbf24_310deg_320deg,transparent_320deg_330deg,#fbbf24_330deg_340deg,transparent_340deg_350deg,#fbbf24_350deg_360deg)] opacity-20 animate-spin-slow origin-center"></div>
+                </div>
+              )}
+
+              <div className="bg-gradient-to-b from-indigo-600 to-purple-700 text-white rounded-b-[3rem] shadow-xl p-6 relative overflow-hidden z-0">
+                <div className="absolute top-0 left-0 w-full h-full opacity-20 pointer-events-none">
+                   <Star className="absolute top-4 left-10 w-8 h-8 animate-pulse" />
+                   <Star className="absolute top-20 right-20 w-4 h-4" />
+                   <Moon className="absolute bottom-10 left-10 w-12 h-12 rotate-12" />
+                </div>
+
+                <div className="relative z-10 max-w-md mx-auto text-center">
+                  <h1 className="text-2xl font-bold mb-2 tracking-wider drop-shadow-md">無敵星星收集罐</h1>
+                  
+                  <div className="relative h-64 w-full flex justify-center items-end mb-4">
+                    <div className="relative w-40 h-52 group">
+                        
+                        <div 
+                            className={`transition-all duration-1000 ease-elastic-out flex flex-col items-center justify-center
+                            ${stars >= 50 
+                                ? 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-150 z-50 pointer-events-auto' 
+                                : 'absolute left-1/2 -translate-x-1/2 top-10 scale-0 opacity-0 z-0'
+                            }`}
+                        >
+                            <div className={`relative ${stars >= 50 ? 'animate-bounce-slow' : ''}`}>
+                                <Gift size={120} className="text-red-500 drop-shadow-2xl filter" fill="#f87171" />
+                                {stars >= 50 && (
+                                    <React.Fragment>
+                                        <div className="absolute inset-0 bg-yellow-300 rounded-full blur-xl opacity-60 animate-pulse"></div>
+                                        <div className="absolute -top-10 -right-10 bg-yellow-400 text-red-600 font-bold px-4 py-2 rounded-full text-lg shadow-lg border-2 border-white rotate-12 animate-wiggle whitespace-nowrap">
+                                            太棒了！集滿了！
+                                        </div>
+                                    </React.Fragment>
+                                )}
+                            </div>
+                            {stars >= 50 && (
+                                 <button 
+                                    onClick={handleRedeem}
+                                    className="mt-8 bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-8 py-3 rounded-full font-bold shadow-2xl transform hover:scale-110 transition-all border-4 border-white text-xl animate-pulse whitespace-nowrap"
+                                 >
+                                    <Gift className="inline mr-2" />
+                                    領取超級大禮物
+                                 </button>
+                            )}
+                        </div>
+
+                        <div 
+                            className={`absolute -top-3 -left-2 w-[110%] h-8 bg-gray-300 rounded-md border-b-4 border-gray-400 shadow-md z-30 transition-transform duration-1000 origin-top-left
+                            ${stars >= 50 ? '-rotate-[120deg] translate-x-[-40px] translate-y-[20px]' : ''}`}
+                        >
+                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-8 h-4 bg-gray-300 rounded-t-lg border-t border-l border-r border-gray-400"></div>
+                        </div>
+
+                        <div className="w-full h-full border-4 border-white/60 bg-white/10 backdrop-blur-[2px] rounded-b-3xl rounded-t-lg relative overflow-hidden z-20 shadow-2xl ring-1 ring-white/30">
+                            <div className="absolute top-4 right-4 w-2 h-32 bg-white/20 rounded-full blur-[1px] z-30"></div>
+                            <div className="absolute top-4 right-8 w-1 h-10 bg-white/20 rounded-full blur-[1px] z-30"></div>
+
+                            <div 
+                                className="absolute bottom-0 w-full bg-gradient-to-t from-yellow-500 via-yellow-300 to-yellow-200 transition-all duration-1000 ease-in-out flex items-center justify-center opacity-90"
+                                style={{ height: `${Math.min(100, (stars / 50) * 100)}%` }}
+                            >
+                                <div className="absolute top-0 w-full h-2 bg-white/50 blur-[2px]"></div>
+                                
+                                <div className="absolute inset-0 w-full h-full overflow-hidden">
+                                    {starPositionsRef.current.map((pos, i) => (
+                                        <Star 
+                                            key={i}
+                                            size={pos.size} 
+                                            className="absolute text-yellow-100 opacity-90 fill-white" 
+                                            style={{
+                                                left: `${pos.left}%`,
+                                                bottom: `${pos.bottom}%`,
+                                                animation: `float ${pos.duration}s ease-in-out infinite`,
+                                                animationDelay: `${pos.delay}s`
+                                            }} 
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 text-center pointer-events-none">
+                            <span className={`text-5xl font-black drop-shadow-md ${stars >= 50 ? 'text-white' : 'text-indigo-900/80'}`}>
+                                {stars}
+                            </span>
+                            <div className={`text-xs font-bold ${stars >= 50 ? 'text-white' : 'text-indigo-800/60'}`}>/ 50</div>
+                        </div>
+                    </div>
+                  </div>
+
+                  <div className="text-center mb-2 h-8">
+                    {stars >= 50 ? (
+                        <div className="animate-bounce text-yellow-300 font-bold text-lg drop-shadow-md">
+                            ✨ 蓋子打開了！ ✨
+                        </div>
+                    ) : (
+                        <p className="text-indigo-200 text-sm">還差 {50 - stars} 顆星星就能打開罐子囉！</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="max-w-md mx-auto px-4 -mt-6 relative z-20">
+                {tvBanWeeks > 0 && (
+                  <div className="bg-red-50 border-l-4 border-red-500 rounded-xl p-4 shadow-sm mb-4 flex items-start gap-3">
+                    <Tv className="text-red-500 shrink-0" size={24} />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-red-700">禁止看電視！</h3>
+                      <p className="text-sm text-red-600">
+                        目前懲罰累積：<span className="font-black text-lg">{tvBanWeeks}</span> 週
+                      </p>
+                    </div>
+                    <button 
+                      onClick={clearTvBan}
+                      className="text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-1 rounded-lg border border-red-200"
+                    >
+                      消掉1週
+                    </button>
+                  </div>
+                )}
+
+                <div className="bg-white rounded-3xl shadow-xl p-6 mb-6">
+                  <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-100">
+                    <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                      <span className="bg-indigo-100 p-2 rounded-lg text-indigo-600"><CalendarIcon size={20} /></span>
+                      {selectedDate} 的紀錄
+                    </h2>
+                  </div>
+
+                  <div className="mb-8 p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-full ${morningRoutine ? 'bg-orange-500 text-white' : 'bg-orange-100 text-orange-300'}`}>
+                          <Sun size={24} />
+                        </div>
+                        <div>
+                          <div className="font-bold text-gray-700">早上自己起床梳洗</div>
+                          <div className="text-xs text-orange-600 font-medium">完成 +1 顆星星</div>
+                        </div>
+                      </div>
+                      <div 
+                        onClick={() => setMorningRoutine(!morningRoutine)}
+                        className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${morningRoutine ? 'bg-orange-500 border-orange-500' : 'border-gray-300 bg-white'}`}
+                      >
+                        {morningRoutine && <Check size={20} className="text-white" />}
+                      </div>
+                    </label>
+                  </div>
+
+                  <div className="mb-8">
+                    <label className="block text-gray-500 text-sm font-bold mb-2 flex justify-between">
+                      <span>幾點睡著的？</span>
+                      <span className="text-indigo-500 text-xs bg-indigo-50 px-2 py-1 rounded">21:30前有星星</span>
+                    </label>
+                    <input 
+                      type="time" 
+                      value={inputTime}
+                      onChange={(e) => setInputTime(e.target.value)}
+                      className="w-full text-3xl font-bold text-center p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-indigo-400 focus:bg-white outline-none transition-all text-gray-700"
+                    />
+                    <div className="mt-2 text-center text-sm font-medium">
+                      預測結果：
+                      {(() => {
+                        const sleepDelta = calculateSleepStars(inputTime);
+                        const morningDelta = morningRoutine ? 1 : 0;
+                        const total = sleepDelta + morningDelta;
+                        
+                        return (
+                          <span>
+                            {sleepDelta > 0 ? <span className="text-green-500">睡眠+{sleepDelta} </span> : sleepDelta < 0 ? <span className="text-red-500">睡眠{sleepDelta} </span> : <span className="text-gray-400">睡眠+0 </span>}
+                            {morningDelta > 0 ? <span className="text-orange-500">早晨+{morningDelta} </span> : ""}
+                            <span className="text-gray-300">|</span> 總計: <span className={total > 0 ? "text-green-600 font-bold" : total < 0 ? "text-red-500 font-bold" : "text-gray-500"}>{total > 0 ? '+' : ''}{total}</span>
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="mb-8">
+                    <label className="block text-gray-500 text-sm font-bold mb-2">
+                      今天拖拖拉拉被提醒5次的事？
+                    </label>
+                    <div className="flex items-center justify-between bg-gray-50 rounded-2xl p-2">
+                      <button 
+                        onClick={() => setNagCount(Math.max(0, nagCount - 1))}
+                        className="w-12 h-12 rounded-xl bg-white shadow text-gray-600 hover:bg-gray-100 flex items-center justify-center text-2xl font-bold"
+                      >
+                        -
+                      </button>
+                      <div className="flex flex-col items-center">
+                        <span className={`text-3xl font-black ${nagCount > 0 ? 'text-red-500' : 'text-gray-700'}`}>
+                          {nagCount}
+                        </span>
+                        <span className="text-xs text-gray-400">件事</span>
+                      </div>
+                      <button 
+                        onClick={() => setNagCount(nagCount + 1)}
+                        className="w-12 h-12 rounded-xl bg-white shadow text-red-500 hover:bg-red-50 flex items-center justify-center text-2xl font-bold"
+                      >
+                        +
+                      </button>
+                    </div>
+                    {nagCount > 0 && (
+                      <p className="text-center text-xs text-red-500 mt-2 font-bold">
+                        懲罰：{nagCount} 週不能看電視
+                      </p>
+                    )}
+                  </div>
+
+                  <button 
+                    onClick={handleSave}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-lg font-bold py-4 rounded-2xl shadow-lg shadow-indigo-200 transition-all active:scale-95 flex justify-center items-center gap-2"
+                  >
+                    <Save size={20} />
+                    儲存今天的表現
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-3xl shadow-lg p-6 mb-8">
+                  <div className="flex justify-between items-center mb-4">
+                    <button 
+                      onClick={() => setViewDate(new Date(viewDate.setMonth(viewDate.getMonth() - 1)))}
+                      className="p-2 hover:bg-gray-100 rounded-full"
+                    >
+                      <ChevronLeft size={20} className="text-gray-500" />
+                    </button>
+                    <h3 className="font-bold text-gray-700">
+                      {viewDate.getFullYear()}年 {viewDate.getMonth() + 1}月
+                    </h3>
+                    <button 
+                      onClick={() => setViewDate(new Date(viewDate.setMonth(viewDate.getMonth() + 1)))}
+                      className="p-2 hover:bg-gray-100 rounded-full"
+                    >
+                      <ChevronRight size={20} className="text-gray-500" />
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                    {['日','一','二','三','四','五','六'].map(d => (
+                      <div key={d} className="text-xs text-gray-400 font-bold">{d}</div>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {generateCalendar()}
+                  </div>
+                </div>
+
+                <div className="text-center space-y-2 opacity-60 mb-8">
+                  <p className="text-xs text-gray-500">
+                    早晨自己梳洗 (+1★)<br/>
+                    9:30前睡 (+2★) | 10:30前 (0★) <br/>
+                    10:30後 (-1★) | 11:00後 (-2★)
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
