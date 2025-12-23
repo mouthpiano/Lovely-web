@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理實驗室：物質冷卻的三態變化 (降溫模式)</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #2c3e50; }
+        
+        /* Layout for 3 canvases */
+        .main-display { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+        
+        /* Canvas Styles */
+        .canvas-box { position: relative; border: 2px solid #ddd; border-radius: 10px; overflow: hidden; background: #fafafa; width: 350px; height: 350px; }
+        canvas { display: block; width: 100%; height: 100%; }
+        .label { position: absolute; top: 10px; left: 10px; background: rgba(255,255,255,0.9); padding: 5px 10px; border-radius: 5px; font-weight: bold; border: 1px solid #ccc; font-size: 14px; z-index: 10;}
+        
+        /* Controls */
+        .controls { margin-top: 20px; padding: 20px; background: #e8f4f8; border-radius: 10px; text-align: center; }
+        
+        .control-row { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 15px; }
+        
+        /* Styled Slider - Blue for Cooling */
+        input[type=range] { flex-grow: 1; max-width: 600px; cursor: pointer; height: 8px; border-radius: 5px; background: #d3d3d3; outline: none; -webkit-appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 25px; height: 25px; border-radius: 50%; background: #3498db; cursor: pointer; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.3); }
+
+        /* Buttons */
+        button { padding: 10px 20px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; transition: background 0.3s; font-weight: bold; }
+        .btn-play { background-color: #3498db; color: white; } /* Blue button */
+        .btn-play:hover { background-color: #2980b9; }
+        .btn-pause { background-color: #e67e22; color: white; }
+        .btn-reset { background-color: #95a5a6; color: white; }
+        
+        /* Text Info */
+        .status-panel { margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: left; }
+        .info-box { background: white; padding: 15px; border-radius: 8px; border-left: 5px solid #3498db; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .highlight { color: #3498db; font-weight: bold; font-size: 1.1em; } /* Blue highlight */
+        .rope-status { color: #8e44ad; font-weight: bold; }
+
+        /* Animation for Phase Change UI */
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        .phase-changing { animation: pulse 2s infinite; border-left-color: #f1c40f; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>物理實驗室：物質冷卻的三態變化 (放熱過程)</h1>
+    
+    <div class="main-display">
+        <!-- 粒子視圖 -->
+        <div class="canvas-box">
+            <canvas id="particleCanvas" width="350" height="350"></canvas>
+            <div class="label">微觀：粒子運動</div>
+        </div>
+        
+        <!-- 巨觀視圖 -->
+        <div class="canvas-box">
+            <canvas id="macroCanvas" width="350" height="350"></canvas>
+            <div class="label">巨觀：物質狀態</div>
+        </div>
+
+        <!-- 圖表視圖 -->
+        <div class="canvas-box">
+            <canvas id="graphCanvas" width="350" height="350"></canvas>
+            <div class="label">冷卻曲線圖</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-row">
+            <button id="playBtn" class="btn-play">▶ 開始自動冷卻</button>
+            <button id="resetBtn" class="btn-reset">↺ 重置</button>
+        </div>
+        
+        <div class="control-row">
+            <span>高溫 (>200°C)</span>
+            <input type="range" id="heatSlider" min="0" max="1000" value="0">
+            <span>低溫 (-20°C)</span>
+        </div>
+        
+        <div class="status-panel">
+            <div class="info-box" id="tempDisplayBox">
+                <p>目前溫度：<span id="tempValue" class="highlight">250</span> °C</p>
+                <p>物質狀態：<span id="stateValue">氣體</span></p>
+                <p>冷卻進度：<span id="progressValue">0</span> / 1000</p>
+            </div>
+            <div class="info-box" id="descBox">
+                <p>粒子行為：<span id="behaviorValue">粒子高速自由飛行，不受束縛。</span></p>
+                <p>繩子狀態：<span id="ropeValue" class="rope-status">完全沒有繩子，粒子間無連結。</span></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Config
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+    const graphCanvas = document.getElementById('graphCanvas');
+    const gCtx = graphCanvas.getContext('2d');
+    const macroCanvas = document.getElementById('macroCanvas');
+    const mCtx = macroCanvas.getContext('2d');
+    
+    const slider = document.getElementById('heatSlider');
+    const playBtn = document.getElementById('playBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    
+    // UI Elements
+    const tempValEl = document.getElementById('tempValue');
+    const stateValEl = document.getElementById('stateValue');
+    const behaviorValEl = document.getElementById('behaviorValue');
+    const ropeValEl = document.getElementById('ropeValue');
+    const progressValEl = document.getElementById('progressValue');
+    const descBox = document.getElementById('descBox');
+
+    // Physics Constants
+    const NUM_PARTICLES = 64; 
+    const COLS = 8;
+    const P_RADIUS = 5; 
+    
+    // State Variables
+    let time = 0;
+    let temperature = 250;
+    let particles = [];
+    let isPlaying = false;
+    let animationId;
+    let frameCount = 0; 
+    
+    // Initialize Particles (Scatter for Gas Start)
+    function initParticles() {
+        particles = [];
+        // Calculate Grid Targets (where they will eventually freeze)
+        let offsetX = (canvas.width - (COLS * 20)) / 2; 
+        let offsetY = (canvas.height - (COLS * 20)) / 2;
+
+        for(let i=0; i<NUM_PARTICLES; i++) {
+            let r = Math.floor(i / COLS);
+            let c = i % COLS;
+            
+            // Random Freeze Delay for "Freezing" phase
+            let randomFreezeDelay = Math.random() * 200; 
+
+            // Initial Position: Random (Gas)
+            let startX = Math.random() * (canvas.width - 20) + 10;
+            let startY = Math.random() * (canvas.height - 20) + 10;
+            
+            particles.push({
+                x: startX,
+                y: startY,
+                vx: (Math.random() - 0.5) * 10, // High velocity for gas
+                vy: (Math.random() - 0.5) * 10,
+                
+                // Target Grid Position for Solid state
+                targetX: offsetX + c * 20,
+                targetY: offsetY + r * 20,
+                
+                phaseOffset: Math.random() * Math.PI * 2,
+                
+                // When does this specific particle start to stick to the grid during freezing?
+                // Freezing happens from t=600 to t=800
+                freezeStartAt: 600 + randomFreezeDelay
+            });
+        }
+    }
+
+    // Auto Cool Logic
+    function togglePlay() {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+            playBtn.textContent = "⏸ 暫停冷卻";
+            playBtn.className = "btn-pause";
+        } else {
+            playBtn.textContent = "▶ 繼續自動冷卻";
+            playBtn.className = "btn-play";
+        }
+    }
+    
+    playBtn.addEventListener('click', togglePlay);
+    
+    resetBtn.addEventListener('click', () => {
+        isPlaying = false;
+        playBtn.textContent = "▶ 開始自動冷卻";
+        playBtn.className = "btn-play";
+        slider.value = 0;
+        time = 0;
+        frameCount = 0;
+        initParticles(); // Reset
+    });
+
+    slider.addEventListener('input', () => {
+        if(isPlaying) togglePlay();
+    });
+
+    // Physics Logic Update (Reverse of Heating)
+    // t: 0 -> 1000
+    // 0-100: Gas Cooling (250 -> 200)
+    // 100-300: Condensation (200 constant)
+    // 300-600: Liquid Cooling (200 -> 30)
+    // 600-800: Freezing (30 constant)
+    // 800-1000: Solid Cooling (30 -> -20)
+    function updatePhysics(t) {
+        let state = "";
+        let ropeStatus = "";
+        let behavior = "";
+        let isPhaseChange = false;
+
+        if (t <= 100) {
+            // Gas Cooling
+            state = "氣體";
+            temperature = 250 - (t / 100) * 50; // 250 -> 200
+            ropeStatus = "完全沒有繩子，粒子間無連結。";
+            behavior = "粒子高速自由飛行，互相碰撞。";
+        } else if (t <= 300) {
+            // Condensation (Gas -> Liquid)
+            state = "液氣共存 (凝結中)";
+            temperature = 200;
+            isPhaseChange = true;
+            ropeStatus = "粒子變慢，繩子開始重新連結！";
+            behavior = "氣體粒子失去動能，聚集成液滴。";
+        } else if (t <= 600) {
+            // Liquid Cooling
+            state = "液體";
+            temperature = 200 - ((t - 300) / 300) * 170; // 200 -> 30
+            ropeStatus = "繩子雖然鬆，但將粒子拉在一起。";
+            behavior = "粒子聚在一起流動，但不固定位置。";
+        } else if (t <= 800) {
+            // Freezing (Liquid -> Solid)
+            state = "固液共存 (凝固中)";
+            temperature = 30;
+            isPhaseChange = true;
+            ropeStatus = "繩子變緊！將粒子拉回固定位置。";
+            behavior = "粒子逐漸歸隊，排列成整齊方陣。";
+        } else {
+            // Solid Cooling
+            state = "固體";
+            temperature = 30 - ((t - 800) / 200) * 50; // 30 -> -20
+            ropeStatus = "繩子很短且緊繃，綁住所有粒子。";
+            behavior = "粒子整齊排列，僅在原地震動。";
+        }
+
+        // Update UI
+        tempValEl.innerText = Math.round(temperature);
+        stateValEl.innerText = state;
+        ropeValEl.innerText = ropeStatus;
+        behaviorValEl.innerText = behavior;
+        progressValEl.innerText = t;
+        
+        if(isPhaseChange) descBox.classList.add('phase-changing');
+        else descBox.classList.remove('phase-changing');
+
+        return { state, temperature };
+    }
+
+    function drawParticles(stateVal) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        let speedFactor = (temperature + 40) / 50; 
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        particles.forEach((p, index) => {
+            // Determine if particle is currently "Solidified"
+            // It is solid if we are past freezing phase, OR if we are IN freezing phase and its time has come.
+            let isFreezingPhase = (time >= 600 && time <= 800);
+            let isParticleSolid = (time > 800) || (isFreezingPhase && time >= p.freezeStartAt);
+            
+            // Determine if particle is "Gas"
+            let isGasPhase = (time < 100);
+            let isCondensingPhase = (time >= 100 && time <= 300);
+            
+            // Condensation Logic: Gradually reduce freedom
+            // Simulating Gas -> Liquid
+            // In condensation, we drive them towards center to form a blob
+            
+            if (isParticleSolid) {
+                // SOLID BEHAVIOR (Stick to Target)
+                // Lerp towards target if not there yet (snapping effect)
+                let snapSpeed = 0.1;
+                p.x += (p.targetX - p.x) * snapSpeed;
+                p.y += (p.targetY - p.y) * snapSpeed;
+
+                // Add Vibration
+                let vibration = (temperature + 30) / 50 * 1.5; 
+                let drawX = p.x + Math.sin(Date.now()/50 + p.phaseOffset) * vibration;
+                let drawY = p.y + Math.cos(Date.now()/50 + p.phaseOffset) * vibration;
+                
+                drawParticleCircle(drawX, drawY);
+                // We draw ropes later based on position
+                
+            } else {
+                // LIQUID or GAS BEHAVIOR
+                
+                if (stateVal === "氣體" || (stateVal.includes("凝結") && Math.random() > (time-100)/200)) {
+                    // Free Gas Motion
+                    if (Math.abs(p.vx) < 1) { 
+                         let angle = Math.random() * Math.PI * 2;
+                         p.vx = Math.cos(angle) * 5;
+                         p.vy = Math.sin(angle) * 5;
+                    }
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    
+                    // Bounce walls
+                    if(p.x < P_RADIUS) { p.x = P_RADIUS; p.vx *= -1; }
+                    if(p.x > canvas.width - P_RADIUS) { p.x = canvas.width - P_RADIUS; p.vx *= -1; }
+                    if(p.y < P_RADIUS) { p.y = P_RADIUS; p.vy *= -1; }
+                    if(p.y > canvas.height - P_RADIUS) { p.y = canvas.height - P_RADIUS; p.vy *= -1; }
+                    
+                    drawParticleCircle(p.x, p.y);
+                
+                } else {
+                    // Liquid / Condensing Blob Motion
+                    // Brownian
+                    p.x += (Math.random() - 0.5) * speedFactor * 1.5;
+                    p.y += (Math.random() - 0.5) * speedFactor * 1.5;
+                    
+                    // Cohesion: Pull towards center
+                    let dx = p.x - centerX;
+                    let dy = p.y - centerY;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let maxRadius = 110; 
+                    
+                    if (dist > maxRadius) {
+                        p.x -= (dx / dist) * 1.5; 
+                        p.y -= (dy / dist) * 1.5;
+                    }
+                    
+                    // Also pull towards target Base slightly if getting close to freezing?
+                    // No, let freezing snap happen later.
+                    
+                    drawParticleCircle(p.x, p.y);
+                }
+            }
+        });
+        
+        // Draw Ropes separately to handle connections
+        drawAllRopes();
+    }
+    
+    function drawParticleCircle(x, y) {
+        ctx.beginPath();
+        ctx.fillStyle = getParticleColor(temperature);
+        ctx.arc(x, y, P_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function drawAllRopes() {
+        // Only draw ropes if not full gas
+        if (time < 100) return; 
+
+        // Ropes logic: distance based
+        ctx.lineWidth = 1;
+        
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i + 1; j < particles.length; j++) {
+                let p1 = particles[i];
+                let p2 = particles[j];
+                
+                // For solid drawing, we use current pos (which vibrates or snaps)
+                // Note: particles[i].x is the physics pos, vibration is visual. 
+                // Using physics pos for ropes is cleaner.
+                
+                let dx = p1.x - p2.x;
+                let dy = p1.y - p2.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                
+                // Threshold changes by state
+                let threshold = 0;
+                let isSolid = (time > 800);
+                
+                if (isSolid) threshold = 25; // Strict for solid
+                else if (time > 600) threshold = 35; // Freezing
+                else if (time > 100) threshold = 55; // Liquid/Condensing
+                
+                if (dist < threshold) {
+                    ctx.beginPath();
+                    ctx.strokeStyle = "#8e44ad";
+                    
+                    // Dash line for liquid/phase change, solid line for solid
+                    if (isSolid) ctx.setLineDash([]);
+                    else ctx.setLineDash([3, 3]); // Loose rope
+                    
+                    // Make ropes fade in during condensation
+                    if (time < 300) {
+                        ctx.globalAlpha = (time - 100) / 200;
+                    } else {
+                        ctx.globalAlpha = 1;
+                    }
+
+                    ctx.moveTo(p1.x, p1.y);
+                    ctx.lineTo(p2.x, p2.y);
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                    ctx.setLineDash([]);
+                }
+            }
+        }
+    }
+
+    function getParticleColor(temp) {
+        // Red (hot) -> Blue (cold)
+        if (temp > 100) return "#e74c3c"; 
+        if (temp > 0) return "#9b59b6"; 
+        return "#3498db"; 
+    }
+
+    function drawMacro(currentTime) {
+        mCtx.clearRect(0, 0, macroCanvas.width, macroCanvas.height);
+        
+        // Draw Beaker
+        mCtx.strokeStyle = "#555";
+        mCtx.lineWidth = 4;
+        mCtx.beginPath();
+        mCtx.moveTo(75, 50);
+        mCtx.lineTo(75, 300); 
+        mCtx.lineTo(275, 300); 
+        mCtx.lineTo(275, 50); 
+        mCtx.stroke();
+        
+        // Draw "Cooling Environment" (Snowflakes/Ice bath visual)
+        if (currentTime > 0 && currentTime < 1000) {
+            mCtx.fillStyle = "#3498db";
+            mCtx.font = "14px Arial";
+            mCtx.fillText("❄️ 降溫冷卻中...", 130, 330);
+            
+            // Little snowflakes
+            mCtx.fillStyle = "#aed6f1";
+            for(let i=0; i<3; i++) {
+                let x = 80 + Math.random() * 200;
+                let y = 310 + Math.random() * 30;
+                mCtx.fillText("*", x, y);
+            }
+        }
+
+        // Draw Content based on Phase (Reverse of heating)
+        
+        if (time <= 100) {
+            // Gas
+            mCtx.fillStyle = "rgba(200, 200, 200, 0.6)"; 
+            mCtx.fillRect(77, 50, 196, 250);
+            for(let i=0; i<20; i++) {
+                mCtx.fillStyle = "rgba(255,255,255,0.5)";
+                mCtx.beginPath();
+                mCtx.arc(80 + Math.random()*190, 60 + Math.random()*230, 3, 0, Math.PI*2);
+                mCtx.fill();
+            }
+        } else if (time <= 300) {
+            // Condensation
+            let condRatio = (time - 100) / 200; // 0 -> 1 (Gas to Liquid)
+            let waterLevel = 250 * condRatio; // Water level rises? No, condense from air.
+            // Gas fades, Water fills
+            
+            // Gas fading
+            mCtx.fillStyle = `rgba(200, 200, 200, ${0.6 * (1-condRatio)})`; 
+            mCtx.fillRect(77, 50, 196, 250);
+            
+            // Water filling
+            mCtx.fillStyle = "rgba(52, 152, 219, 0.8)";
+            let currentWaterH = 50 * condRatio; // Target liquid height is 50
+            mCtx.fillRect(77, 300 - currentWaterH, 196, currentWaterH);
+            
+            // Droplets on walls
+            if (condRatio < 0.8) {
+                mCtx.fillStyle = "rgba(52, 152, 219, 0.6)";
+                for(let i=0; i<5; i++) {
+                     mCtx.beginPath();
+                     mCtx.arc(80, 100 + Math.random()*150, 4, 0, Math.PI*2); // Left wall
+                     mCtx.fill();
+                     mCtx.beginPath();
+                     mCtx.arc(270, 100 + Math.random()*150, 4, 0, Math.PI*2); // Right wall
+                     mCtx.fill();
+                }
+            }
+
+        } else if (time <= 600) {
+            // Liquid
+            mCtx.fillStyle = "rgba(52, 152, 219, 0.8)";
+            mCtx.fillRect(77, 250, 196, 50); 
+            // Calm water
+            mCtx.strokeStyle = "rgba(255,255,255,0.5)";
+            mCtx.beginPath();
+            mCtx.moveTo(80, 250);
+            mCtx.lineTo(270, 250);
+            mCtx.stroke();
+
+        } else if (time <= 800) {
+            // Freezing
+            let freezeRatio = (time - 600) / 200; // 0 -> 1
+            
+            // Water level drops as ice forms? No, ice is usually larger but let's just morph.
+            let waterHeight = 50 * (1 - freezeRatio);
+            
+            // Remaining Water
+            mCtx.fillStyle = "rgba(52, 152, 219, 0.8)";
+            mCtx.fillRect(77, 300 - waterHeight, 196, waterHeight);
+            
+            // Forming Ice Block (Growing)
+            let iceSize = 100 * freezeRatio; 
+            let iceOffset = (100 - iceSize) / 2;
+            
+            // Center the growing ice
+            // To make it look like water freezing into a block, we can shrink water and grow block.
+            // Simplified visual:
+            mCtx.fillStyle = "#3498db";
+            // Grow from center bottom
+            mCtx.fillRect(175 - iceSize/2, 300 - iceSize, iceSize, iceSize);
+
+        } else {
+            // Solid
+            mCtx.fillStyle = "#3498db";
+            mCtx.fillRect(125, 200, 100, 100); 
+            // Frost effect
+            mCtx.fillStyle = "rgba(255,255,255,0.3)";
+            mCtx.fillText("❄️", 130, 220);
+            mCtx.fillText("❄️", 200, 280);
+        }
+    }
+
+    function drawGraph(currentTime) {
+        gCtx.clearRect(0, 0, 350, 350); 
+        
+        gCtx.strokeStyle = "#eee";
+        gCtx.lineWidth = 1;
+        gCtx.beginPath();
+        for(let i=0; i<350; i+=35) { gCtx.moveTo(0, i); gCtx.lineTo(350, i); gCtx.moveTo(i, 0); gCtx.lineTo(i, 350); }
+        gCtx.stroke();
+
+        gCtx.beginPath();
+        gCtx.moveTo(40, 310); gCtx.lineTo(330, 310); 
+        gCtx.moveTo(40, 310); gCtx.lineTo(40, 20);   
+        gCtx.strokeStyle = "#333"; gCtx.lineWidth = 2; gCtx.stroke();
+        
+        gCtx.font = "12px Arial";
+        gCtx.fillStyle = "#666";
+        gCtx.fillText("時間 (冷卻量)", 250, 330);
+        gCtx.fillText("溫度 (°C)", 10, 20);
+        
+        gCtx.fillText("250", 10, 50); 
+        gCtx.fillText("200", 10, 100); 
+        gCtx.fillText("30", 15, 230);  
+        gCtx.fillText("-20", 10, 300); 
+
+        // Reverse Mapping for Graph
+        // 250 -> 50
+        // 200 -> 100
+        // 30 -> 230
+        // -20 -> 300
+        const getY = (temp) => {
+            if(temp === 250) return 50;
+            if(temp === 200) return 100;
+            if(temp === 30) return 230;
+            if(temp === -20) return 300;
+            
+            // Interpolation
+            if(temp > 200) return 100 - ((temp - 200) / 50) * 50;
+            if(temp > 30) return 230 - ((temp - 30) / 170) * 130;
+            return 300 - ((temp + 20) / 50) * 70;
+        };
+        
+        const getX = (t) => 40 + (t / 1000) * 290;
+
+        gCtx.beginPath();
+        gCtx.strokeStyle = "#3498db"; // Blue graph
+        gCtx.lineWidth = 3;
+        gCtx.moveTo(getX(0), getY(250)); 
+        
+        let segments = [
+            { end: 100, tempStart: 250, tempEnd: 200 },   // Gas Cool
+            { end: 300, tempStart: 200, tempEnd: 200 },   // Condense
+            { end: 600, tempStart: 200, tempEnd: 30 },    // Liquid Cool
+            { end: 800, tempStart: 30, tempEnd: 30 },     // Freeze
+            { end: 1000, tempStart: 30, tempEnd: -20 }    // Solid Cool
+        ];
+
+        let lastT = 0;
+        for (let seg of segments) {
+            if (currentTime > lastT) {
+                let targetT = Math.min(currentTime, seg.end);
+                let ratio = (targetT - lastT) / (seg.end - lastT);
+                let currentSegTemp = seg.tempStart + (seg.tempEnd - seg.tempStart) * ratio;
+                
+                if (targetT > lastT) { 
+                    gCtx.lineTo(getX(targetT), getY(currentSegTemp));
+                }
+                lastT = seg.end;
+            }
+        }
+        gCtx.stroke();
+        
+        if (currentTime >= 0) {
+            gCtx.fillStyle = "#2c3e50";
+            gCtx.beginPath();
+            let { temperature } = updatePhysics(currentTime); 
+            gCtx.arc(getX(currentTime), getY(temperature), 6, 0, Math.PI*2);
+            gCtx.fill();
+        }
+    }
+
+    // Main Loop
+    function animate() {
+        if (isPlaying) {
+            frameCount++; 
+            if (frameCount % 2 === 0) { // Slow speed same as V4
+                let val = parseInt(slider.value);
+                if (val < 1000) {
+                    let increment = 1; 
+                    slider.value = val + increment; 
+                    time = val + increment;
+                } else {
+                    isPlaying = false;
+                    playBtn.textContent = "▶ 重新開始";
+                    playBtn.className = "btn-play";
+                }
+            }
+        } else {
+            time = parseInt(slider.value);
+        }
+
+        let status = updatePhysics(time);
+        drawParticles(status.state);
+        drawMacro(time); 
+        drawGraph(time);
+        
+        animationId = requestAnimationFrame(animate);
+    }
+
+    initParticles(); // Start with random scattered
+    animate();
+
+</script>
+
+</body>
+</html>
