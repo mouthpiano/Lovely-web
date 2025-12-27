@@ -494,10 +494,39 @@ const HeatingLab = {
             this.mCtx.bezierCurveTo(130, 245 + Math.sin(Date.now()/200)*5, 220, 255 - Math.sin(Date.now()/200)*5, 270, 250); this.mCtx.stroke();
         } else if (this.time <= 900) {
             let boilRatio = (this.time - 700) / 200;
-            this.mCtx.fillStyle = "rgba(52, 152, 219, 0.8)"; this.mCtx.fillRect(77, 300 - 50*(1-boilRatio), 196, 50*(1-boilRatio));
+            let currentWaterLevel = 50*(1-boilRatio);
+            this.mCtx.fillStyle = "rgba(52, 152, 219, 0.8)"; this.mCtx.fillRect(77, 300 - currentWaterLevel, 196, currentWaterLevel);
+            
+            // Bubbles
+            for(let i=0; i<5; i++) {
+                if(Math.random() > 0.5) {
+                    this.mCtx.beginPath();
+                    this.mCtx.arc(100 + Math.random()*150, 300 - Math.random()*currentWaterLevel, 4, 0, Math.PI*2);
+                    this.mCtx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+                    this.mCtx.stroke();
+                }
+            }
+
+            // Steam background
             this.mCtx.fillStyle = `rgba(200, 200, 200, ${boilRatio * 0.5})`; this.mCtx.fillRect(77, 50, 196, 250);
+
+            // Gas particles increasing
+            let particleCount = Math.floor(20 * boilRatio);
+            this.mCtx.fillStyle = "rgba(255,255,255,0.5)";
+            for(let i=0; i<particleCount; i++) {
+                this.mCtx.beginPath();
+                this.mCtx.arc(80 + Math.random()*190, 60 + Math.random()*230, 3, 0, Math.PI*2);
+                this.mCtx.fill();
+            }
+
         } else {
             this.mCtx.fillStyle = "rgba(200, 200, 200, 0.6)"; this.mCtx.fillRect(77, 50, 196, 250);
+            for(let i=0; i<20; i++) {
+                this.mCtx.fillStyle = "rgba(255,255,255,0.5)";
+                this.mCtx.beginPath();
+                this.mCtx.arc(80 + Math.random()*190, 60 + Math.random()*230, 3, 0, Math.PI*2);
+                this.mCtx.fill();
+            }
         }
     },
 
@@ -797,10 +826,26 @@ const CoolingLab = {
 
         if (this.time <= 100) {
             this.mCtx.fillStyle = "rgba(200, 200, 200, 0.6)"; this.mCtx.fillRect(77, 50, 196, 250);
+            for(let i=0; i<20; i++) {
+                this.mCtx.fillStyle = "rgba(255,255,255,0.5)";
+                this.mCtx.beginPath();
+                this.mCtx.arc(80 + Math.random()*190, 60 + Math.random()*230, 3, 0, Math.PI*2);
+                this.mCtx.fill();
+            }
         } else if (this.time <= 300) {
             let condRatio = (this.time - 100) / 200;
             this.mCtx.fillStyle = `rgba(200, 200, 200, ${0.6 * (1-condRatio)})`; this.mCtx.fillRect(77, 50, 196, 250);
             this.mCtx.fillStyle = "rgba(52, 152, 219, 0.8)"; this.mCtx.fillRect(77, 300 - 50*condRatio, 196, 50*condRatio);
+            
+            // Gas particles decreasing
+            let particleCount = Math.floor(20 * (1 - condRatio));
+            this.mCtx.fillStyle = "rgba(255,255,255,0.5)";
+            for(let i=0; i<particleCount; i++) {
+                this.mCtx.beginPath();
+                this.mCtx.arc(80 + Math.random()*190, 60 + Math.random()*230, 3, 0, Math.PI*2);
+                this.mCtx.fill();
+            }
+
         } else if (this.time <= 600) {
             this.mCtx.fillStyle = "rgba(52, 152, 219, 0.8)"; this.mCtx.fillRect(77, 250, 196, 50); 
         } else if (this.time <= 800) {
