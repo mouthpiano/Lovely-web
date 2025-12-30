@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>元素大搜查：小組積分賽 (雲端計分版)</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Microsoft JhengHei, sans-serif;
+            background-color: #f0f9ff;
+        }
+        .pop-in {
+            animation: popIn 0.3s ease-out forwards;
+        }
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .tag-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.5rem;
+        }
+        /* 處理上傳時的讀取動畫 */
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // ==========================================
+        //  老師請在此處貼上您的 Google Apps Script 網址
+        // ==========================================
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwCWWv-9iGy67HVdDD2e_j3-yIMvRNC4cFejxa8LIij8vuq4SmyydwjtehUeJPSwgC_Bw/exec"; 
+        // 例如: "https://script.google.com/macros/s/AKfycbx.../exec"
+        // 若留空，則只會顯示分數，不會上傳。
+
+        // ----------------------
+        // 資料庫 (專業修正版 - 含合金成分符號)
+        // ----------------------
+        
+        const TAGS = {
+            // --- 符號區 (學生需對應選擇) ---
+            SYM_AU: { id: 'Au', text: 'Au', category: '元素符號' },
+            SYM_AG: { id: 'Ag', text: 'Ag', category: '元素符號' },
+            SYM_CU: { id: 'Cu', text: 'Cu', category: '元素符號' },
+            SYM_FE: { id: 'Fe', text: 'Fe', category: '元素符號' },
+            SYM_AL: { id: 'Al', text: 'Al', category: '元素符號' },
+            SYM_HG: { id: 'Hg', text: 'Hg', category: '元素符號' },
+            SYM_SI: { id: 'Si', text: 'Si', category: '元素符號' },
+            SYM_C:  { id: 'C',  text: 'C',  category: '元素符號' },
+            SYM_NA: { id: 'Na', text: 'Na', category: '元素符號' },
+            SYM_K:  { id: 'K',  text: 'K',  category: '元素符號' },
+            SYM_MG: { id: 'Mg', text: 'Mg', category: '元素符號' },
+            SYM_CA: { id: 'Ca', text: 'Ca', category: '元素符號' },
+            SYM_HE: { id: 'He', text: 'He', category: '元素符號' },
+            SYM_NE: { id: 'Ne', text: 'Ne', category: '元素符號' },
+            SYM_H:  { id: 'H',  text: 'H',  category: '元素符號' },
+            SYM_O:  { id: 'O',  text: 'O',  category: '元素符號' },
+            SYM_CL: { id: 'Cl', text: 'Cl', category: '元素符號' },
+            SYM_BR: { id: 'Br', text: 'Br', category: '元素符號' },
+            SYM_I:  { id: 'I',  text: 'I',  category: '元素符號' },
+            SYM_S:  { id: 'S',  text: 'S',  category: '元素符號' },
+            SYM_P:  { id: 'P',  text: 'P',  category: '元素符號' },
+            
+            // 新增合金用符號
+            SYM_CR: { id: 'Cr', text: 'Cr', category: '元素符號' },
+            SYM_NI: { id: 'Ni', text: 'Ni', category: '元素符號' },
+            SYM_ZN: { id: 'Zn', text: 'Zn', category: '元素符號' },
+
+            // --- 狀態 (常溫常壓) ---
+            SOLID: { id: 'solid', text: '固態', category: '狀態' },
+            LIQUID: { id: 'liquid', text: '液態', category: '狀態' },
+            GAS: { id: 'gas', text: '氣態', category: '狀態' },
+            
+            // --- 分類 ---
+            METAL: { id: 'metal', text: '金屬元素', category: '分類' },
+            NON_METAL: { id: 'non_metal', text: '非金屬元素', category: '分類' },
+            ALLOY: { id: 'alloy', text: '合金(混合物)', category: '分類' },
+            ALKALI_METAL: { id: 'alkali_m', text: '鹼金屬 (第1族)', category: '分類' },
+            ALKALI_EARTH: { id: 'alkali_e', text: '鹼土金屬 (第2族)', category: '分類' },
+            NOBLE_GAS: { id: 'noble', text: '鈍氣 (第18族)', category: '分類' },
+
+            // --- 顏色/外觀 ---
+            SILVER_COLOR: { id: 'silver', text: '銀灰色/銀白色', category: '外觀' },
+            GOLD_COLOR: { id: 'gold_c', text: '金黃色/黃色', category: '外觀' },
+            RED_COLOR: { id: 'red_c', text: '紅褐色/紅色', category: '外觀' },
+            BLACK_COLOR: { id: 'black_c', text: '黑色/深灰色', category: '外觀' },
+            TRANSPARENT: { id: 'trans', text: '透明無色', category: '外觀' },
+            YELLOW_GREEN: { id: 'y_green', text: '黃綠色', category: '外觀' },
+            LUSTER: { id: 'luster', text: '具金屬光澤', category: '外觀' },
+            NO_LUSTER: { id: 'no_luster', text: '無金屬光澤', category: '外觀' },
+
+            // --- 物理性質 (常溫) ---
+            CONDUCTOR: { id: 'conductor', text: '可導電', category: '性質 <常溫>' },
+            BEST_CONDUCTOR: { id: 'cond_1', text: '導電性最佳', category: '性質 <常溫>' },
+            SECOND_CONDUCTOR: { id: 'cond_2', text: '導電性第2名', category: '性質 <常溫>' },
+            INSULATOR: { id: 'insulator', text: '電/熱不良導體', category: '性質 <常溫>' },
+            SEMICONDUCTOR: { id: 'semi', text: '半導體', category: '性質 <常溫>' },
+            
+            DUCTILE: { id: 'ductile', text: '具延性/展性', category: '性質 <常溫>' },
+            BEST_DUCTILITY: { id: 'duct_1', text: '延展性最佳', category: '性質 <常溫>' },
+            BRITTLE: { id: 'brittle', text: '易碎/不具延展性', category: '性質 <常溫>' },
+            SOFT: { id: 'soft', text: '質地軟(可用刀切)', category: '性質 <常溫>' },
+            HARDEST: { id: 'hardest', text: '自然界最硬物質', category: '性質 <常溫>' },
+            LOW_HARDNESS: { id: 'low_hard', text: '硬度小/滑膩', category: '性質 <常溫>' },
+            
+            MAGNETIC: { id: 'magnetic', text: '具磁性/易生鏽', category: '性質 <常溫>' },
+            LIGHT_DENSITY: { id: 'light', text: '密度小/輕', category: '性質 <常溫>' },
+            POROUS: { id: 'porous', text: '多孔隙/吸附性佳', category: '性質 <常溫>' },
+
+            // --- 化學性質與其他 ---
+            WATER_REACT_BASE: { id: 'w_base', text: '遇水反應呈鹼性', category: '化學/其他' },
+            PHENOL_RED: { id: 'p_red', text: '反應後酚酞呈紅色', category: '化學/其他' },
+            RUST_PROTECT: { id: 'protect', text: '氧化層緻密/防鏽', category: '化學/其他' },
+            CRUST_1: { id: 'crust_1', text: '地殼含量第1名', category: '化學/其他' },
+            CRUST_2: { id: 'crust_2', text: '地殼含量第2名', category: '化學/其他' },
+            
+            // --- 用途/成分 ---
+            WIRES: { id: 'wires', text: '導線材料', category: '用途/成分' },
+            JEWELRY: { id: 'jewelry', text: '飾品/貨幣', category: '用途/成分' },
+            CHIPS: { id: 'chips', text: '晶片原料', category: '用途/成分' },
+            STEEL_RAW: { id: 'steel_raw', text: '煉鋼原料', category: '用途/成分' },
+            THERMOMETER: { id: 'thermo', text: '溫度計/氣壓計', category: '用途/成分' },
+            BALLOON: { id: 'balloon', text: '填充氣球/飛船', category: '用途/成分' },
+            NEON: { id: 'neon', text: '霓虹燈', category: '用途/成分' },
+            PENCIL: { id: 'pencil', text: '筆芯/電池電極', category: '用途/成分' },
+            CUTTING: { id: 'cutting', text: '切割玻璃', category: '用途/成分' },
+            
+            ALLOY_FE_CR_NI: { id: 'a_fe_cr_ni', text: '鐵+鉻+鎳 合金', category: '用途/成分' },
+            ALLOY_CU_ZN: { id: 'a_cu_zn', text: '銅+鋅 合金', category: '用途/成分' },
+            ALLOY_AU_AG: { id: 'a_au_ag', text: '金+銀+銅 合金', category: '用途/成分' },
+        };
+
+        // 題目資料庫
+        const ELEMENTS_DB = [
+            {
+                name: "金",
+                tags: [TAGS.SYM_AU, TAGS.SOLID, TAGS.METAL, TAGS.GOLD_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.BEST_DUCTILITY, TAGS.JEWELRY, TAGS.WIRES, TAGS.ALLOY_AU_AG]
+            },
+            {
+                name: "銀",
+                tags: [TAGS.SYM_AG, TAGS.SOLID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.BEST_CONDUCTOR, TAGS.DUCTILE, TAGS.JEWELRY, TAGS.WIRES]
+            },
+            {
+                name: "銅",
+                tags: [TAGS.SYM_CU, TAGS.SOLID, TAGS.METAL, TAGS.RED_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.SECOND_CONDUCTOR, TAGS.DUCTILE, TAGS.WIRES, TAGS.JEWELRY, TAGS.ALLOY_CU_ZN]
+            },
+            {
+                name: "鐵",
+                tags: [TAGS.SYM_FE, TAGS.SOLID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.MAGNETIC, TAGS.STEEL_RAW, TAGS.ALLOY_FE_CR_NI]
+            },
+            {
+                name: "鋁",
+                tags: [TAGS.SYM_AL, TAGS.SOLID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.LIGHT_DENSITY, TAGS.RUST_PROTECT, TAGS.WIRES, TAGS.JEWELRY]
+            },
+            {
+                name: "汞 (水銀)",
+                tags: [TAGS.SYM_HG, TAGS.LIQUID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.THERMOMETER]
+            },
+            {
+                name: "矽",
+                tags: [TAGS.SYM_SI, TAGS.SOLID, TAGS.NON_METAL, TAGS.BLACK_COLOR, TAGS.SEMICONDUCTOR, TAGS.BRITTLE, TAGS.CHIPS, TAGS.CRUST_2]
+            },
+            {
+                name: "活性碳",
+                tags: [TAGS.SYM_C, TAGS.SOLID, TAGS.NON_METAL, TAGS.BLACK_COLOR, TAGS.NO_LUSTER, TAGS.POROUS, TAGS.INSULATOR, TAGS.BRITTLE]
+            },
+            {
+                name: "鑽石",
+                tags: [TAGS.SYM_C, TAGS.SOLID, TAGS.NON_METAL, TAGS.TRANSPARENT, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.HARDEST, TAGS.JEWELRY, TAGS.CUTTING]
+            },
+            {
+                name: "石墨",
+                tags: [TAGS.SYM_C, TAGS.SOLID, TAGS.NON_METAL, TAGS.BLACK_COLOR, TAGS.CONDUCTOR, TAGS.NO_LUSTER, TAGS.LOW_HARDNESS, TAGS.PENCIL]
+            },
+            {
+                name: "木炭",
+                tags: [TAGS.SYM_C, TAGS.SOLID, TAGS.NON_METAL, TAGS.BLACK_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE, TAGS.STEEL_RAW, TAGS.POROUS]
+            },
+            {
+                name: "溴",
+                tags: [TAGS.SYM_BR, TAGS.LIQUID, TAGS.NON_METAL, TAGS.RED_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR]
+            },
+            {
+                name: "氯",
+                tags: [TAGS.SYM_CL, TAGS.GAS, TAGS.NON_METAL, TAGS.YELLOW_GREEN, TAGS.NO_LUSTER, TAGS.INSULATOR]
+            },
+            {
+                name: "碘",
+                tags: [TAGS.SYM_I, TAGS.SOLID, TAGS.NON_METAL, TAGS.BLACK_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE, TAGS.LOW_HARDNESS]
+            },
+            {
+                name: "硫",
+                tags: [TAGS.SYM_S, TAGS.SOLID, TAGS.NON_METAL, TAGS.GOLD_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE, TAGS.LOW_HARDNESS]
+            },
+            {
+                name: "紅磷",
+                tags: [TAGS.SYM_P, TAGS.SOLID, TAGS.NON_METAL, TAGS.RED_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE, TAGS.LOW_HARDNESS]
+            },
+            {
+                name: "氫",
+                tags: [TAGS.SYM_H, TAGS.GAS, TAGS.NON_METAL, TAGS.TRANSPARENT, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.LIGHT_DENSITY]
+            },
+            {
+                name: "氧",
+                tags: [TAGS.SYM_O, TAGS.GAS, TAGS.NON_METAL, TAGS.TRANSPARENT, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.CRUST_1]
+            },
+            {
+                name: "氦",
+                tags: [TAGS.SYM_HE, TAGS.GAS, TAGS.NON_METAL, TAGS.NOBLE_GAS, TAGS.TRANSPARENT, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.LIGHT_DENSITY, TAGS.BALLOON]
+            },
+            {
+                name: "氖",
+                tags: [TAGS.SYM_NE, TAGS.GAS, TAGS.NON_METAL, TAGS.NOBLE_GAS, TAGS.TRANSPARENT, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.NEON]
+            },
+            {
+                name: "鈉",
+                tags: [TAGS.SYM_NA, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.SOFT, TAGS.LIGHT_DENSITY, TAGS.WATER_REACT_BASE, TAGS.PHENOL_RED, TAGS.DUCTILE]
+            },
+            {
+                name: "鉀",
+                tags: [TAGS.SYM_K, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.SOFT, TAGS.LIGHT_DENSITY, TAGS.WATER_REACT_BASE, TAGS.PHENOL_RED, TAGS.DUCTILE]
+            },
+            {
+                name: "鎂",
+                tags: [TAGS.SYM_MG, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_EARTH, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE]
+            },
+            {
+                name: "鈣",
+                tags: [TAGS.SYM_CA, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_EARTH, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE]
+            },
+            {
+                name: "不鏽鋼",
+                tags: [TAGS.SYM_FE, TAGS.SYM_CR, TAGS.SYM_NI, TAGS.SOLID, TAGS.ALLOY, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.ALLOY_FE_CR_NI, TAGS.RUST_PROTECT]
+            },
+            {
+                name: "黃銅",
+                tags: [TAGS.SYM_CU, TAGS.SYM_ZN, TAGS.SOLID, TAGS.ALLOY, TAGS.GOLD_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.ALLOY_CU_ZN, TAGS.JEWELRY]
+            },
+            {
+                name: "K金",
+                tags: [TAGS.SYM_AU, TAGS.SYM_AG, TAGS.SYM_CU, TAGS.SOLID, TAGS.ALLOY, TAGS.GOLD_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.ALLOY_AU_AG, TAGS.JEWELRY]
+            }
+        ];
+
+        // ----------------------
+        // 應用程式元件
+        // ----------------------
+
+        function App() {
+            const [page, setPage] = useState('home');
+            const [teamInfo, setTeamInfo] = useState({ class: '', group: '', members: '' });
+            const [score, setScore] = useState(0);
+            const [history, setHistory] = useState([]);
+
+            const handleStartGame = (info) => {
+                setTeamInfo(info);
+                setScore(0);
+                setHistory([]);
+                setPage('game');
+            };
+
+            const handleGameEnd = (finalScore, gameHistory) => {
+                setScore(finalScore);
+                setHistory(gameHistory);
+                setPage('result');
+            };
+
+            return (
+                <div className="min-h-screen pb-10">
+                    <header className="bg-slate-800 text-white p-4 shadow-md sticky top-0 z-50">
+                        <div className="container mx-auto flex justify-between items-center">
+                            <h1 className="text-2xl font-bold tracking-wider">⚗️ 元素大搜查 <span className="text-sm font-normal bg-blue-600 px-2 py-1 rounded ml-2">專業競賽版</span></h1>
+                            {page !== 'home' && (
+                                <div className="text-sm bg-slate-700 px-3 py-1 rounded border border-slate-500">
+                                    {teamInfo.class}班 第{teamInfo.group}組
+                                </div>
+                            )}
+                        </div>
+                    </header>
+
+                    <main className="container mx-auto p-4">
+                        {page === 'home' && <HomePage onStart={handleStartGame} />}
+                        {page === 'game' && <GamePage onEnd={handleGameEnd} />}
+                        {page === 'result' && <ResultPage score={score} history={history} teamInfo={teamInfo} onRestart={() => setPage('home')} />}
+                    </main>
+                </div>
+            );
+        }
+
+        function HomePage({ onStart }) {
+            const [info, setInfo] = useState({ class: '', group: '', members: '' });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!info.class || !info.group) {
+                    alert('請填寫完整班級與組別資訊！');
+                    return;
+                }
+                onStart(info);
+            };
+
+            return (
+                <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 mt-10 pop-in border-t-4 border-blue-600">
+                    <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">🧪 小組競賽登入</h2>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">班級</label>
+                            <input type="text" placeholder="例如：801" className="w-full border p-3 rounded-lg focus:outline-none focus:border-blue-500" value={info.class} onChange={e => setInfo({...info, class: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">組別</label>
+                            <input type="number" placeholder="例如：3" className="w-full border p-3 rounded-lg focus:outline-none focus:border-blue-500" value={info.group} onChange={e => setInfo({...info, group: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">組員座號</label>
+                            <input type="text" placeholder="例如：05, 12, 23" className="w-full border p-3 rounded-lg focus:outline-none focus:border-blue-500" value={info.members} onChange={e => setInfo({...info, members: e.target.value})} />
+                        </div>
+                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg text-lg shadow mt-4 transition transform active:scale-95">開始挑戰 (10題)</button>
+                    </form>
+                    <div className="mt-6 p-4 bg-yellow-50 rounded-lg text-sm text-yellow-800">
+                        <p className="font-bold mb-1">計分規則：</p>
+                        <ul className="list-disc pl-5">
+                            <li>完全正確選出特性：<span className="font-bold text-green-600">+2 分</span></li>
+                            <li>該選而未選：<span className="font-bold text-red-500">-1 分</span></li>
+                            <li>選錯特性：<span className="font-bold text-red-600">-2 分</span></li>
+                        </ul>
+                    </div>
+                </div>
+            );
+        }
+
+        function GamePage({ onEnd }) {
+            const [questions, setQuestions] = useState([]);
+            const [currentQIndex, setCurrentQIndex] = useState(0);
+            const [selectedTags, setSelectedTags] = useState(new Set());
+            const [showRoundResult, setShowRoundResult] = useState(false);
+            const [roundScore, setRoundScore] = useState({ score: 0, details: {} });
+            const [totalScore, setTotalScore] = useState(0);
+            const [gameHistory, setGameHistory] = useState([]);
+
+            // 遊戲初始化：隨機取 10 題
+            useEffect(() => {
+                const shuffled = [...ELEMENTS_DB].sort(() => 0.5 - Math.random());
+                setQuestions(shuffled.slice(0, 10));
+            }, []);
+
+            const currentElement = questions[currentQIndex];
+
+            const toggleTag = (tagId) => {
+                if (showRoundResult) return;
+                const newSet = new Set(selectedTags);
+                newSet.has(tagId) ? newSet.delete(tagId) : newSet.add(tagId);
+                setSelectedTags(newSet);
+            };
+
+            const handleSubmit = () => {
+                const correctTagIds = new Set(currentElement.tags.map(t => t.id));
+                const userTagIds = selectedTags;
+
+                let roundPoints = 0;
+                let details = { correct: [], missed: [], wrong: [] };
+
+                userTagIds.forEach(id => {
+                    if (correctTagIds.has(id)) {
+                        roundPoints += 2;
+                        details.correct.push(id);
+                    } else {
+                        roundPoints -= 2;
+                        details.wrong.push(id);
+                    }
+                });
+
+                correctTagIds.forEach(id => {
+                    if (!userTagIds.has(id)) {
+                        roundPoints -= 1;
+                        details.missed.push(id);
+                    }
+                });
+
+                setRoundScore({ score: roundPoints, details });
+                setTotalScore(prev => prev + roundPoints);
+                setGameHistory(prev => [...prev, { element: currentElement.name, score: roundPoints }]);
+                setShowRoundResult(true);
+            };
+
+            const handleNext = () => {
+                if (currentQIndex < questions.length - 1) {
+                    setCurrentQIndex(prev => prev + 1);
+                    setSelectedTags(new Set());
+                    setShowRoundResult(false);
+                } else {
+                    onEnd(totalScore, gameHistory);
+                }
+            };
+
+            if (!currentElement) return <div className="text-center mt-20">準備題庫中...</div>;
+
+            // 分類顯示選項
+            const categories = {};
+            const categoryOrder = ['元素符號', '狀態', '分類', '外觀', '性質 <常溫>', '化學/其他', '用途/成分'];
+            
+            Object.values(TAGS).forEach(tag => {
+                if (!categories[tag.category]) categories[tag.category] = [];
+                categories[tag.category].push(tag);
+            });
+
+            return (
+                <div className="flex flex-col lg:flex-row gap-6">
+                    {/* 左側：題目卡 */}
+                    <div className="w-full lg:w-1/4">
+                        <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24 border-t-8 border-blue-500">
+                            <div className="flex justify-between items-center mb-4">
+                                <span className="text-xs font-bold bg-gray-200 px-2 py-1 rounded text-gray-600">第 {currentQIndex + 1} / {questions.length} 題</span>
+                                <span className="text-xl font-bold text-blue-600">得分: {totalScore}</span>
+                            </div>
+                            
+                            <div className="text-center py-10 bg-slate-50 rounded-lg mb-4 border border-slate-200">
+                                <h3 className="text-4xl font-black text-gray-800">{currentElement.name}</h3>
+                                <p className="text-gray-500 mt-2 text-sm">請選擇右側所有符合的描述</p>
+                            </div>
+
+                            {!showRoundResult ? (
+                                <button onClick={handleSubmit} className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xl font-bold py-3 rounded-lg shadow-md transition transform active:scale-95">
+                                    確認送出
+                                </button>
+                            ) : (
+                                <div className="animate-fade-in">
+                                    <div className={`text-center py-2 text-xl font-bold rounded mb-4 ${roundScore.score >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        本題：{roundScore.score > 0 ? '+' : ''}{roundScore.score} 分
+                                    </div>
+                                    <button onClick={handleNext} className="w-full bg-gray-800 hover:bg-gray-900 text-white text-lg font-bold py-3 rounded-lg shadow transition">
+                                        {currentQIndex < questions.length - 1 ? '下一題' : '看結算'}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 右側：選項區 */}
+                    <div className="w-full lg:w-3/4">
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <div className="space-y-6">
+                                {categoryOrder.map(catName => {
+                                    if (!categories[catName]) return null;
+                                    return (
+                                        <div key={catName} className="border-b border-gray-100 pb-4 last:border-0">
+                                            <h4 className="font-bold text-slate-700 mb-3 flex items-center">
+                                                <span className="w-2 h-6 bg-blue-500 mr-2 rounded-full"></span>
+                                                {catName}
+                                            </h4>
+                                            <div className="tag-grid">
+                                                {categories[catName].map(tag => {
+                                                    const isSelected = selectedTags.has(tag.id);
+                                                    let btnClass = "border text-sm p-2 rounded transition text-left relative ";
+                                                    
+                                                    // Declare variables inside JSX scope map function
+                                                    let isCorrect = false;
+                                                    let isMissed = false;
+                                                    let isWrong = false;
+
+                                                    if (showRoundResult) {
+                                                        isCorrect = roundScore.details.correct.includes(tag.id);
+                                                        isMissed = roundScore.details.missed.includes(tag.id);
+                                                        isWrong = roundScore.details.wrong.includes(tag.id);
+
+                                                        if (isCorrect) btnClass += "bg-green-600 text-white border-green-700 opacity-100";
+                                                        else if (isMissed) btnClass += "bg-white text-red-600 border-2 border-red-400 border-dashed font-bold";
+                                                        else if (isWrong) btnClass += "bg-red-600 text-white border-red-700 opacity-100";
+                                                        else btnClass += "bg-gray-50 text-gray-400 opacity-40";
+                                                    } else {
+                                                        if (isSelected) btnClass += "bg-blue-600 text-white border-blue-700 shadow-md transform scale-105 z-10";
+                                                        else btnClass += "bg-white text-gray-700 hover:bg-blue-50 hover:border-blue-300";
+                                                    }
+
+                                                    return (
+                                                        <button
+                                                            key={tag.id}
+                                                            onClick={() => toggleTag(tag.id)}
+                                                            disabled={showRoundResult}
+                                                            className={btnClass}
+                                                        >
+                                                            {tag.text}
+                                                            {showRoundResult && isCorrect && <span className="absolute top-0 right-1 text-xs text-white opacity-80">+2</span>}
+                                                            {showRoundResult && isMissed && <span className="absolute top-0 right-1 text-xs text-red-500">-1</span>}
+                                                            {showRoundResult && isWrong && <span className="absolute top-0 right-1 text-xs text-white opacity-80">-2</span>}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function ResultPage({ score, history, teamInfo, onRestart }) {
+            const [uploadStatus, setUploadStatus] = useState('idle'); // idle, uploading, success, error
+
+            // 自動上傳或手動上傳的處理函式
+            const handleUpload = async () => {
+                if (!GOOGLE_SCRIPT_URL) {
+                    alert('老師尚未設定 Google Script 網址，無法上傳成績。');
+                    return;
+                }
+
+                setUploadStatus('uploading');
+                try {
+                    // 使用 fetch 傳送資料 (mode: 'no-cors' 是關鍵，因為 GAS 通常沒有 CORS header)
+                    await fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors', 
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            class: teamInfo.class,
+                            group: teamInfo.group,
+                            members: teamInfo.members,
+                            score: score
+                        })
+                    });
+
+                    // 由於 no-cors 模式下無法確認 response 狀態，假設發送成功即視為成功
+                    // 稍微延遲一下讓使用者看到 loading
+                    setTimeout(() => {
+                        setUploadStatus('success');
+                        alert(`成績已成功上傳雲端！\n班級：${teamInfo.class} / 第${teamInfo.group}組 / ${score}分`);
+                    }, 500);
+
+                } catch (error) {
+                    console.error("Upload error:", error);
+                    setUploadStatus('error');
+                    alert('上傳失敗，請檢查網路連線或通知老師。');
+                }
+            };
+
+            return (
+                <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-2xl p-8 mt-6 text-center pop-in">
+                    <h2 className="text-3xl font-bold text-gray-800 mb-2">{teamInfo.class}班 第{teamInfo.group}組</h2>
+                    <p className="text-gray-500 mb-8">成員：{teamInfo.members}</p>
+
+                    <div className="mb-8 p-6 bg-slate-50 rounded-xl inline-block min-w-[300px]">
+                        <p className="text-gray-600">本次競賽總分</p>
+                        <p className={`text-7xl font-black my-2 ${score >= 60 ? 'text-blue-600' : (score >= 30 ? 'text-green-600' : 'text-gray-600')}`}>{score}</p>
+                    </div>
+
+                    {/* 上傳按鈕區塊 */}
+                    <div className="mb-8">
+                        {uploadStatus === 'idle' && (
+                            <button 
+                                onClick={handleUpload}
+                                className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-md transition transform active:scale-95 flex items-center justify-center mx-auto"
+                            >
+                                📤 上傳成績到雲端
+                            </button>
+                        )}
+                        {uploadStatus === 'uploading' && (
+                            <div className="text-blue-600 font-bold text-lg flex items-center justify-center">
+                                <span className="spinner"></span> 正在上傳中...
+                            </div>
+                        )}
+                        {uploadStatus === 'success' && (
+                            <div className="text-green-600 font-bold text-lg bg-green-50 p-3 rounded-lg border border-green-200">
+                                ✅ 成績已上傳成功！
+                            </div>
+                        )}
+                        {uploadStatus === 'error' && (
+                            <div className="flex flex-col items-center">
+                                <div className="text-red-600 font-bold text-lg mb-2">❌ 上傳失敗</div>
+                                <button 
+                                    onClick={handleUpload}
+                                    className="text-sm bg-gray-200 hover:bg-gray-300 px-3 py-1 rounded text-gray-700"
+                                >
+                                    重試
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="text-left bg-white border rounded-lg overflow-hidden mb-8">
+                        <table className="w-full">
+                            <thead className="bg-gray-100">
+                                <tr>
+                                    <th className="p-3 text-gray-600 font-bold">題號</th>
+                                    <th className="p-3 text-gray-600 font-bold">題目</th>
+                                    <th className="p-3 text-gray-600 font-bold text-right">得分</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {history.map((h, idx) => (
+                                    <tr key={idx} className="border-t hover:bg-gray-50">
+                                        <td className="p-3 text-gray-500">{idx + 1}</td>
+                                        <td className="p-3 font-bold text-gray-800">{h.element}</td>
+                                        <td className={`p-3 text-right font-bold ${h.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                            {h.score > 0 ? '+' : ''}{h.score}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <button onClick={onRestart} className="bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 px-10 rounded-full text-lg shadow-lg transition transform hover:scale-105">
+                        下一組挑戰
+                    </button>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
