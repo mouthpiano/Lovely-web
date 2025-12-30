@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>元素大搜查 - 解答一覽表</title>
+    <title>元素大搜查 - 解答一覽表 (最新版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Segoe UI', Microsoft JhengHei, sans-serif; background-color: #f8fafc; }
@@ -11,13 +11,13 @@
 </head>
 <body class="p-8">
     <div class="max-w-6xl mx-auto">
-        <h1 class="text-3xl font-bold mb-6 text-slate-800 border-b pb-4">📝 元素大搜查 - 解答一覽表</h1>
+        <h1 class="text-3xl font-bold mb-6 text-slate-800 border-b pb-4">📝 元素大搜查 - 解答一覽表 (最新修訂版)</h1>
         <div id="table-container"></div>
     </div>
 
     <script>
         // ------------------------------------
-        // 與遊戲本體相同的資料庫
+        // 資料庫 (同步最新修正內容)
         // ------------------------------------
         const TAGS = {
             // 符號
@@ -28,7 +28,7 @@
             SYM_CL: { text: 'Cl' }, SYM_BR: { text: 'Br' }, SYM_I:  { text: 'I' }, SYM_S:  { text: 'S' },
             SYM_P:  { text: 'P' },
             
-            // 新增合金用符號
+            // 合金成分符號
             SYM_CR: { text: 'Cr' }, SYM_NI: { text: 'Ni' }, SYM_ZN: { text: 'Zn' },
 
             // 狀態
@@ -62,10 +62,10 @@
         };
 
         const ELEMENTS_DB = [
-            { name: "金", tags: [TAGS.SYM_AU, TAGS.SOLID, TAGS.METAL, TAGS.GOLD_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.BEST_DUCTILITY, TAGS.JEWELRY] },
-            { name: "銀", tags: [TAGS.SYM_AG, TAGS.SOLID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.BEST_CONDUCTOR, TAGS.DUCTILE, TAGS.JEWELRY, TAGS.WIRES] },
-            { name: "銅", tags: [TAGS.SYM_CU, TAGS.SOLID, TAGS.METAL, TAGS.RED_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.SECOND_CONDUCTOR, TAGS.DUCTILE, TAGS.WIRES, TAGS.JEWELRY] },
-            { name: "鐵", tags: [TAGS.SYM_FE, TAGS.SOLID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.MAGNETIC, TAGS.STEEL_RAW] },
+            { name: "金", tags: [TAGS.SYM_AU, TAGS.SOLID, TAGS.METAL, TAGS.GOLD_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.BEST_DUCTILITY, TAGS.JEWELRY, TAGS.WIRES, TAGS.ALLOY_AU_AG] },
+            { name: "銀", tags: [TAGS.SYM_AG, TAGS.SOLID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.BEST_CONDUCTOR, TAGS.DUCTILE, TAGS.JEWELRY, TAGS.WIRES, TAGS.ALLOY_AU_AG] },
+            { name: "銅", tags: [TAGS.SYM_CU, TAGS.SOLID, TAGS.METAL, TAGS.RED_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.SECOND_CONDUCTOR, TAGS.DUCTILE, TAGS.WIRES, TAGS.JEWELRY, TAGS.ALLOY_CU_ZN, TAGS.ALLOY_AU_AG] },
+            { name: "鐵", tags: [TAGS.SYM_FE, TAGS.SOLID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.MAGNETIC, TAGS.STEEL_RAW, TAGS.ALLOY_FE_CR_NI] },
             { name: "鋁", tags: [TAGS.SYM_AL, TAGS.SOLID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.LIGHT_DENSITY, TAGS.RUST_PROTECT, TAGS.WIRES, TAGS.JEWELRY] },
             { name: "汞 (水銀)", tags: [TAGS.SYM_HG, TAGS.LIQUID, TAGS.METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.THERMOMETER] },
             { name: "矽", tags: [TAGS.SYM_SI, TAGS.SOLID, TAGS.NON_METAL, TAGS.BLACK_COLOR, TAGS.SEMICONDUCTOR, TAGS.BRITTLE, TAGS.CHIPS, TAGS.CRUST_2] },
@@ -75,15 +75,15 @@
             { name: "木炭", tags: [TAGS.SYM_C, TAGS.SOLID, TAGS.NON_METAL, TAGS.BLACK_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE, TAGS.STEEL_RAW, TAGS.POROUS] },
             { name: "溴", tags: [TAGS.SYM_BR, TAGS.LIQUID, TAGS.NON_METAL, TAGS.RED_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR] },
             { name: "氯", tags: [TAGS.SYM_CL, TAGS.GAS, TAGS.NON_METAL, TAGS.YELLOW_GREEN, TAGS.NO_LUSTER, TAGS.INSULATOR] },
-            { name: "碘", tags: [TAGS.SYM_I, TAGS.SOLID, TAGS.NON_METAL, TAGS.BLACK_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE] },
-            { name: "硫", tags: [TAGS.SYM_S, TAGS.SOLID, TAGS.NON_METAL, TAGS.GOLD_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE] },
-            { name: "紅磷", tags: [TAGS.SYM_P, TAGS.SOLID, TAGS.NON_METAL, TAGS.RED_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE] },
+            { name: "碘", tags: [TAGS.SYM_I, TAGS.SOLID, TAGS.NON_METAL, TAGS.BLACK_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE, TAGS.LOW_HARDNESS] },
+            { name: "硫", tags: [TAGS.SYM_S, TAGS.SOLID, TAGS.NON_METAL, TAGS.GOLD_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE, TAGS.LOW_HARDNESS] },
+            { name: "紅磷", tags: [TAGS.SYM_P, TAGS.SOLID, TAGS.NON_METAL, TAGS.RED_COLOR, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.BRITTLE, TAGS.LOW_HARDNESS] },
             { name: "氫", tags: [TAGS.SYM_H, TAGS.GAS, TAGS.NON_METAL, TAGS.TRANSPARENT, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.LIGHT_DENSITY] },
             { name: "氧", tags: [TAGS.SYM_O, TAGS.GAS, TAGS.NON_METAL, TAGS.TRANSPARENT, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.CRUST_1] },
             { name: "氦", tags: [TAGS.SYM_HE, TAGS.GAS, TAGS.NON_METAL, TAGS.NOBLE_GAS, TAGS.TRANSPARENT, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.LIGHT_DENSITY, TAGS.BALLOON] },
             { name: "氖", tags: [TAGS.SYM_NE, TAGS.GAS, TAGS.NON_METAL, TAGS.NOBLE_GAS, TAGS.TRANSPARENT, TAGS.NO_LUSTER, TAGS.INSULATOR, TAGS.NEON] },
-            { name: "鈉", tags: [TAGS.SYM_NA, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.SOFT, TAGS.LIGHT_DENSITY, TAGS.WATER_REACT_BASE, TAGS.PHENOL_RED] },
-            { name: "鉀", tags: [TAGS.SYM_K, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.SOFT, TAGS.LIGHT_DENSITY, TAGS.WATER_REACT_BASE, TAGS.PHENOL_RED] },
+            { name: "鈉", tags: [TAGS.SYM_NA, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.SOFT, TAGS.LIGHT_DENSITY, TAGS.WATER_REACT_BASE, TAGS.PHENOL_RED, TAGS.DUCTILE] },
+            { name: "鉀", tags: [TAGS.SYM_K, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_METAL, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.SOFT, TAGS.LIGHT_DENSITY, TAGS.WATER_REACT_BASE, TAGS.PHENOL_RED, TAGS.DUCTILE] },
             { name: "鎂", tags: [TAGS.SYM_MG, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_EARTH, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE] },
             { name: "鈣", tags: [TAGS.SYM_CA, TAGS.SOLID, TAGS.METAL, TAGS.ALKALI_EARTH, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE] },
             { name: "不鏽鋼", tags: [TAGS.SYM_FE, TAGS.SYM_CR, TAGS.SYM_NI, TAGS.SOLID, TAGS.ALLOY, TAGS.SILVER_COLOR, TAGS.LUSTER, TAGS.CONDUCTOR, TAGS.DUCTILE, TAGS.ALLOY_FE_CR_NI, TAGS.RUST_PROTECT] },
