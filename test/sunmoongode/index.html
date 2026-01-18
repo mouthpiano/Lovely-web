@@ -77,6 +77,7 @@
             border-color: #3b82f6; /* 選中時藍色邊框 */
             box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
         }
+        /* 選取勾勾 - 右上角 */
         .check-icon {
             position: absolute;
             top: 5px;
@@ -90,10 +91,72 @@
             align-items: center;
             justify-content: center;
             font-size: 12px;
+            z-index: 10;
         }
         .machine-item.selected .check-icon {
             display: flex;
         }
+        /* 放大鏡按鈕 - 右下角 */
+        .zoom-btn {
+            position: absolute;
+            bottom: 5px;
+            right: 5px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #555;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            z-index: 10;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            transition: all 0.2s;
+        }
+        .zoom-btn:hover {
+            background: #3b82f6;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        /* 圖片放大 Modal 樣式 */
+        #image-modal {
+            display: none;
+            position: fixed;
+            z-index: 9999;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.9);
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.2s;
+        }
+        #image-modal img {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 5px;
+            box-shadow: 0 0 20px rgba(255,255,255,0.2);
+        }
+        #image-modal .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        #image-modal .close:hover {
+            color: #bbb;
+        }
+
         /* 詳解區域樣式 */
         .review-section {
             text-align: left;
@@ -111,13 +174,60 @@
         .correct-ans { color: #16a34a; font-weight: bold; }
         .wrong-ans { color: #dc2626; font-weight: bold; }
         .student-ans { color: #2563eb; }
+
+        /* 署名樣式 - 登入頁專用 */
+        .login-credit-top {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            color: rgba(255,255,255,0.8);
+            text-align: right;
+            font-size: 0.8rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+        .login-credit-bottom {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.8rem;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        /* 署名樣式 - 一般頁面 */
+        .page-credit-top {
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 5px;
+            color: #94a3b8; /* slate-400 */
+            font-size: 0.75rem;
+            text-align: right;
+            line-height: 1.2;
+        }
+        .page-credit-bottom {
+            width: 100%;
+            text-align: center;
+            margin-top: 30px;
+            margin-bottom: 10px;
+            color: #cbd5e1; /* slate-300 */
+            font-size: 0.75rem;
+            line-height: 1.2;
+        }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800">
 
     <!-- ================= 登入頁面 ================= -->
-    <!-- 這裡保留 flex 類別，JS 會正確切換 -->
     <div id="login-screen" class="game-screen active-screen flex items-center justify-center">
+        <!-- 登入頁面署名 -->
+        <div class="login-credit-top">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
+        <div class="login-credit-bottom">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
+
         <div id="login-content" class="bg-white/95 backdrop-blur-sm p-8 rounded-xl shadow-2xl w-full max-w-md">
             <h1 class="text-3xl font-bold text-center mb-6 text-indigo-700">日月神電<br><span class="text-xl text-gray-500">科學闖關評量</span></h1>
             
@@ -143,6 +253,9 @@
     <!-- ================= 主選單頁面 ================= -->
     <div id="menu-screen" class="game-screen">
         <div class="max-w-4xl mx-auto">
+            <!-- 頁面頂端署名 -->
+            <div class="page-credit-top">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
+
             <header class="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow">
                 <div>
                     <span class="text-sm text-gray-500">挑戰者</span>
@@ -195,11 +308,17 @@
             <button id="btn-final-submit" onclick="submitAllScores()" disabled class="mt-8 w-full bg-gray-400 text-white py-4 rounded-xl font-bold text-xl transition shadow-lg">
                 完成所有關卡後解鎖送出成績
             </button>
+            
+            <!-- 頁面底部署名 -->
+            <div class="page-credit-bottom">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
         </div>
     </div>
 
     <!-- ================= 第一關：簡單機械 ================= -->
     <div id="level1-screen" class="game-screen max-w-4xl mx-auto">
+        <!-- 頁面頂端署名 -->
+        <div class="page-credit-top">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
+
         <div class="bg-white rounded-xl shadow-lg p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold text-yellow-600">第一關：我是工具人</h2>
@@ -208,6 +327,7 @@
             
             <p class="mb-4 bg-yellow-50 p-3 rounded text-sm border border-yellow-200">
                 <i class="fas fa-info-circle"></i> 說明：下方共有24種簡單機械圖片，請依照題目要求點選圖片（可複選）。<br>
+                <i class="fas fa-search-plus"></i> <span class="font-bold text-gray-600">小撇步：點選圖片右下角的放大鏡可以查看大圖喔！</span><br>
                 <span class="text-red-500 font-bold">計分規則：選對 +2 分，選錯 -2 分，應選未選 -1 分。</span>
             </p>
 
@@ -249,10 +369,15 @@
             <hr class="my-6">
             <button onclick="finishLevel(1)" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-3 rounded-lg shadow">完成第一關</button>
         </div>
+        <!-- 頁面底部署名 -->
+        <div class="page-credit-bottom">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
     </div>
 
     <!-- ================= 第二關：電學 ================= -->
     <div id="level2-screen" class="game-screen max-w-4xl mx-auto">
+        <!-- 頁面頂端署名 -->
+        <div class="page-credit-top">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
+
         <div class="bg-white rounded-xl shadow-lg p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold text-blue-600">第二關：電得你不要不要</h2>
@@ -377,10 +502,15 @@
             <hr class="my-6">
             <button onclick="finishLevel(2)" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow">完成第二關</button>
         </div>
+        <!-- 頁面底部署名 -->
+        <div class="page-credit-bottom">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
     </div>
 
     <!-- ================= 第三關：天文 ================= -->
     <div id="level3-screen" class="game-screen max-w-4xl mx-auto">
+        <!-- 頁面頂端署名 -->
+        <div class="page-credit-top">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
+
         <div class="bg-white rounded-xl shadow-lg p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold text-purple-600">第三關：再兩天，寒輔就結束嚕 !!</h2>
@@ -496,10 +626,15 @@
             <hr class="my-6">
             <button onclick="finishLevel(3)" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 rounded-lg shadow">完成第三關</button>
         </div>
+        <!-- 頁面底部署名 -->
+        <div class="page-credit-bottom">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
     </div>
 
     <!-- ================= 第四關：潮汐 ================= -->
     <div id="level4-screen" class="game-screen max-w-4xl mx-auto">
+        <!-- 頁面頂端署名 -->
+        <div class="page-credit-top">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
+
         <div class="bg-white rounded-xl shadow-lg p-6">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold text-teal-600">第四關：Happy Winter Vacation</h2>
@@ -549,10 +684,15 @@
             <hr class="my-6">
             <button onclick="finishLevel(4)" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-lg shadow">完成第四關</button>
         </div>
+        <!-- 頁面底部署名 -->
+        <div class="page-credit-bottom">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
     </div>
 
     <!-- ================= 成績結算畫面 ================= -->
     <div id="result-screen" class="game-screen max-w-3xl mx-auto text-center">
+        <!-- 頁面頂端署名 -->
+        <div class="page-credit-top">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
+
         <div class="bg-white rounded-xl shadow-2xl p-10">
             <div class="mb-6 text-yellow-500">
                 <i class="fas fa-trophy fa-4x"></i>
@@ -594,6 +734,14 @@
 
             <button onclick="location.reload()" class="mt-8 bg-gray-600 text-white px-6 py-2 rounded hover:bg-gray-700">重新挑戰 (給別的同學玩)</button>
         </div>
+        <!-- 頁面底部署名 -->
+        <div class="page-credit-bottom">Designed by 黃鈺心<br>Gemini Canvas輔助生成</div>
+    </div>
+    
+    <!-- Image Modal -->
+    <div id="image-modal" onclick="closeImageModal()">
+        <span class="close">&times;</span>
+        <img id="modal-img">
     </div>
 
     <!-- Javascript 邏輯部分 -->
@@ -719,15 +867,37 @@
                 const div = document.createElement('div');
                 div.className = 'machine-item';
                 div.dataset.id = i;
+                // Add zoom button with stopPropagation to avoid triggering selection
                 div.innerHTML = `
                     <img src="image${i}.jpg" onerror="this.src='https://placehold.co/100x100?text=Img${i}'" alt="圖片${i}">
                     <div class="check-icon"><i class="fas fa-check"></i></div>
+                    <div class="zoom-btn" onclick="event.stopPropagation(); showImageModal('image${i}.jpg', this)"><i class="fas fa-search-plus"></i></div>
                 `;
                 div.onclick = function() {
                     this.classList.toggle('selected');
                 };
                 container.appendChild(div);
             }
+        }
+        
+        // Image Modal Functions
+        function showImageModal(src, btn) {
+            const modal = document.getElementById('image-modal');
+            const modalImg = document.getElementById('modal-img');
+            
+            // Try to use the actual source of the img element if it exists (handles placeholders)
+            let realSrc = src;
+            if(btn) {
+                const imgEl = btn.parentElement.querySelector('img');
+                if(imgEl) realSrc = imgEl.src;
+            }
+            
+            modal.style.display = "flex";
+            modalImg.src = realSrc;
+        }
+
+        function closeImageModal() {
+            document.getElementById('image-modal').style.display = "none";
         }
 
         // 鎖定選擇 (暫存，不計分，僅供紀錄)
