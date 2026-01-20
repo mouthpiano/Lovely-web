@@ -301,7 +301,7 @@
                 <div onclick="enterLevel(4)" class="card bg-white p-6 rounded-xl shadow cursor-pointer border-l-4 border-teal-400 relative overflow-hidden">
                     <div id="badge-l4" class="absolute top-2 right-2 text-green-500 hidden"><i class="fas fa-check-circle fa-2x"></i></div>
                     <h3 class="text-xl font-bold mb-2">第四關：Happy Winter Vacation</h3>
-                    <p class="text-gray-600 text-sm">潮汐預報，2026年1月19日的海邊活動。</p>
+                    <p class="text-gray-600 text-sm">潮汐預報，2026年1月21日的海邊活動。</p>
                 </div>
             </div>
 
@@ -640,7 +640,7 @@
                 <h2 class="text-2xl font-bold text-teal-600">第四關：Happy Winter Vacation</h2>
                 <button onclick="backToMenu()" class="text-gray-500 hover:text-gray-700">暫離關卡 <i class="fas fa-sign-out-alt"></i></button>
             </div>
-            <p class="text-center text-lg font-bold mb-4 bg-teal-100 p-2 rounded text-teal-800">目標日期：2026年1月19日</p>
+            <p class="text-center text-lg font-bold mb-4 bg-teal-100 p-2 rounded text-teal-800">目標日期：2026年1月21日</p>
 
             <div class="bg-teal-50 p-4 rounded mb-6 text-sm border border-teal-200">
                 <p class="mb-2 font-bold"><i class="fas fa-external-link-alt"></i> 參考資料：</p>
@@ -662,10 +662,10 @@
                 <div class="bg-gray-50 p-4 rounded">
                     <h3 class="font-bold mb-2">第二題：當天綠島遊客最適合進行「潮間帶導覽」的時間為下列何者？</h3>
                     <div class="space-y-2">
-                        <label class="flex items-center"><input type="radio" name="l4-q2" value="1" class="mr-2"> 早上 6:30 ~ 7:30</label>
-                        <label class="flex items-center"><input type="radio" name="l4-q2" value="2" class="mr-2"> 中午 11:30 ~ 12:30</label>
-                        <label class="flex items-center"><input type="radio" name="l4-q2" value="3" class="mr-2"> 下午 6:00 ~ 7:00</label>
-                        <label class="flex items-center"><input type="radio" name="l4-q2" value="4" class="mr-2"> 半夜 3:00 ~ 4:00</label>
+                        <label class="flex items-center"><input type="radio" name="l4-q2" value="1" class="mr-2"> 早上 7:30 ~ 8:30</label>
+                        <label class="flex items-center"><input type="radio" name="l4-q2" value="2" class="mr-2"> 中午 12:30 ~ 13:30</label>
+                        <label class="flex items-center"><input type="radio" name="l4-q2" value="3" class="mr-2"> 晚上 7:00 ~ 8:00</label>
+                        <label class="flex items-center"><input type="radio" name="l4-q2" value="4" class="mr-2"> 半夜 4:00 ~ 5:00</label>
                     </div>
                 </div>
 
@@ -673,10 +673,10 @@
                 <div class="bg-gray-50 p-4 rounded">
                     <h3 class="font-bold mb-2">第三題：根據中央氣象局的潮汐預報數據，【安平高雄沿海】之台南市安平，今天安平港「大船入港」(滿潮) 最適合的時間為下列何者？</h3>
                     <div class="space-y-2">
-                        <label class="flex items-center"><input type="radio" name="l4-q3" value="1" class="mr-2"> 清晨 3點</label>
-                        <label class="flex items-center"><input type="radio" name="l4-q3" value="2" class="mr-2"> 中午 11點</label>
-                        <label class="flex items-center"><input type="radio" name="l4-q3" value="3" class="mr-2"> 下午 1點</label>
-                        <label class="flex items-center"><input type="radio" name="l4-q3" value="4" class="mr-2"> 晚上 10點</label>
+                        <label class="flex items-center"><input type="radio" name="l4-q3" value="1" class="mr-2"> 清晨 4:30</label>
+                        <label class="flex items-center"><input type="radio" name="l4-q3" value="2" class="mr-2"> 中午 11:30</label>
+                        <label class="flex items-center"><input type="radio" name="l4-q3" value="3" class="mr-2"> 下午 3:30</label>
+                        <label class="flex items-center"><input type="radio" name="l4-q3" value="4" class="mr-2"> 晚上 10:30</label>
                     </div>
                 </div>
             </div>
@@ -1039,7 +1039,7 @@
                     q3: getRadio('l4-q3')
                 };
 
-                if(userAnswers.level4.q1 === "11小時34分" || userAnswers.level4.q1 === "11小時15分") score += 9;
+                if(userAnswers.level4.q1 === "11小時32分" || userAnswers.level4.q1 === "11小時48分") score += 9;
                 if(userAnswers.level4.q2 === '2') score += 8;
                 if(userAnswers.level4.q3 === '2') score += 8;
 
@@ -1161,9 +1161,9 @@
             // L4
             html += `<h4 class="font-bold text-lg mt-4 text-teal-600">第四關：潮汐</h4>`;
             const l4 = userAnswers.level4;
-            html += fmt("Q1 潮汐週期", l4.q1, "11小時34分 或 11小時15分", (l4.q1=="11小時34分"||l4.q1=="11小時15分"));
-            html += fmt("Q2 潮間帶導覽", optMap[l4.q2], "中午 11:30... (2)", l4.q2 == '2');
-            html += fmt("Q3 大船入港", optMap[l4.q3], "中午 11點 (2)", l4.q3 == '2');
+            html += fmt("Q1 潮汐週期", l4.q1, "11小時32分 或 11小時48分", (l4.q1=="11小時32分"||l4.q1=="11小時48分"));
+            html += fmt("Q2 潮間帶導覽", optMap[l4.q2], "中午 12:30... (2)", l4.q2 == '2');
+            html += fmt("Q3 大船入港", optMap[l4.q3], "中午 11:30 (2)", l4.q3 == '2');
 
             container.innerHTML = html;
         }
