@@ -6,9 +6,25 @@
     <title>物理實驗室：物質的三態變化 (v4)</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .container { position: relative; max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h1 { text-align: center; color: #2c3e50; }
         
+        /* 署名樣式 */
+        .designer-signature {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 0.85rem;
+            color: #7f8c8d;
+            font-weight: bold;
+            font-style: italic;
+            z-index: 1000;
+            font-family: 'Georgia', serif;
+            pointer-events: none;
+            text-align: right;
+            line-height: 1.4;
+        }
+
         /* Layout for 3 canvases */
         .main-display { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
         
@@ -47,6 +63,9 @@
 <body>
 
 <div class="container">
+    <!-- 簽名標註 -->
+    <div class="designer-signature">&lt;Designed by 黃鈺心,<br>Gemini Canvas輔助生成&gt;</div>
+
     <h1>物理實驗室：物質受熱的三態變化</h1>
     
     <div class="main-display">
