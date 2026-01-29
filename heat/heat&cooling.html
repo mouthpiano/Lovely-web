@@ -6,7 +6,24 @@
     <title>物質三態變化虛擬實驗室</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; padding: 0; color: #333; height: 100vh; overflow-y: auto; }
-        .container { max-width: 1200px; margin: 20px auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: none; /* Hidden by default */ }
+        
+        /* 簽名樣式 - 更新版 */
+        .designer-signature {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 0.85rem; /* 稍微縮小字體以防遮擋 */
+            color: #7f8c8d;
+            font-weight: bold;
+            font-style: italic;
+            z-index: 1000;
+            font-family: 'Georgia', serif;
+            pointer-events: none; /* 避免擋住點擊 */
+            text-align: right;    /* 文字靠右對齊 */
+            line-height: 1.4;     /* 調整行距 */
+        }
+        
+        .container { position: relative; max-width: 1200px; margin: 20px auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); display: none; /* Hidden by default */ }
         .container.active { display: block; animation: fadeIn 0.5s; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -15,6 +32,7 @@
         
         /* Menu Styles */
         #menu-screen { 
+            position: relative; /* For absolute positioning of signature */
             display: flex; 
             flex-direction: column; 
             align-items: center; 
@@ -94,6 +112,9 @@
 
 <!-- Menu Screen -->
 <div id="menu-screen">
+    <!-- 簽名標註 (更新) -->
+    <div class="designer-signature">&lt;Designed by 黃鈺心,<br>Gemini Canvas輔助生成&gt;</div>
+
     <div class="menu-title">物質三態變化虛擬實驗室</div>
     <div class="menu-subtitle">請選擇您想進行的實驗模式</div>
     
@@ -114,6 +135,9 @@
 
 <!-- Heating Simulation Container -->
 <div id="heating-app" class="container heating-theme">
+    <!-- 簽名標註 (更新) -->
+    <div class="designer-signature">&lt;Designed by 黃鈺心,<br>Gemini Canvas輔助生成&gt;</div>
+
     <div class="top-bar">
         <button class="back-btn" onclick="App.goHome()">🏠 返回主選單</button>
         <h2>🔥 物質受熱：從固體到氣體的旅程</h2>
@@ -161,6 +185,9 @@
 
 <!-- Cooling Simulation Container -->
 <div id="cooling-app" class="container cooling-theme">
+    <!-- 簽名標註 (更新) -->
+    <div class="designer-signature">&lt;Designed by 黃鈺心,<br>Gemini Canvas輔助生成&gt;</div>
+
     <div class="top-bar">
         <button class="back-btn" onclick="App.goHome()">🏠 返回主選單</button>
         <h2>❄️ 物質冷卻：從氣體到固體的旅程</h2>
@@ -209,10 +236,9 @@
 <script>
 /**
  * Main Application Logic
- * Manages view switching and initializing specific labs
  */
 const App = {
-    currentAnim: null, // Stores the requestAnimationFrame ID
+    currentAnim: null,
 
     startHeating: function() {
         this.stopAll();
@@ -244,28 +270,14 @@ const App = {
 
 /**
  * HEATING LAB LOGIC
- * Encapsulated variables and functions for Heating Mode
  */
 const HeatingLab = {
-    // DOM Elements
-    canvas: null, ctx: null, 
-    gCanvas: null, gCtx: null, 
-    mCanvas: null, mCtx: null,
-    slider: null, playBtn: null, resetBtn: null,
-    ui: {},
-
-    // State
-    time: 0,
-    temperature: -20,
-    particles: [],
-    isPlaying: false,
-    frameCount: 0,
-    
-    // Constants
+    canvas: null, ctx: null, gCanvas: null, gCtx: null, mCanvas: null, mCtx: null,
+    slider: null, playBtn: null, resetBtn: null, ui: {},
+    time: 0, temperature: -20, particles: [], isPlaying: false, frameCount: 0,
     NUM_PARTICLES: 64, COLS: 8, P_RADIUS: 5,
 
     init: function() {
-        // Bind DOM
         this.canvas = document.getElementById('h-particleCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.gCanvas = document.getElementById('h-graphCanvas');
@@ -286,7 +298,6 @@ const HeatingLab = {
             descBox: document.getElementById('h-descBox')
         };
 
-        // Event Listeners (ensure single binding)
         this.playBtn.onclick = () => this.togglePlay();
         this.resetBtn.onclick = () => this.reset();
         this.slider.oninput = () => { if(this.isPlaying) this.togglePlay(); };
@@ -367,7 +378,6 @@ const HeatingLab = {
             behavior = "粒子高速自由飛散，充滿整個空間。";
         }
 
-        // UI Update
         this.ui.temp.innerText = Math.round(this.temperature);
         this.ui.state.innerText = state;
         this.ui.rope.innerText = ropeStatus;
@@ -390,13 +400,11 @@ const HeatingLab = {
             let isParticleLiquid = (this.time > 400) || (isMeltingPhase && this.time >= p.meltStartAt);
             
             if (!isParticleLiquid) {
-                // Solid
                 let tempForVib = isMeltingPhase ? 30 : this.temperature;
                 let vibration = (tempForVib + 30) / 50 * 1.5; 
                 p.x = p.baseX + Math.sin(Date.now()/50 + p.phaseOffset) * vibration;
                 p.y = p.baseY + Math.cos(Date.now()/50 + p.phaseOffset) * vibration;
             } else {
-                // Liquid/Gas
                 if (stateVal.includes("汽化") || stateVal === "氣體") {
                     let boilRatio = (this.time - 700) / 200;
                     let isGas = stateVal === "氣體";
@@ -438,7 +446,7 @@ const HeatingLab = {
     },
 
     drawRopes: function(p, index, isSourceLiquid) {
-        if (this.time > 900) return; // Gas: No ropes
+        if (this.time > 900) return; 
         let neighbors = [index + 1, index + 8];
         neighbors.forEach(nIdx => {
             if (nIdx >= 0 && nIdx < this.particles.length) {
@@ -475,7 +483,6 @@ const HeatingLab = {
         this.mCtx.strokeStyle = "#555"; this.mCtx.lineWidth = 4;
         this.mCtx.beginPath(); this.mCtx.moveTo(75, 50); this.mCtx.lineTo(75, 300); this.mCtx.lineTo(275, 300); this.mCtx.lineTo(275, 50); this.mCtx.stroke();
         
-        // Flame
         if (this.time > 0 && this.time < 1000) {
             this.mCtx.fillStyle = "orange";
             this.mCtx.beginPath(); this.mCtx.moveTo(150, 310); this.mCtx.lineTo(200, 310); this.mCtx.lineTo(175 + Math.random()*5, 340); this.mCtx.fill();
@@ -497,7 +504,6 @@ const HeatingLab = {
             let currentWaterLevel = 50*(1-boilRatio);
             this.mCtx.fillStyle = "rgba(52, 152, 219, 0.8)"; this.mCtx.fillRect(77, 300 - currentWaterLevel, 196, currentWaterLevel);
             
-            // Bubbles
             for(let i=0; i<5; i++) {
                 if(Math.random() > 0.5) {
                     this.mCtx.beginPath();
@@ -507,10 +513,8 @@ const HeatingLab = {
                 }
             }
 
-            // Steam background
             this.mCtx.fillStyle = `rgba(200, 200, 200, ${boilRatio * 0.5})`; this.mCtx.fillRect(77, 50, 196, 250);
 
-            // Gas particles increasing
             let particleCount = Math.floor(20 * boilRatio);
             this.mCtx.fillStyle = "rgba(255,255,255,0.5)";
             for(let i=0; i<particleCount; i++) {
@@ -541,9 +545,9 @@ const HeatingLab = {
         this.gCtx.fillText("200", 10, 100); this.gCtx.fillText("30", 15, 230); this.gCtx.fillText("-20", 10, 300);
 
         const getY = (temp) => {
-            if(temp < 30) return 300 - ((temp + 20) / 50) * 70; 
-            if(temp < 200) return 230 - ((temp - 30) / 170) * 130;
-            return 100 - ((temp - 200) / 50) * 50; 
+            if(temp > 200) return 100 - ((temp - 200) / 50) * 50;
+            if(temp > 30) return 230 - ((temp - 30) / 170) * 130;
+            return 300 - ((temp + 20) / 50) * 70;
         };
         const getX = (t) => 40 + (t / 1000) * 290;
 
@@ -588,24 +592,11 @@ const HeatingLab = {
 
 /**
  * COOLING LAB LOGIC
- * Encapsulated variables and functions for Cooling Mode
  */
 const CoolingLab = {
-    // DOM Elements
-    canvas: null, ctx: null, 
-    gCanvas: null, gCtx: null, 
-    mCanvas: null, mCtx: null,
-    slider: null, playBtn: null, resetBtn: null,
-    ui: {},
-
-    // State
-    time: 0,
-    temperature: 250,
-    particles: [],
-    isPlaying: false,
-    frameCount: 0,
-    
-    // Constants
+    canvas: null, ctx: null, gCanvas: null, gCtx: null, mCanvas: null, mCtx: null,
+    slider: null, playBtn: null, resetBtn: null, ui: {},
+    time: 0, temperature: 250, particles: [], isPlaying: false, frameCount: 0,
     NUM_PARTICLES: 64, COLS: 8, P_RADIUS: 5,
 
     init: function() {
@@ -713,7 +704,6 @@ const CoolingLab = {
             behavior = "粒子整齊排列，僅在原地震動。";
         }
 
-        // UI Update
         this.ui.temp.innerText = Math.round(this.temperature);
         this.ui.state.innerText = state;
         this.ui.rope.innerText = ropeStatus;
@@ -736,7 +726,6 @@ const CoolingLab = {
             let isSolid = (this.time > 800) || (isFreezing && this.time >= p.freezeStartAt);
             
             if (isSolid) {
-                // Solid: Snap to grid
                 let snapSpeed = 0.1;
                 p.x += (p.targetX - p.x) * snapSpeed;
                 p.y += (p.targetY - p.y) * snapSpeed;
@@ -745,7 +734,6 @@ const CoolingLab = {
                 let drawY = p.y + Math.cos(Date.now()/50 + p.phaseOffset) * vibration;
                 this.drawDot(drawX, drawY);
             } else {
-                // Liquid/Gas
                 if (stateVal === "氣體" || (stateVal.includes("凝結") && Math.random() > (this.time-100)/200)) {
                     if (Math.abs(p.vx) < 1) { 
                          let angle = Math.random() * Math.PI * 2;
@@ -758,7 +746,6 @@ const CoolingLab = {
                     if(p.y > 345) { p.y = 345; p.vy *= -1; }
                     this.drawDot(p.x, p.y);
                 } else {
-                    // Liquid
                     p.x += (Math.random() - 0.5) * speedFactor * 1.5;
                     p.y += (Math.random() - 0.5) * speedFactor * 1.5;
                     let dx = p.x - centerX, dy = p.y - centerY;
@@ -837,7 +824,7 @@ const CoolingLab = {
             this.mCtx.fillStyle = `rgba(200, 200, 200, ${0.6 * (1-condRatio)})`; this.mCtx.fillRect(77, 50, 196, 250);
             this.mCtx.fillStyle = "rgba(52, 152, 219, 0.8)"; this.mCtx.fillRect(77, 300 - 50*condRatio, 196, 50*condRatio);
             
-            // Gas particles decreasing
+            // Gas particles decreasing (added back)
             let particleCount = Math.floor(20 * (1 - condRatio));
             this.mCtx.fillStyle = "rgba(255,255,255,0.5)";
             for(let i=0; i<particleCount; i++) {
