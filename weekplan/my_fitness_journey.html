@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小栗老師的健身旅程 - 邁向55kg!</title>
+    <title>小栗老師的健身旅程 V2.0</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* --- CSS樣式設計 --- */
         :root {
-            --primary-color: #ff8ba7; /* 柔和粉色調 */
-            --secondary-color: #faae7b; /* 活力橘色調 */
+            --primary-color: #ff8ba7;
+            --primary-dark: #ff6b8b;
+            --secondary-color: #faae7b;
             --bg-color: #f9f3f5;
-            --text-color: #333;
-            --success-green: #2ecc71;
-            --warning-yellow: #f1c40f;
-            --danger-red: #e74c3c;
+            --card-bg: #ffffff;
+            --text-color: #444;
+            --success: #2ecc71;
+            --warning: #f1c40f;
+            --danger: #e74c3c;
+            --water-blue: #3498db;
         }
 
         body {
@@ -23,6 +25,7 @@
             color: var(--text-color);
             margin: 0;
             padding: 20px;
+            line-height: 1.6;
         }
 
         .container {
@@ -33,36 +36,45 @@
         header {
             text-align: center;
             margin-bottom: 30px;
+            background: linear-gradient(135deg, #fff0f3 0%, #fff 100%);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(255, 139, 167, 0.15);
         }
 
         header h1 {
-            color: var(--primary-color);
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            color: var(--primary-dark);
+            margin: 0;
+            font-size: 2em;
         }
 
-        header p {
-            font-size: 1.2em;
-            color: #666;
-        }
-
-        /* 卡片式設計 */
         .card {
-            background: white;
+            background: var(--card-bg);
             border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             padding: 25px;
             margin-bottom: 25px;
+            border-top: 5px solid var(--primary-color);
         }
 
-        h2 {
-            color: var(--secondary-color);
-            border-bottom: 2px solid var(--bg-color);
-            padding-bottom: 10px;
+        h2, h3, h4 {
+            color: var(--text-color);
             margin-top: 0;
         }
 
-        /* 表單元件 */
+        h2 {
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            color: var(--primary-dark);
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
         .form-group {
             margin-bottom: 15px;
         }
@@ -70,88 +82,115 @@
         label {
             display: block;
             margin-bottom: 5px;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 0.95em;
         }
 
-        input[type="text"],
-        input[type="number"],
-        input[type="date"],
-        textarea,
-        select {
+        input, textarea, select {
             width: 100%;
             padding: 10px;
-            border: 2px solid #eee;
+            border: 1px solid #ddd;
             border-radius: 8px;
-            box-sizing: border-box; /* 讓padding不影響寬度 */
             font-size: 1em;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
         }
 
-        input:focus, textarea:focus {
+        input:focus {
             border-color: var(--primary-color);
             outline: none;
         }
 
-        /* 按鈕設計 */
-        .btn-save {
-            background: linear-gradient(to right, var(--secondary-color), var(--primary-color));
+        /* 餐點區塊樣式 */
+        .meal-section {
+            background-color: #fff9fa;
+            border: 1px solid #ffeef2;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .meal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            color: var(--primary-dark);
+            font-weight: bold;
+        }
+
+        /* 總熱量顯示 */
+        .total-cal-display {
+            background: var(--secondary-color);
             color: white;
-            border: none;
-            padding: 15px 30px;
+            padding: 10px 20px;
+            border-radius: 50px;
+            text-align: center;
+            font-weight: bold;
             font-size: 1.2em;
-            border-radius: 30px;
-            cursor: pointer;
-            width: 100%;
-            transition: transform 0.1s;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(250, 174, 123, 0.3);
         }
 
-        .btn-save:hover {
-            transform: scale(1.02);
-            box-shadow: 0 5px 15px rgba(250, 174, 123, 0.4);
-        }
-
-        /* 網格佈局 */
-        .grid-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        @media (max-width: 600px) {
-            .grid-2 { grid-template-columns: 1fr; }
-        }
-
-        /* 飲食紀錄區塊特色 */
-        .traffic-light-options {
+        /* 紅綠燈樣式 */
+        .traffic-light-group {
             display: flex;
             gap: 15px;
+            margin-top: 5px;
         }
         .radio-label {
             display: flex;
             align-items: center;
             cursor: pointer;
+            font-size: 0.9em;
         }
-        .color-dot {
-            width: 20px;
-            height: 20px;
+        .dot {
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            margin-right: 8px;
+            margin-right: 5px;
             border: 2px solid #ddd;
+            transition: transform 0.2s;
         }
-        input[type="radio"]:checked + .color-dot.green { background-color: var(--success-green); border-color: var(--success-green); }
-        input[type="radio"]:checked + .color-dot.yellow { background-color: var(--warning-yellow); border-color: var(--warning-yellow); }
-        input[type="radio"]:checked + .color-dot.red { background-color: var(--danger-red); border-color: var(--danger-red); }
+        input[type="radio"] { display: none; }
         
-        /* 圖片預覽區 */
-        #imagePreviewContainer {
+        input[type="radio"]:checked + .dot { transform: scale(1.2); border: none; }
+        input[type="radio"]:checked + .dot.green { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        input[type="radio"]:checked + .dot.yellow { background: var(--warning); box-shadow: 0 0 8px var(--warning); }
+        input[type="radio"]:checked + .dot.red { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+        
+        .dot.green { background: #e0f9e8; }
+        .dot.yellow { background: #fdf5d6; }
+        .dot.red { background: #fadbd8; }
+
+        /* 圖片預覽 */
+        .img-preview {
+            max-width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
             margin-top: 10px;
-            max-width: 100%;
-            text-align: center;
-            display: none; /* 預設隱藏 */
+            display: none;
+            border: 2px dashed #ddd;
         }
-        #imagePreview {
-            max-width: 100%;
-            max-height: 300px;
-            border-radius: 10px;
-            border: 3px solid var(--primary-color);
+
+        .btn-save {
+            background: linear-gradient(to right, var(--secondary-color), var(--primary-color));
+            color: white;
+            border: none;
+            padding: 15px;
+            width: 100%;
+            border-radius: 50px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin-top: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(255, 139, 167, 0.4);
+        }
+        .btn-save:hover { transform: translateY(-2px); }
+
+        @media (max-width: 600px) {
+            .grid-2 { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -159,227 +198,290 @@
 
 <div class="container">
     <header>
-        <h1>🏋️‍♀️ 小栗老師的健身旅程</h1>
-        <p>目標：健康的 55kg！今天也要加油！✨</p>
+        <h1>🏋️‍♀️ 小栗老師的健身旅程 V2.0</h1>
+        <p>邁向 55kg & 體脂降降降！🔥</p>
     </header>
 
+    <!-- 1. 數據圖表區 -->
     <div class="card">
-        <h2>📉 體重趨勢儀表板</h2>
-        <canvas id="weightChart"></canvas>
-        <p style="text-align: center; color: #888; font-size: 0.9em;">(目標線：55kg)</p>
+        <h2>📊 身體數值趨勢</h2>
+        <canvas id="mainChart"></canvas>
     </div>
 
-    <div class="card">
-        <h2>📝 今日紀錄登錄</h2>
-        <form id="dailyEntryForm">
-            
+    <form id="dailyForm">
+        <!-- 2. 基本數據區 -->
+        <div class="card">
+            <h2>📝 今日基本數據</h2>
             <div class="form-group">
-                <label for="entryDate">📅 日期：</label>
-                <input type="date" id="entryDate" required>
+                <label>📅 日期</label>
+                <input type="date" id="dateInput" required>
             </div>
-
+            
             <div class="grid-2">
                 <div>
-                     <h3>📊 身體數據 (看 Samsung Health 填)</h3>
-                     <div class="form-group">
-                         <label for="weightInput">⚖️ 今日體重 (kg)：</label>
-                         <input type="number" id="weightInput" step="0.1" placeholder="例如: 60.5">
-                     </div>
-                     <div class="form-group">
-                         <label for="stepsInput">👟 今日步數：</label>
-                         <input type="number" id="stepsInput" placeholder="例如: 8000">
-                     </div>
-                     <div class="form-group">
-                        <label for="activeCalInput">🔥 活動消耗卡路里 (kcal)：</label>
-                        <input type="number" id="activeCalInput" placeholder="例如: 350">
-                    </div>
+                    <label>⚖️ 體重 (kg)</label>
+                    <input type="number" id="weight" step="0.1" placeholder="目標: 55.0">
                 </div>
-
                 <div>
-                    <h3>🏋️‍♀️ 啞鈴訓練紀錄</h3>
-                    <div class="form-group">
-                        <label for="workoutNotes">今日訓練內容摘要：</label>
-                        <textarea id="workoutNotes" rows="6" placeholder="例如：二頭彎舉 5kg 12下x3組，深蹲 15下x3組..."></textarea>
-                    </div>
+                    <label>🥓 體脂率 (%)</label>
+                    <input type="number" id="bodyFat" step="0.1" placeholder="例如: 28.5">
                 </div>
             </div>
+            <div class="grid-2" style="margin-top: 15px;">
+                <div>
+                    <label>💧 喝水量 (ml)</label>
+                    <input type="number" id="water" step="100" placeholder="目標: 2000">
+                </div>
+                <div>
+                    <label>👟 步數</label>
+                    <input type="number" id="steps" placeholder="來自 Samsung Health">
+                </div>
+            </div>
+        </div>
 
-            <hr style="border: 1px dashed #ddd; margin: 25px 0;">
+        <!-- 3. 飲食紀錄區 (分餐) -->
+        <div class="card">
+            <h2>🥗 今日飲食紀錄</h2>
+            
+            <!-- 自動計算總熱量 -->
+            <div class="total-cal-display">
+                今日總熱量：<span id="totalCalDisplay">0</span> kcal
+            </div>
 
-            <div>
-                <h3>🥗 飲食紀錄 (先拍照傳給 AI 分析!)</h3>
-                
+            <!-- 早餐 -->
+            <div class="meal-section">
+                <div class="meal-header">
+                    <span>🍳 早餐</span>
+                    <div class="traffic-light-group">
+                        <label class="radio-label"><input type="radio" name="tl_bf" value="green"><div class="dot green"></div></label>
+                        <label class="radio-label"><input type="radio" name="tl_bf" value="yellow"><div class="dot yellow"></div></label>
+                        <label class="radio-label"><input type="radio" name="tl_bf" value="red"><div class="dot red"></div></label>
+                    </div>
+                </div>
                 <div class="grid-2">
                     <div>
-                        <div class="form-group">
-                            <label for="mealPhoto">📸 上傳食物照片預覽 (不會永久儲存)：</label>
-                            <input type="file" id="mealPhoto" accept="image/*">
-                        </div>
-                        <div id="imagePreviewContainer">
-                            <img id="imagePreview" src="#" alt="食物預覽">
-                        </div>
+                        <input type="number" class="cal-input" id="cal_bf" placeholder="熱量 (kcal)">
+                        <input type="text" id="note_bf" placeholder="吃了什麼？" style="margin-top:5px;">
                     </div>
                     <div>
-                        <div class="form-group">
-                            <label for="dietCalInput">🍽️ 攝取總熱量 (kcal) - 由 AI 提供：</label>
-                            <input type="number" id="dietCalInput" placeholder="例如: 700">
-                        </div>
-                        <div class="form-group">
-                            <label>🚦 今日飲食紅綠燈 - 由 AI 建議：</label>
-                            <div class="traffic-light-options">
-                                <label class="radio-label">
-                                    <input type="radio" name="trafficLight" value="green" hidden>
-                                    <span class="color-dot green"></span> 綠燈 (很健康)
-                                </label>
-                                <label class="radio-label">
-                                    <input type="radio" name="trafficLight" value="yellow" hidden>
-                                    <span class="color-dot yellow"></span> 黃燈 (適量)
-                                </label>
-                                <label class="radio-label">
-                                    <input type="radio" name="trafficLight" value="red" hidden>
-                                    <span class="color-dot red"></span> 紅燈 (放縱啦)
-                                </label>
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <label for="dietNotes">飲食備註：</label>
-                            <input type="text" id="dietNotes" placeholder="例如：晚餐少吃了一半白飯，很棒！">
-                        </div>
+                        <input type="file" accept="image/*" onchange="previewImage(this, 'img_bf')">
+                        <img id="img_bf" class="img-preview">
                     </div>
                 </div>
             </div>
 
-            <button type="submit" class="btn-save" style="margin-top: 30px;">✨ 儲存今日紀錄 ✨</button>
-        </form>
-    </div>
+            <!-- 午餐 -->
+            <div class="meal-section">
+                <div class="meal-header">
+                    <span>🍱 午餐</span>
+                    <div class="traffic-light-group">
+                        <label class="radio-label"><input type="radio" name="tl_lunch" value="green"><div class="dot green"></div></label>
+                        <label class="radio-label"><input type="radio" name="tl_lunch" value="yellow"><div class="dot yellow"></div></label>
+                        <label class="radio-label"><input type="radio" name="tl_lunch" value="red"><div class="dot red"></div></label>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div>
+                        <input type="number" class="cal-input" id="cal_lunch" placeholder="熱量 (kcal)">
+                        <input type="text" id="note_lunch" placeholder="吃了什麼？" style="margin-top:5px;">
+                    </div>
+                    <div>
+                        <input type="file" accept="image/*" onchange="previewImage(this, 'img_lunch')">
+                        <img id="img_lunch" class="img-preview">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 晚餐 -->
+            <div class="meal-section">
+                <div class="meal-header">
+                    <span>🌙 晚餐</span>
+                    <div class="traffic-light-group">
+                        <label class="radio-label"><input type="radio" name="tl_dinner" value="green"><div class="dot green"></div></label>
+                        <label class="radio-label"><input type="radio" name="tl_dinner" value="yellow"><div class="dot yellow"></div></label>
+                        <label class="radio-label"><input type="radio" name="tl_dinner" value="red"><div class="dot red"></div></label>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div>
+                        <input type="number" class="cal-input" id="cal_dinner" placeholder="熱量 (kcal)">
+                        <input type="text" id="note_dinner" placeholder="吃了什麼？" style="margin-top:5px;">
+                    </div>
+                    <div>
+                        <input type="file" accept="image/*" onchange="previewImage(this, 'img_dinner')">
+                        <img id="img_dinner" class="img-preview">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 點心 -->
+            <div class="meal-section">
+                <div class="meal-header">
+                    <span>🍪 點心/其他</span>
+                    <div class="traffic-light-group">
+                        <label class="radio-label"><input type="radio" name="tl_snack" value="green"><div class="dot green"></div></label>
+                        <label class="radio-label"><input type="radio" name="tl_snack" value="yellow"><div class="dot yellow"></div></label>
+                        <label class="radio-label"><input type="radio" name="tl_snack" value="red"><div class="dot red"></div></label>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div>
+                        <input type="number" class="cal-input" id="cal_snack" placeholder="熱量 (kcal)">
+                        <input type="text" id="note_snack" placeholder="備註" style="margin-top:5px;">
+                    </div>
+                    <div>
+                        <input type="file" accept="image/*" onchange="previewImage(this, 'img_snack')">
+                        <img id="img_snack" class="img-preview">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-save">✨ 儲存今日所有紀錄 ✨</button>
+    </form>
 </div>
 
 <script>
-    // --- JavaScript 功能實作 ---
+    // --- 1. 初始化與全域變數 ---
+    document.getElementById('dateInput').valueAsDate = new Date();
+    const STORAGE_KEY = 'fitnessData_v2';
+    let fitnessData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    let chartInstance = null;
 
-    // 1. 初始化設定
-    // 預設日期為今天
-    document.getElementById('entryDate').valueAsDate = new Date();
-    
-    // 取得儲存在瀏覽器中的資料 (如果有的話)
-    let fitnessData = JSON.parse(localStorage.getItem('fitnessData')) || [];
-
-    // 2. 圖片上傳預覽功能
-    const mealPhotoInput = document.getElementById('mealPhoto');
-    const imagePreviewContainer = document.getElementById('imagePreviewContainer');
-    const imagePreview = document.getElementById('imagePreview');
-
-    mealPhotoInput.addEventListener('change', function(e) {
-        const file = e.target.files[0];
+    // --- 2. 圖片預覽功能 (通用) ---
+    function previewImage(input, imgId) {
+        const file = input.files[0];
+        const preview = document.getElementById(imgId);
         if (file) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                imagePreview.src = e.target.result;
-                imagePreviewContainer.style.display = 'block';
+                preview.src = e.target.result;
+                preview.style.display = 'block';
             }
             reader.readAsDataURL(file);
         }
-    });
-
-    // 3. 圖表繪製功能 (使用 Chart.js)
-    const ctx = document.getElementById('weightChart').getContext('2d');
-    let weightChart;
-
-    function updateChart() {
-        // 將資料按日期排序
-        fitnessData.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-        // 準備圖表需要的資料格式
-        const labels = fitnessData.map(data => data.date.substring(5)); // 只顯示 月-日
-        const weights = fitnessData.map(data => data.weight);
-        // 建立一個與數據點數量相同的 55kg 目標線陣列
-        const goalLine = new Array(labels.length).fill(55); 
-
-        if (weightChart) {
-            weightChart.destroy(); // 如果圖表已存在，先銷毀舊的
-        }
-
-        weightChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: [{
-                    label: '我的體重 (kg)',
-                    data: weights,
-                    borderColor: '#ff8ba7', // 主色調
-                    backgroundColor: 'rgba(255, 139, 167, 0.2)',
-                    tension: 0.3,
-                    fill: true,
-                    pointRadius: 5,
-                    pointHoverRadius: 8
-                },
-                {
-                    label: '目標 (55kg)',
-                    data: goalLine,
-                    borderColor: '#2ecc71', // 綠色目標線
-                    borderWidth: 2,
-                    borderDash: [5, 5], // 虛線
-                    pointRadius: 0,
-                    fill: false
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: false,
-                        suggestedMin: 50, // Y軸最小建議值
-                        suggestedMax: 65  // Y軸最大建議值
-                    }
-                },
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
     }
 
-    // 首次載入頁面時繪製圖表
-    updateChart();
+    // --- 3. 自動計算總熱量 ---
+    const calInputs = document.querySelectorAll('.cal-input');
+    calInputs.forEach(input => {
+        input.addEventListener('input', calculateTotalCalories);
+    });
 
+    function calculateTotalCalories() {
+        let total = 0;
+        calInputs.forEach(input => {
+            total += Number(input.value) || 0;
+        });
+        document.getElementById('totalCalDisplay').textContent = total;
+    }
 
-    // 4. 儲存紀錄功能
-    document.getElementById('dailyEntryForm').addEventListener('submit', function(e) {
-        e.preventDefault(); // 阻止表單預設提交行為
+    // --- 4. 儲存功能 ---
+    document.getElementById('dailyForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const date = document.getElementById('dateInput').value;
+        
+        // 收集各餐資料的 Helper Function
+        const getMealData = (suffix) => ({
+            cal: document.getElementById(`cal_${suffix}`).value,
+            note: document.getElementById(`note_${suffix}`).value,
+            light: document.querySelector(`input[name="tl_${suffix}"]:checked`)?.value
+        });
 
-        // 收集表單資料
         const newEntry = {
-            date: document.getElementById('entryDate').value,
-            weight: document.getElementById('weightInput').value || null,
-            steps: document.getElementById('stepsInput').value || null,
-            activeCal: document.getElementById('activeCalInput').value || null,
-            workoutNotes: document.getElementById('workoutNotes').value || '',
-            dietCal: document.getElementById('dietCalInput').value || null,
-            trafficLight: document.querySelector('input[name="trafficLight"]:checked')?.value || null,
-            dietNotes: document.getElementById('dietNotes').value || ''
+            date: date,
+            weight: document.getElementById('weight').value,
+            bodyFat: document.getElementById('bodyFat').value,
+            water: document.getElementById('water').value,
+            steps: document.getElementById('steps').value,
+            meals: {
+                bf: getMealData('bf'),
+                lunch: getMealData('lunch'),
+                dinner: getMealData('dinner'),
+                snack: getMealData('snack')
+            },
+            totalCal: document.getElementById('totalCalDisplay').textContent
         };
 
-        // 檢查今天是否已經有紀錄，有的話更新，沒有的話新增
-        const existingIndex = fitnessData.findIndex(item => item.date === newEntry.date);
+        // 檢查是否已存在該日期的資料
+        const existingIndex = fitnessData.findIndex(item => item.date === date);
         if (existingIndex > -1) {
             fitnessData[existingIndex] = newEntry;
         } else {
             fitnessData.push(newEntry);
         }
 
-        // 儲存到 localStorage
-        localStorage.setItem('fitnessData', JSON.stringify(fitnessData));
-
-        // 更新圖表
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(fitnessData));
         updateChart();
-        
-        // 清空圖片預覽和部分輸入框 (可選)
-        imagePreviewContainer.style.display = 'none';
-        mealPhotoInput.value = '';
-        alert('🎉 紀錄儲存成功！離 55kg 又近了一步！');
+        alert('🎉 紀錄更新成功！資料已分餐儲存。');
     });
+
+    // --- 5. 圖表繪製 (雙Y軸：左邊體重，右邊體脂) ---
+    function updateChart() {
+        // 排序日期
+        const sortedData = [...fitnessData].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const labels = sortedData.map(d => d.date.substring(5)); // 月-日
+        const weights = sortedData.map(d => d.weight);
+        const bodyFats = sortedData.map(d => d.bodyFat);
+
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '體重 (kg)',
+                        data: weights,
+                        borderColor: '#ff8ba7',
+                        backgroundColor: '#ff8ba7',
+                        yAxisID: 'y',
+                        tension: 0.3
+                    },
+                    {
+                        label: '體脂率 (%)',
+                        data: bodyFats,
+                        borderColor: '#faae7b', // 橘色
+                        backgroundColor: '#faae7b',
+                        yAxisID: 'y1', // 使用右側Y軸
+                        borderDash: [5, 5],
+                        tension: 0.3
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: '體重 (kg)' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: '體脂 (%)' }
+                    }
+                }
+            }
+        });
+    }
+
+    // 啟動時繪製
+    updateChart();
 
 </script>
 </body>
