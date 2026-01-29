@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小栗老師的健身旅程 V2.0</title>
+    <title>小栗老師的健身旅程 V2.1</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
@@ -17,6 +17,7 @@
             --warning: #f1c40f;
             --danger: #e74c3c;
             --water-blue: #3498db;
+            --muscle-purple: #9b59b6; /* 新增運動區塊顏色 */
         }
 
         body {
@@ -56,6 +57,11 @@
             margin-bottom: 25px;
             border-top: 5px solid var(--primary-color);
         }
+        
+        /* 針對運動區塊的特別樣式 */
+        .card.workout-card {
+            border-top-color: var(--muscle-purple);
+        }
 
         h2, h3, h4 {
             color: var(--text-color);
@@ -67,6 +73,10 @@
             padding-bottom: 10px;
             margin-bottom: 20px;
             color: var(--primary-dark);
+        }
+        
+        .workout-card h2 {
+            color: var(--muscle-purple);
         }
 
         .grid-2 {
@@ -96,9 +106,13 @@
             transition: border-color 0.3s;
         }
 
-        input:focus {
+        input:focus, textarea:focus {
             border-color: var(--primary-color);
             outline: none;
+        }
+
+        textarea {
+            resize: vertical; /* 允許垂直調整大小 */
         }
 
         /* 餐點區塊樣式 */
@@ -198,7 +212,7 @@
 
 <div class="container">
     <header>
-        <h1>🏋️‍♀️ 小栗老師的健身旅程 V2.0</h1>
+        <h1>🏋️‍♀️ 小栗老師的健身旅程 V2.1</h1>
         <p>邁向 55kg & 體脂降降降！🔥</p>
     </header>
 
@@ -239,7 +253,23 @@
             </div>
         </div>
 
-        <!-- 3. 飲食紀錄區 (分餐) -->
+        <!-- 3. 運動訓練區 (新增回來囉！) -->
+        <div class="card workout-card">
+            <h2>🏋️‍♀️ 啞鈴與運動菜單</h2>
+            <div class="form-group">
+                <label>🔥 今日訓練內容 (重量 / 組數 / 課程)</label>
+                <textarea id="workoutNotes" rows="5" placeholder="請紀錄你的努力！例如：
+- 二頭彎舉 5kg: 12下 x 3組
+- 深蹲: 15下 x 3組
+- Dancefiene 有氧: 30分鐘"></textarea>
+            </div>
+            <div class="form-group">
+                <label>💪 運動備註 / 心得</label>
+                <input type="text" id="workoutFeel" placeholder="例如：今天舉起來感覺變輕了！流很多汗很爽！">
+            </div>
+        </div>
+
+        <!-- 4. 飲食紀錄區 (分餐) -->
         <div class="card">
             <h2>🥗 今日飲食紀錄</h2>
             
@@ -344,7 +374,8 @@
 <script>
     // --- 1. 初始化與全域變數 ---
     document.getElementById('dateInput').valueAsDate = new Date();
-    const STORAGE_KEY = 'fitnessData_v2';
+    // 使用 v2 Key，確保如果你剛剛已經用了 v2 存資料，紀錄不會不見
+    const STORAGE_KEY = 'fitnessData_v2'; 
     let fitnessData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
     let chartInstance = null;
 
@@ -395,6 +426,9 @@
             bodyFat: document.getElementById('bodyFat').value,
             water: document.getElementById('water').value,
             steps: document.getElementById('steps').value,
+            // 新增運動資料
+            workoutNotes: document.getElementById('workoutNotes').value,
+            workoutFeel: document.getElementById('workoutFeel').value,
             meals: {
                 bf: getMealData('bf'),
                 lunch: getMealData('lunch'),
@@ -414,7 +448,7 @@
 
         localStorage.setItem(STORAGE_KEY, JSON.stringify(fitnessData));
         updateChart();
-        alert('🎉 紀錄更新成功！資料已分餐儲存。');
+        alert('🎉 紀錄更新成功！連啞鈴訓練都記下來了！');
     });
 
     // --- 5. 圖表繪製 (雙Y軸：左邊體重，右邊體脂) ---
