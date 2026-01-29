@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地質事件演變模擬器 v15</title>
+    <title>地質事件演變模擬器 v17</title>
     
-    <!-- 載入 React 和 Babel (讓瀏覽器看懂程式碼) -->
+    <!-- 載入 React 和 Babel -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     
-    <!-- 載入 Tailwind CSS (美化樣式) -->
+    <!-- 載入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- 定義樣式與動畫 -->
     <style>
         body { font-family: "Microsoft JhengHei", "Heiti TC", sans-serif; }
     </style>
@@ -298,7 +297,7 @@
 
         // --- 主組件 ---
 
-        const GeologySimV15 = () => {
+        const GeologySimV17 = () => {
           const [mode, setMode] = useState('intro'); // 'intro' 或 'sim'
           const [step, setStep] = useState(0);
           const [scenario, setScenario] = useState(SCENARIOS.STANDARD);
@@ -347,6 +346,12 @@
           if (mode === 'intro') {
             return (
               <div className="flex flex-col items-center min-h-screen bg-slate-50 p-8 font-sans">
+                {/* 署名標註 - 位於首頁右上角 (更新為兩行) */}
+                <div className="absolute top-4 right-4 text-slate-400 text-sm font-medium italic pointer-events-none z-50 text-right">
+                   &lt;Designed by 黃鈺心,<br/>
+                   Gemini Canvas輔助生成&gt;
+                </div>
+                
                 <div className="max-w-6xl w-full">
                   <header className="text-center mb-10">
                     <h1 className="text-4xl font-bold text-slate-800 mb-3 flex items-center justify-center gap-3">
@@ -407,6 +412,11 @@
                     </div>
                   </div>
                 </div>
+
+                {/* 署名標註 - 首頁頁尾 (單行) */}
+                <div className="mt-12 text-slate-400 text-sm font-medium italic">
+                   &lt;Designed by 黃鈺心, Gemini Canvas輔助生成&gt;
+                </div>
               </div>
             );
           }
@@ -414,6 +424,12 @@
           // --- 模擬模式 (Sim Screen) ---
           return (
             <div className="flex flex-col items-center min-h-screen bg-stone-50 font-sans text-slate-800 p-4 pb-12">
+              {/* 署名標註 - 位於模擬頁面右上角 (更新為兩行) */}
+              <div className="absolute top-4 right-4 text-slate-400 text-sm font-medium italic pointer-events-none z-50 text-right">
+                 &lt;Designed by 黃鈺心,<br/>
+                 Gemini Canvas輔助生成&gt;
+              </div>
+
               {/* 標題列 */}
               <header className="w-full max-w-5xl mb-6 flex flex-col md:flex-row justify-between items-center bg-white p-4 rounded-xl shadow-sm border-b-4 border-blue-500">
                 <div className="flex items-center gap-3">
@@ -530,14 +546,18 @@
                      </div>
                    </div>
                 </div>
-
+              </div>
+              
+              {/* 署名標註 - 模擬頁面頁尾 (單行) */}
+              <div className="mt-12 text-slate-400 text-sm font-medium italic">
+                 &lt;Designed by 黃鈺心, Gemini Canvas輔助生成&gt;
               </div>
             </div>
           );
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<GeologySimV15 />);
+        root.render(<GeologySimV17 />);
     </script>
 </body>
 </html>

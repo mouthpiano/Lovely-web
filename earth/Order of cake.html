@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地質蛋糕工坊 v16</title>
+    <title>地質蛋糕工坊 v17</title>
     
     <!-- 載入 React 和 Babel -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
@@ -131,7 +131,7 @@
         ];
 
         // --- 主組件 ---
-        const CakeGeologySimV16 = () => {
+        const CakeGeologySimV17 = () => {
           const [step, setStep] = useState(0);
           const [isAutoPlaying, setIsAutoPlaying] = useState(false);
 
@@ -164,6 +164,12 @@
           return (
             <div className="flex flex-col items-center min-h-screen font-sans text-slate-800 p-4 pb-12">
               
+              {/* 署名標註 - 右上角 */}
+              <div className="absolute top-4 right-4 text-slate-400 text-sm font-medium italic z-50 pointer-events-none text-right">
+                 <div>&lt;Designed by 黃鈺心,</div>
+                 <div>Gemini Canvas輔助生成&gt;</div>
+              </div>
+
               <svg width="0" height="0" className="absolute">
                 <defs>
                   <pattern id="chocoRichPattern" x="0" y="0" width="15" height="15" patternUnits="userSpaceOnUse">
@@ -252,7 +258,7 @@
                   </div>
                 </div>
                 <div className="mt-2 md:mt-0 px-5 py-2 bg-amber-500 text-white rounded-full text-sm font-bold shadow-md animate-pulse">
-                  互動式教具 v16
+                  互動式教具 v17
                 </div>
               </header>
 
@@ -366,10 +372,16 @@
                    </div>
                 </div>
               </div>
+              
+              {/* 署名標註 - 頁尾 */}
+              <div className="mt-12 text-slate-400 text-sm font-medium italic">
+                 &lt;Designed by 黃鈺心, Gemini Canvas輔助生成&gt;
+              </div>
             </div>
           );
         };
 
+        // --- 內部組件：超級豪華蛋糕內容 (核心渲染邏輯) ---
         const SuperRichCakeContent = ({ step, startY, cutLineX }) => {
           const centerX = 400;
           const halfW = 300; 
@@ -398,6 +410,7 @@
           const candleBottomY = startY - 20;
           const candleTopY = startY - baseHeight * 2 - crepeTotalHeight - 70;
 
+          // 使用 useMemo 固定珍珠位置
           const pearls = useMemo(() => {
               const calculatedPearls = [];
               const pearlRows = [15, 45, 75]; 
@@ -451,8 +464,12 @@
                         <path d={layerPath} fill="#FFF9C4" stroke="#FBC02D" strokeWidth="1" />
                         <path d={layerPath} fill="url(#crepeSkinPattern)" />
                         
+                        {/* 均勻撒核桃 - 終極修正 */}
                         {[...Array(walnutCount)].map((_, wIndex) => {
                             const xOffset = - (currentWidth/2) + walnutSpacing * wIndex;
+                            
+                            // 修正：移除 scale，直接使用定義好的小核桃符號
+                            // 調整 Y 座標使其位於層的中間偏下，確保嵌入
                             const yPos = layerY - singleCrepeHeight/2 - 2;
 
                             return <use key={wIndex} href="#walnutSmall" x={centerX + xOffset + (Math.random() * 4 - 2)} y={yPos + (Math.random() * 4 - 2)} />;
@@ -487,7 +504,7 @@
         };
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<CakeGeologySimV16 />);
+        root.render(<CakeGeologySimV17 />);
     </script>
 </body>
 </html>
