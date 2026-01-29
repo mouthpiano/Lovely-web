@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>元素大搜查：個人積分賽 (雲端計分版)</title>
+    <title>元素大搜查：小組積分賽 (雲端計分版)</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -300,7 +300,7 @@
                                 </div>
                                 {page !== 'home' && (
                                     <div className="text-sm bg-slate-700 px-3 py-1 rounded border border-slate-500">
-                                        {teamInfo.class}班 第{teamInfo.group}號
+                                        {teamInfo.class}班 第{teamInfo.group}組
                                     </div>
                                 )}
                             </div>
@@ -322,7 +322,7 @@
             const handleSubmit = (e) => {
                 e.preventDefault();
                 if (!info.class || !info.group) {
-                    alert('請填寫完整班級與個人資訊！');
+                    alert('請填寫完整班級與組別資訊！');
                     return;
                 }
                 onStart(info);
@@ -330,19 +330,19 @@
 
             return (
                 <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 mt-10 pop-in border-t-4 border-blue-600">
-                    <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">🧪 個人積分賽登入</h2>
+                    <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">🧪 小組競賽登入</h2>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-gray-700 font-bold mb-2">班級</label>
                             <input type="text" placeholder="例如：801" className="w-full border p-3 rounded-lg focus:outline-none focus:border-blue-500" value={info.class} onChange={e => setInfo({...info, class: e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-gray-700 font-bold mb-2">座號</label>
+                            <label className="block text-gray-700 font-bold mb-2">組別</label>
                             <input type="number" placeholder="例如：3" className="w-full border p-3 rounded-lg focus:outline-none focus:border-blue-500" value={info.group} onChange={e => setInfo({...info, group: e.target.value})} />
                         </div>
                         <div>
-                            <label className="block text-gray-700 font-bold mb-2">姓名</label>
-                            <input type="text" placeholder="例如：伊百芬" className="w-full border p-3 rounded-lg focus:outline-none focus:border-blue-500" value={info.members} onChange={e => setInfo({...info, members: e.target.value})} />
+                            <label className="block text-gray-700 font-bold mb-2">組員座號</label>
+                            <input type="text" placeholder="例如：05, 12, 23" className="w-full border p-3 rounded-lg focus:outline-none focus:border-blue-500" value={info.members} onChange={e => setInfo({...info, members: e.target.value})} />
                         </div>
                         <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg text-lg shadow mt-4 transition transform active:scale-95">開始挑戰 (10題)</button>
                     </form>

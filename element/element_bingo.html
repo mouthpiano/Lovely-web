@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>元素週期表賓果 - 教學網頁</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            touch-action: manipulation;
+        }
+        /* 右上角署名標籤 */
+        .top-right-credits {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 100;
+            background-color: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(4px);
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-align: right;
+            line-height: 1.4;
+            pointer-events: none;
+        }
+        .bingo-card {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            aspect-ratio: 1 / 1;
+        }
+        .bingo-cell {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.75rem;
+            font-weight: 600;
+            border-radius: 0.5rem;
+            background-color: #f1f5f9;
+            color: #1e293b;
+            transition: all 0.2s ease-in-out;
+            border: 2px solid #cbd5e1;
+            user-select: none;
+            cursor: pointer;
+        }
+        .bingo-cell:not(.marked):hover {
+            background-color: #e2e8f0;
+        }
+        .bingo-cell.marked {
+            background-color: #f59e0b;
+            color: white;
+            transform: scale(1.05);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            border-color: #f59e0b;
+            cursor: default;
+        }
+        .bingo-card.disabled .bingo-cell:not(.marked) {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .bingo-cell.free {
+            background-color: #10b981;
+            color: white;
+            font-size: 1.25rem;
+            border-color: #10b981;
+            cursor: default;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .shake {
+            animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
+            border-color: #ef4444;
+        }
+        @media (max-width: 640px) {
+            .bingo-cell { font-size: 1rem; }
+            .bingo-cell.symbol-mode { font-size: 1.25rem; }
+            .bingo-cell.free { font-size: 0.875rem; }
+            .top-right-credits { top: 0.5rem; right: 0.5rem; font-size: 0.7rem; }
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 50; opacity: 0; visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
+        .modal-content {
+            background: white; padding: 2rem 3rem; border-radius: 1rem;
+            text-align: center; transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.visible .modal-content { transform: scale(1); }
+        .footer-credits {
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.5);
+            line-height: 1.5;
+            width: 100%;
+            padding: 1rem 0;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-4">
+
+    <!-- 右上角署名 -->
+    <div class="top-right-credits">
+        Designed by 黃鈺心<br>Gemini Canvas 輔助生成
+    </div>
+
+    <div class="w-full max-w-2xl mx-auto flex-grow flex flex-col justify-center">
+        <header class="text-center mb-6">
+            <h1 class="text-4xl sm:text-5xl font-bold text-amber-400">元素週期表賓果</h1>
+            <p id="subtitle" class="text-slate-300 mt-2">抽出元素，點擊對應的符號！</p>
+        </header>
+
+        <main class="bg-slate-800 p-4 sm:p-8 rounded-2xl shadow-2xl">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <div class="text-center">
+                    <span class="text-sm text-slate-400">目前抽出</span>
+                    <div id="current-element" class="text-6xl font-bold text-white bg-slate-700 w-28 h-28 flex items-center justify-center rounded-lg mt-1 shadow-inner">?</div>
+                    <div id="attempts-tracker" class="text-slate-200 mt-2 font-semibold h-6"></div>
+                </div>
+                <div class="w-full sm:w-auto flex flex-col items-center gap-4">
+                    <button id="draw-btn" class="w-full sm:w-48 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">抽出元素</button>
+                    <button id="new-game-btn" class="w-full sm:w-48 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">產生新卡片</button>
+                    <button id="switch-mode-btn" class="w-full sm:w-48 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">模式: 中 → 英</button>
+                </div>
+            </div>
+
+            <div id="bingo-card-container" class="bingo-card p-2 bg-slate-700 rounded-xl"></div>
+
+            <div class="mt-6">
+                <h3 class="text-lg font-semibold text-center mb-2 text-slate-300">已抽出元素 (<span id="called-count">0</span>/<span id="total-count">0</span>)</h3>
+                <div id="called-elements-list" class="flex flex-wrap justify-center gap-2 p-3 bg-slate-900 rounded-lg min-h-[3rem]"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 頁尾署名 -->
+    <footer class="footer-credits">
+        ＜Designed by 黃鈺心, Gemini Canvas 輔助生成＞
+    </footer>
+
+    <div id="win-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 class="text-4xl font-bold text-emerald-500 mb-2">🎉 賓果！ 🎉</h2>
+            <p class="text-slate-600 text-lg mb-6">恭喜你，成功連成三條線！</p>
+            <button id="modal-new-game-btn" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg">再玩一局</button>
+        </div>
+    </div>
+
+    <script>
+        const elementMap = {'氫':'H','鋰':'Li','鈉':'Na','鉀':'K','銣':'Rb','銫':'Cs','鍅':'Fr','鈹':'Be','鎂':'Mg','鈣':'Ca','鍶':'Sr','鋇':'Ba','鐳':'Ra','硼':'B','鋁':'Al','碳':'C','矽':'Si','鍺':'Ge','錫':'Sn','鉛':'Pb','氮':'N','磷':'P','氧':'O','硫':'S','氟':'F','氯':'Cl','溴':'Br','碘':'I','氦':'He','氖':'Ne','氬':'Ar','氪':'Kr','氙':'Xe','氡':'Rn','銀':'Ag','銅':'Cu','金':'Au','鐵':'Fe','鈾':'U','鋅':'Zn','鈦':'Ti','鉻':'Cr','錳':'Mn','鈷':'Co','鎳':'Ni'};
+        const symbolMap = Object.fromEntries(Object.entries(elementMap).map(([cn, en]) => [en, cn]));
+        const allElements = Object.keys(elementMap);
+        let gameMode = 'cnToEn', gameElementsPool = [], cardState = [], markedState = [], isGameOver = false, clickAttemptsLeft = 0;
+
+        function initGame() {
+            isGameOver = false;
+            gameElementsPool = [...allElements].sort(() => Math.random() - 0.5);
+            cardState = generateCardData();
+            markedState = Array(5).fill().map(() => Array(5).fill(false));
+            markedState[2][2] = true;
+            renderCard();
+            updateCalledElementsUI();
+            document.getElementById('current-element').textContent = '?';
+            document.getElementById('attempts-tracker').textContent = '';
+            document.getElementById('win-modal').classList.remove('visible');
+            document.getElementById('draw-btn').disabled = false;
+        }
+
+        function generateCardData() {
+            const items = gameMode === 'cnToEn' ? Object.values(elementMap) : Object.keys(elementMap);
+            const shuffled = [...items].sort(() => Math.random() - 0.5);
+            let idx = 0;
+            return Array(5).fill().map((_, i) => Array(5).fill().map((_, j) => (i===2 && j===2) ? 'FREE' : shuffled[idx++]));
+        }
+
+        function renderCard() {
+            const container = document.getElementById('bingo-card-container');
+            container.innerHTML = '';
+            cardState.forEach((row, i) => row.forEach((el, j) => {
+                const cell = document.createElement('div');
+                cell.className = `bingo-cell ${el==='FREE'?'free marked':''} ${gameMode==='cnToEn'?'symbol-mode':''}`;
+                cell.textContent = el;
+                cell.onclick = () => handleCellClick(cell, i, j);
+                container.appendChild(cell);
+            }));
+        }
+
+        function handleCellClick(cell, i, j) {
+            if (isGameOver || clickAttemptsLeft <= 0 || cell.classList.contains('marked')) return;
+            const current = document.getElementById('current-element').textContent;
+            const correct = gameMode === 'cnToEn' ? elementMap[current] : symbolMap[current];
+            if (cell.textContent === correct) {
+                cell.classList.add('marked');
+                markedState[i][j] = true;
+                clickAttemptsLeft = 0;
+                document.getElementById('attempts-tracker').textContent = '✔️ 答對了！';
+                checkBingo();
+            } else {
+                clickAttemptsLeft--;
+                cell.classList.add('shake');
+                setTimeout(() => cell.classList.remove('shake'), 400);
+                document.getElementById('attempts-tracker').textContent = clickAttemptsLeft > 0 ? `剩餘次數: ${clickAttemptsLeft}` : '❌ 次數用完';
+            }
+        }
+
+        function checkBingo() {
+            let lines = 0;
+            for(let i=0; i<5; i++) if(markedState[i].every(v=>v)) lines++;
+            for(let i=0; i<5; i++) if(markedState.map(r=>r[i]).every(v=>v)) lines++;
+            if([0,1,2,3,4].every(i=>markedState[i][i])) lines++;
+            if([0,1,2,3,4].every(i=>markedState[i][4-i])) lines++;
+            if(lines >= 3) { isGameOver = true; document.getElementById('win-modal').classList.add('visible'); }
+        }
+
+        function updateCalledElementsUI(newEl) {
+            const list = document.getElementById('called-elements-list');
+            if(!newEl) list.innerHTML = '';
+            else {
+                const span = document.createElement('span');
+                span.className = 'bg-slate-700 text-amber-300 px-2 py-1 rounded text-sm';
+                span.textContent = gameMode === 'cnToEn' ? newEl : elementMap[newEl];
+                list.appendChild(span);
+            }
+            document.getElementById('called-count').textContent = allElements.length - gameElementsPool.length;
+            document.getElementById('total-count').textContent = allElements.length;
+        }
+
+        document.getElementById('draw-btn').onclick = () => {
+            if(gameElementsPool.length === 0) return;
+            clickAttemptsLeft = 3;
+            const el = gameElementsPool.pop();
+            document.getElementById('current-element').textContent = gameMode === 'cnToEn' ? el : elementMap[el];
+            document.getElementById('attempts-tracker').textContent = `剩餘次數: 3`;
+            updateCalledElementsUI(el);
+        };
+        document.getElementById('new-game-btn').onclick = initGame;
+        document.getElementById('modal-new-game-btn').onclick = initGame;
+        document.getElementById('switch-mode-btn').onclick = () => { gameMode = gameMode === 'cnToEn' ? 'enToCn' : 'cnToEn'; initGame(); document.getElementById('switch-mode-btn').textContent = `模式: ${gameMode==='cnToEn'?'中 → 英':'英 → 中'}`; };
+
+        initGame();
+    </script>
+</body>
+</html>

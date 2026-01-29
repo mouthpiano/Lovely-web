@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>縮小燈大冒險：原子分子的微觀派對 (隨機出題版)</title>
-    <!-- 引入 Tailwind CSS (用於樣式) -->
+    <title>縮小燈大冒險：原子分子的微觀派對 (正式版)</title>
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 React 和 Babel -->
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -30,7 +30,15 @@
         const TEACHER_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDicmyKMtDU2-MZXzVD6K1qnb4_PI9rhB6If8ANcMpN-gkN0NUCjsE1tVwjN4nPUVh/exec"; 
         // ============================================================================
 
-        const { useState, useEffect } = React;
+        const { useState, useEffect, useRef } = React;
+
+        // --- 設計者標籤組件 ---
+        const DesignerLabel = () => (
+            <div className="fixed top-2 right-2 z-50 text-[10px] sm:text-xs font-medium text-gray-400 bg-white/80 px-2 py-1 rounded shadow-sm backdrop-blur-sm border border-gray-100 text-right leading-tight max-w-[150px] sm:max-w-none">
+                <div>Designed by 黃鈺心,</div>
+                <div>Gemini Canvas輔助生成</div>
+            </div>
+        );
 
         // --- 圖示組件 ---
         const School = ({ size = 24, className = "" }) => (
@@ -181,6 +189,9 @@
             const [answers, setAnswers] = useState({}); 
             const [uploadStatus, setUploadStatus] = useState('idle');
             const [gameQuestions, setGameQuestions] = useState([]); // 隨機題目狀態
+            
+            // 使用 useRef 來追蹤是否已經上傳過，避免重複上傳
+            const hasUploaded = useRef(false);
 
             const [currentInput, setCurrentInput] = useState({
                 selectedModelId: '',
@@ -207,6 +218,14 @@
                     moleculeTypes: ''
                 });
             }, [currentQIndex]);
+
+            // 自動上傳 Effect：當 step 變成 'result' 時觸發
+            useEffect(() => {
+                if (step === 'result' && !hasUploaded.current) {
+                    hasUploaded.current = true; // 標記為已上傳
+                    handleUpload();
+                }
+            }, [step]);
 
             // 洗牌函式
             const shuffleQuestions = (array) => {
@@ -266,10 +285,13 @@
 
             const handleUpload = async () => {
                 const targetUrl = TEACHER_SCRIPT_URL.trim();
+                
                 if (!targetUrl) {
-                    alert('老師尚未在程式碼中設定上傳網址，無法上傳！請通知老師。');
+                    alert('老師尚未在程式碼中設定上傳網址，無法自動上傳！請通知老師。');
+                    setUploadStatus('error');
                     return;
                 }
+                
                 setUploadStatus('uploading');
                 try {
                     const formData = new FormData();
@@ -290,398 +312,402 @@
 
             // --- 畫面渲染 ---
 
-            if (step === 'login') {
-                return (
-                    <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center p-4">
-                        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-                            <h1 className="text-3xl font-bold text-center text-indigo-800 mb-6">縮小燈大冒險<br/><span className="text-xl text-indigo-600">原子分子的微觀派對</span></h1>
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">班級</label>
-                                    <div className="relative">
-                                        <School className="absolute left-3 top-3 text-gray-400" size={18} />
+            return (
+                <div className="relative min-h-screen">
+                    {/* 設計者標籤 (全域顯示) */}
+                    <DesignerLabel />
+
+                    {step === 'login' && (
+                        <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center p-4">
+                            <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                                <h1 className="text-3xl font-bold text-center text-indigo-800 mb-6">縮小燈大冒險<br/><span className="text-xl text-indigo-600">原子分子的微觀派對</span></h1>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">班級</label>
+                                        <div className="relative">
+                                            <School className="absolute left-3 top-3 text-gray-400" size={18} />
+                                            <input
+                                                type="text"
+                                                className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                placeholder="例如：801"
+                                                value={studentInfo.className}
+                                                onChange={e => setStudentInfo({ ...studentInfo, className: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">座號</label>
                                         <input
-                                            type="text"
-                                            className="w-full pl-10 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                                            placeholder="例如：801"
-                                            value={studentInfo.className}
-                                            onChange={e => setStudentInfo({ ...studentInfo, className: e.target.value })}
+                                            type="number"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="例如：15"
+                                            value={studentInfo.number}
+                                            onChange={e => setStudentInfo({ ...studentInfo, number: e.target.value })}
                                         />
                                     </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
+                                        <input
+                                            type="text"
+                                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                                            placeholder="請輸入真實姓名"
+                                            value={studentInfo.name}
+                                            onChange={e => setStudentInfo({ ...studentInfo, name: e.target.value })}
+                                        />
+                                    </div>
+                                    <button
+                                        onClick={handleStart}
+                                        className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 mt-4"
+                                    >
+                                        開始大冒險 <Play size={20} />
+                                    </button>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">座號</label>
-                                    <input
-                                        type="number"
-                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        placeholder="例如：15"
-                                        value={studentInfo.number}
-                                        onChange={e => setStudentInfo({ ...studentInfo, number: e.target.value })}
-                                    />
+                            </div>
+                        </div>
+                    )}
+
+                    {step === 'game' && (
+                        <div className="min-h-screen bg-gray-50 p-4 pb-20">
+                            <div className="max-w-4xl mx-auto">
+                                {/* Header Info */}
+                                <div className="flex justify-between items-center mb-6">
+                                    <span className="font-bold text-gray-600">
+                                        第 {currentQIndex + 1} / {gameQuestions.length} 題
+                                    </span>
+                                    <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
+                                        {studentInfo.className}班 {studentInfo.number}號 {studentInfo.name}
+                                    </span>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-                                    <input
-                                        type="text"
-                                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        placeholder="請輸入真實姓名"
-                                        value={studentInfo.name}
-                                        onChange={e => setStudentInfo({ ...studentInfo, name: e.target.value })}
-                                    />
+
+                                {/* 題目區 */}
+                                <div className="w-full bg-blue-600 text-white rounded-xl p-6 mb-6 shadow-lg text-center">
+                                    <h2 className="text-3xl font-bold tracking-wider">題目：{gameQuestions[currentQIndex].symbol}</h2>
+                                    <p className="text-blue-100 mt-2 text-sm">請依照題目化學式，選出正確的模型圖並完成分析</p>
                                 </div>
+
+                                {/* 模型選擇區 */}
+                                <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-l-4 border-blue-500">
+                                    <div className="flex flex-wrap items-center justify-between mb-4 gap-2">
+                                        <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                                            <MousePointerClick size={20} className="text-blue-600"/> 
+                                            選擇正確的原子模型
+                                        </h3>
+                                        
+                                        <div className="flex gap-3 text-sm font-normal bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">
+                                            <div className="flex items-center gap-1">
+                                                <div className="w-4 h-4 rounded-full bg-gray-100 border border-gray-400"></div>
+                                                <span className="text-gray-600">H</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <div className="w-4 h-4 rounded-full bg-gray-900 border border-gray-700"></div>
+                                                <span className="text-gray-600">C</span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <div className="w-4 h-4 rounded-full bg-red-500 border border-red-700"></div>
+                                                <span className="text-gray-600">O</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {MODEL_OPTIONS.map((option) => (
+                                            <button
+                                                key={option.id}
+                                                onClick={() => setCurrentInput({ ...currentInput, selectedModelId: option.id })}
+                                                className={`
+                                                    relative p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 h-24 justify-center
+                                                    ${currentInput.selectedModelId === option.id 
+                                                    ? 'border-blue-500 bg-blue-50 shadow-md scale-105' 
+                                                    : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'}
+                                                `}
+                                            >
+                                                <div className="flex items-center justify-center w-full">
+                                                    <ModelRenderer type={option.type} />
+                                                </div>
+                                                {currentInput.selectedModelId === option.id && (
+                                                    <div className="absolute top-1 right-1 text-blue-600">
+                                                        <CheckCircle size={14} />
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <div className="text-center mt-4 h-6">
+                                        {currentInput.selectedModelId ? (
+                                            <span className="text-blue-600 font-medium text-sm">
+                                                已選擇模型
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400 text-sm">請點擊上方其中一個選項</span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Form Area - 填空區 */}
+                                <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
+                                    
+                                    {/* 1. 名稱與數量 */}
+                                    <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                                        <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
+                                            ➊ 名稱識別
+                                        </h3>
+                                        <div className="flex flex-wrap items-center gap-2 text-lg">
+                                            <span>圖中有</span>
+                                            <input
+                                                type="number"
+                                                className="w-16 p-2 border-b-2 border-indigo-300 bg-transparent text-center focus:border-indigo-600 outline-none font-bold"
+                                                value={currentInput.count}
+                                                onChange={e => setCurrentInput({ ...currentInput, count: e.target.value })}
+                                            />
+                                            <span>個</span>
+                                            <select
+                                                className="p-2 border rounded bg-white min-w-[10rem]"
+                                                value={currentInput.name}
+                                                onChange={e => setCurrentInput({ ...currentInput, name: e.target.value })}
+                                            >
+                                                <option value="">請選擇</option>
+                                                <option value="氫原子">氫原子</option>
+                                                <option value="氫分子">氫分子</option>
+                                                <option value="氧原子">氧原子</option>
+                                                <option value="氧分子">氧分子</option>
+                                                <option value="水分子">水分子</option>
+                                                <option value="二氧化碳分子">二氧化碳分子</option>
+                                                <option value="混合物(有幾個物質)">混合物(有幾個物質)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    {/* 2. 分類 */}
+                                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                                        <h3 className="font-bold text-green-800 mb-3">➋ 物質分類</h3>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">化學分類</label>
+                                                <div className="flex gap-1">
+                                                    {['元素', '化合物', '不適用'].map(opt => (
+                                                        <button
+                                                            key={opt}
+                                                            onClick={() => setCurrentInput({ ...currentInput, category: opt })}
+                                                            className={`flex-1 py-2 text-sm rounded border transition-colors ${
+                                                                currentInput.category === opt 
+                                                                ? 'bg-green-600 text-white border-green-600' 
+                                                                : 'bg-white text-gray-600 border-gray-300 hover:bg-green-50'
+                                                            }`}
+                                                        >
+                                                            {opt}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm text-gray-600 mb-1">純度分類</label>
+                                                <div className="flex gap-2">
+                                                    {['純物質', '混合物'].map(opt => (
+                                                        <button
+                                                            key={opt}
+                                                            onClick={() => setCurrentInput({ ...currentInput, purity: opt })}
+                                                            className={`flex-1 py-2 rounded border transition-colors ${
+                                                                currentInput.purity === opt 
+                                                                ? 'bg-green-600 text-white border-green-600' 
+                                                                : 'bg-white text-gray-600 border-gray-300 hover:bg-green-50'
+                                                            }`}
+                                                        >
+                                                            {opt}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 3. 組成統計 */}
+                                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                                        <h3 className="font-bold text-purple-800 mb-3">➌ 組成分析</h3>
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center border-b border-purple-100 pb-2">
+                                                <span className="text-gray-700">總共有幾個原子？</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-20 p-2 border rounded text-center focus:ring-2 focus:ring-purple-300 outline-none"
+                                                    value={currentInput.totalAtoms}
+                                                    onChange={e => setCurrentInput({ ...currentInput, totalAtoms: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between items-center border-b border-purple-100 pb-2">
+                                                <span className="text-gray-700">有幾「種」原子？</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-20 p-2 border rounded text-center focus:ring-2 focus:ring-purple-300 outline-none"
+                                                    value={currentInput.atomTypes}
+                                                    onChange={e => setCurrentInput({ ...currentInput, atomTypes: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between items-center border-b border-purple-100 pb-2 bg-purple-100/50 px-2 rounded">
+                                                <span className="text-purple-900 font-bold">有幾個分子？</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-20 p-2 border rounded text-center focus:ring-2 focus:ring-purple-300 outline-none font-bold"
+                                                    value={currentInput.moleculeCount}
+                                                    onChange={e => setCurrentInput({ ...currentInput, moleculeCount: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="flex justify-between items-center px-2">
+                                                <span className="text-gray-700">有幾「種」分子？</span>
+                                                <input
+                                                    type="number"
+                                                    className="w-20 p-2 border rounded text-center focus:ring-2 focus:ring-purple-300 outline-none"
+                                                    value={currentInput.moleculeTypes}
+                                                    onChange={e => setCurrentInput({ ...currentInput, moleculeTypes: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
                                 <button
-                                    onClick={handleStart}
-                                    className="w-full bg-indigo-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-indigo-700 transition flex items-center justify-center gap-2 mt-4"
+                                    onClick={handleNext}
+                                    className="w-full mt-6 bg-indigo-600 text-white py-4 rounded-xl font-bold text-xl shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2"
                                 >
-                                    開始大冒險 <Play size={20} />
+                                    {currentQIndex === gameQuestions.length - 1 ? '提交答案' : '下一題'} <ChevronRight />
                                 </button>
                             </div>
                         </div>
-                    </div>
-                );
-            }
+                    )}
 
-            if (step === 'game') {
-                const q = gameQuestions[currentQIndex]; // 使用隨機後的題目
-                return (
-                    <div className="min-h-screen bg-gray-50 p-4 pb-20">
-                        <div className="max-w-4xl mx-auto">
-                            {/* Header Info */}
-                            <div className="flex justify-between items-center mb-6">
-                                <span className="font-bold text-gray-600">
-                                    第 {currentQIndex + 1} / {gameQuestions.length} 題
-                                </span>
-                                <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
-                                    {studentInfo.className}班 {studentInfo.number}號 {studentInfo.name}
-                                </span>
-                            </div>
-
-                            {/* 題目區 */}
-                            <div className="w-full bg-blue-600 text-white rounded-xl p-6 mb-6 shadow-lg text-center">
-                                <h2 className="text-3xl font-bold tracking-wider">題目：{q.symbol}</h2>
-                                <p className="text-blue-100 mt-2 text-sm">請依照題目化學式，選出正確的模型圖並完成分析</p>
-                            </div>
-
-                            {/* 模型選擇區 */}
-                            <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-l-4 border-blue-500">
-                                <div className="flex flex-wrap items-center justify-between mb-4 gap-2">
-                                    <h3 className="font-bold text-gray-800 flex items-center gap-2">
-                                        <MousePointerClick size={20} className="text-blue-600"/> 
-                                        選擇正確的原子模型
-                                    </h3>
-                                    
-                                    <div className="flex gap-3 text-sm font-normal bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-4 h-4 rounded-full bg-gray-100 border border-gray-400"></div>
-                                            <span className="text-gray-600">H</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-4 h-4 rounded-full bg-gray-900 border border-gray-700"></div>
-                                            <span className="text-gray-600">C</span>
-                                        </div>
-                                        <div className="flex items-center gap-1">
-                                            <div className="w-4 h-4 rounded-full bg-red-500 border border-red-700"></div>
-                                            <span className="text-gray-600">O</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    {MODEL_OPTIONS.map((option) => (
-                                        <button
-                                            key={option.id}
-                                            onClick={() => setCurrentInput({ ...currentInput, selectedModelId: option.id })}
-                                            className={`
-                                                relative p-3 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 h-24 justify-center
-                                                ${currentInput.selectedModelId === option.id 
-                                                ? 'border-blue-500 bg-blue-50 shadow-md scale-105' 
-                                                : 'border-gray-200 hover:border-blue-200 hover:bg-gray-50'}
-                                            `}
-                                        >
-                                            <div className="flex items-center justify-center w-full">
-                                                <ModelRenderer type={option.type} />
-                                            </div>
-                                            {currentInput.selectedModelId === option.id && (
-                                                <div className="absolute top-1 right-1 text-blue-600">
-                                                    <CheckCircle size={14} />
-                                                </div>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
-                                <div className="text-center mt-4 h-6">
-                                    {currentInput.selectedModelId ? (
-                                        <span className="text-blue-600 font-medium text-sm">
-                                            已選擇模型
-                                        </span>
-                                    ) : (
-                                        <span className="text-gray-400 text-sm">請點擊上方其中一個選項</span>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Form Area - 填空區 */}
-                            <div className="bg-white rounded-xl shadow-lg p-6 space-y-6">
-                                {/* 1. 名稱與數量 */}
-                                <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                                    <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
-                                        ➊ 名稱識別
-                                    </h3>
-                                    <div className="flex flex-wrap items-center gap-2 text-lg">
-                                        <span>圖中有</span>
-                                        <input
-                                            type="number"
-                                            className="w-16 p-2 border-b-2 border-indigo-300 bg-transparent text-center focus:border-indigo-600 outline-none font-bold"
-                                            value={currentInput.count}
-                                            onChange={e => setCurrentInput({ ...currentInput, count: e.target.value })}
-                                        />
-                                        <span>個</span>
-                                        <select
-                                            className="p-2 border rounded bg-white min-w-[10rem]"
-                                            value={currentInput.name}
-                                            onChange={e => setCurrentInput({ ...currentInput, name: e.target.value })}
-                                        >
-                                            <option value="">請選擇</option>
-                                            <option value="氫原子">氫原子</option>
-                                            <option value="氫分子">氫分子</option>
-                                            <option value="氧原子">氧原子</option>
-                                            <option value="氧分子">氧分子</option>
-                                            <option value="水分子">水分子</option>
-                                            <option value="二氧化碳分子">二氧化碳分子</option>
-                                            <option value="混合物(有幾個物質)">混合物(有幾個物質)</option>
-                                        </select>
-                                    </div>
-                                </div>
-
-                                {/* 2. 分類 */}
-                                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                                    <h3 className="font-bold text-green-800 mb-3">➋ 物質分類</h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm text-gray-600 mb-1">化學分類</label>
-                                            <div className="flex gap-1">
-                                                {['元素', '化合物', '不適用'].map(opt => (
-                                                    <button
-                                                        key={opt}
-                                                        onClick={() => setCurrentInput({ ...currentInput, category: opt })}
-                                                        className={`flex-1 py-2 text-sm rounded border transition-colors ${
-                                                            currentInput.category === opt 
-                                                            ? 'bg-green-600 text-white border-green-600' 
-                                                            : 'bg-white text-gray-600 border-gray-300 hover:bg-green-50'
-                                                        }`}
-                                                    >
-                                                        {opt}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm text-gray-600 mb-1">純度分類</label>
-                                            <div className="flex gap-2">
-                                                {['純物質', '混合物'].map(opt => (
-                                                    <button
-                                                        key={opt}
-                                                        onClick={() => setCurrentInput({ ...currentInput, purity: opt })}
-                                                        className={`flex-1 py-2 rounded border transition-colors ${
-                                                            currentInput.purity === opt 
-                                                            ? 'bg-green-600 text-white border-green-600' 
-                                                            : 'bg-white text-gray-600 border-gray-300 hover:bg-green-50'
-                                                        }`}
-                                                    >
-                                                        {opt}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* 3. 組成統計 */}
-                                <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                                    <h3 className="font-bold text-purple-800 mb-3">➌ 組成分析</h3>
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between items-center border-b border-purple-100 pb-2">
-                                            <span className="text-gray-700">總共有幾個原子？</span>
-                                            <input
-                                                type="number"
-                                                className="w-20 p-2 border rounded text-center focus:ring-2 focus:ring-purple-300 outline-none"
-                                                value={currentInput.totalAtoms}
-                                                onChange={e => setCurrentInput({ ...currentInput, totalAtoms: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="flex justify-between items-center border-b border-purple-100 pb-2">
-                                            <span className="text-gray-700">有幾「種」原子？</span>
-                                            <input
-                                                type="number"
-                                                className="w-20 p-2 border rounded text-center focus:ring-2 focus:ring-purple-300 outline-none"
-                                                value={currentInput.atomTypes}
-                                                onChange={e => setCurrentInput({ ...currentInput, atomTypes: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="flex justify-between items-center border-b border-purple-100 pb-2 bg-purple-100/50 px-2 rounded">
-                                            <span className="text-purple-900 font-bold">有幾個分子？</span>
-                                            <input
-                                                type="number"
-                                                className="w-20 p-2 border rounded text-center focus:ring-2 focus:ring-purple-300 outline-none font-bold"
-                                                value={currentInput.moleculeCount}
-                                                onChange={e => setCurrentInput({ ...currentInput, moleculeCount: e.target.value })}
-                                            />
-                                        </div>
-                                        <div className="flex justify-between items-center px-2">
-                                            <span className="text-gray-700">有幾「種」分子？</span>
-                                            <input
-                                                type="number"
-                                                className="w-20 p-2 border rounded text-center focus:ring-2 focus:ring-purple-300 outline-none"
-                                                value={currentInput.moleculeTypes}
-                                                onChange={e => setCurrentInput({ ...currentInput, moleculeTypes: e.target.value })}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-
-                            </div>
-
-                            <button
-                                onClick={handleNext}
-                                className="w-full mt-6 bg-indigo-600 text-white py-4 rounded-xl font-bold text-xl shadow-lg hover:bg-indigo-700 flex items-center justify-center gap-2"
-                            >
-                                {currentQIndex === gameQuestions.length - 1 ? '提交答案' : '下一題'} <ChevronRight />
-                            </button>
-                        </div>
-                    </div>
-                );
-            }
-
-            if (step === 'result') {
-                return (
-                    <div className="min-h-screen bg-gray-100 p-4">
-                        <div className="max-w-3xl mx-auto space-y-6">
-                            
-                            {/* Result Header */}
-                            <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
-                                <div className="inline-flex items-center justify-center w-20 h-20 bg-yellow-100 rounded-full mb-4">
-                                    <BarChart size={40} className="text-yellow-600" />
-                                </div>
-                                <h2 className="text-3xl font-bold text-gray-800">測驗完成！</h2>
-                                <p className="text-gray-500 mt-2">{studentInfo.className}班 {studentInfo.number}號 {studentInfo.name}</p>
-                                <div className="mt-6 text-6xl font-extrabold text-indigo-700">{finalScore} <span className="text-2xl text-gray-500">分</span></div>
-                                <p className="text-sm text-gray-400 mt-2">滿分 104 分</p>
-                            </div>
-
-                            {/* Upload Section */}
-                            <div className="bg-white rounded-2xl shadow-lg p-6">
-                                <h3 className="font-bold text-gray-700 border-b pb-2 mb-4">步驟一：上傳成績</h3>
-                                <div className="space-y-3">
-                                    <div className="p-3 bg-blue-50 text-blue-800 text-sm rounded-lg mb-2">
-                                        請點擊下方按鈕將成績上傳至老師的雲端硬碟。
-                                    </div>
-                                    
-                                    {uploadStatus === 'idle' && (
-                                        <button
-                                            onClick={handleUpload}
-                                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 flex items-center justify-center gap-2"
-                                        >
-                                            <Send size={18} /> 上傳至雲端
-                                        </button>
-                                    )}
-                                    {uploadStatus === 'uploading' && (
-                                        <button disabled className="w-full bg-gray-400 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2">
-                                            <RefreshCw className="animate-spin" size={18} /> 上傳中...
-                                        </button>
-                                    )}
-                                    {uploadStatus === 'success' && (
-                                        <div className="w-full bg-green-100 text-green-700 py-3 rounded-lg font-bold flex items-center justify-center gap-2 border border-green-300">
-                                            <CheckCircle size={18} /> 上傳成功！
-                                        </div>
-                                    )}
-                                    {uploadStatus === 'error' && (
-                                        <div className="w-full bg-red-100 text-red-700 py-3 rounded-lg font-bold flex items-center justify-center gap-2 border border-red-300">
-                                            <AlertCircle size={18} /> 上傳失敗，請檢查網路或通知老師
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Review Section (作答檢討) */}
-                            <div className="bg-white rounded-2xl shadow-lg p-6">
-                                <h3 className="font-bold text-gray-700 border-b pb-2 mb-4 flex items-center gap-2">
-                                    <Search size={20}/> 步驟二：作答檢討報告
-                                </h3>
+                    {step === 'result' && (
+                        <div className="min-h-screen bg-gray-100 p-4">
+                            <div className="max-w-3xl mx-auto space-y-6">
                                 
-                                <div className="space-y-8">
-                                    {Object.values(answers).map((ans, idx) => {
-                                        const isModelCorrect = ans.user.selectedModelId === ans.correctModel;
-                                        return (
-                                            <div key={idx} className="border border-gray-200 rounded-xl overflow-hidden">
-                                                <div className="bg-gray-50 px-4 py-3 flex justify-between items-center border-b">
-                                                    <span className="font-bold text-lg text-gray-700">題目：{ans.symbol}</span>
-                                                    <span className={`px-2 py-1 rounded text-sm font-bold ${ans.points === ans.maxPoints ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                                        得分：{ans.points} / {ans.maxPoints}
-                                                    </span>
-                                                </div>
-                                                
-                                                <div className="p-4 grid md:grid-cols-2 gap-6">
-                                                    {/* Left: Model Comparison */}
-                                                    <div>
-                                                        <h4 className="text-sm font-bold text-gray-500 mb-2">模型選擇</h4>
-                                                        <div className="flex gap-4 items-start">
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="text-xs text-gray-500 mb-1">你的選擇</span>
-                                                                <div className={`p-2 border-2 rounded-lg ${isModelCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
-                                                                    {ans.user.selectedModelId ? (
-                                                                        <ModelRenderer type={MODEL_OPTIONS.find(o => o.id === ans.user.selectedModelId)?.type} scale={0.5} />
-                                                                    ) : <XCircle className="text-red-400" />}
+                                {/* Result Header */}
+                                <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+                                    <div className="inline-flex items-center justify-center w-20 h-20 bg-yellow-100 rounded-full mb-4">
+                                        <BarChart size={40} className="text-yellow-600" />
+                                    </div>
+                                    <h2 className="text-3xl font-bold text-gray-800">測驗完成！</h2>
+                                    <p className="text-gray-500 mt-2">{studentInfo.className}班 {studentInfo.number}號 {studentInfo.name}</p>
+                                    <div className="mt-6 text-6xl font-extrabold text-indigo-700">{finalScore} <span className="text-2xl text-gray-500">分</span></div>
+                                    <p className="text-sm text-gray-400 mt-2">滿分 104 分</p>
+                                </div>
+
+                                {/* Auto Upload Section */}
+                                <div className="bg-white rounded-2xl shadow-lg p-6">
+                                    <h3 className="font-bold text-gray-700 border-b pb-2 mb-4">成績上傳狀態</h3>
+                                    <div className="space-y-3 text-center">
+                                        {uploadStatus === 'uploading' && (
+                                            <div className="py-4 text-blue-600 font-bold flex flex-col items-center animate-pulse">
+                                                <RefreshCw className="animate-spin mb-2" size={32} />
+                                                正在自動上傳成績至雲端...
+                                            </div>
+                                        )}
+                                        
+                                        {uploadStatus === 'success' && (
+                                            <div className="w-full bg-green-100 text-green-700 py-4 rounded-lg font-bold flex flex-col items-center justify-center gap-2 border border-green-300">
+                                                <CheckCircle size={32} />
+                                                <p>上傳成功！成績已登錄。</p>
+                                            </div>
+                                        )}
+
+                                        {uploadStatus === 'error' && (
+                                            <div className="w-full bg-red-100 text-red-700 py-4 rounded-lg font-bold flex flex-col items-center justify-center gap-2 border border-red-300">
+                                                <AlertCircle size={32} />
+                                                <p>上傳失敗</p>
+                                                <p className="text-xs font-normal">請檢查網路連線或通知老師</p>
+                                                <button 
+                                                    onClick={() => { handleUpload(); }}
+                                                    className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center gap-2"
+                                                >
+                                                    <RefreshCw size={16} /> 重試上傳
+                                                </button>
+                                            </div>
+                                        )}
+                                        
+                                        {/* Fallback for idle state if needed, though effect runs immediately */}
+                                        {uploadStatus === 'idle' && (
+                                            <div className="text-gray-400 text-sm">準備上傳...</div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Review Section (作答檢討) */}
+                                <div className="bg-white rounded-2xl shadow-lg p-6">
+                                    <h3 className="font-bold text-gray-700 border-b pb-2 mb-4 flex items-center gap-2">
+                                        <Search size={20}/> 步驟二：作答檢討報告
+                                    </h3>
+                                    
+                                    <div className="space-y-8">
+                                        {Object.values(answers).map((ans, idx) => {
+                                            const isModelCorrect = ans.user.selectedModelId === ans.correctModel;
+                                            return (
+                                                <div key={idx} className="border border-gray-200 rounded-xl overflow-hidden">
+                                                    <div className="bg-gray-50 px-4 py-3 flex justify-between items-center border-b">
+                                                        <span className="font-bold text-lg text-gray-700">題目：{ans.symbol}</span>
+                                                        <span className={`px-2 py-1 rounded text-sm font-bold ${ans.points === ans.maxPoints ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                            得分：{ans.points} / {ans.maxPoints}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    <div className="p-4 grid md:grid-cols-2 gap-6">
+                                                        {/* Left: Model Comparison */}
+                                                        <div>
+                                                            <h4 className="text-sm font-bold text-gray-500 mb-2">模型選擇</h4>
+                                                            <div className="flex gap-4 items-start">
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="text-xs text-gray-500 mb-1">你的選擇</span>
+                                                                    <div className={`p-2 border-2 rounded-lg ${isModelCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
+                                                                        {ans.user.selectedModelId ? (
+                                                                            <ModelRenderer type={MODEL_OPTIONS.find(o => o.id === ans.user.selectedModelId)?.type} scale={0.5} />
+                                                                        ) : <XCircle className="text-red-400" />}
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                            <div className="flex flex-col items-center">
-                                                                <span className="text-xs text-gray-500 mb-1">正確答案</span>
-                                                                <div className="p-2 border-2 border-green-500 bg-green-50 rounded-lg">
-                                                                    <ModelRenderer type={MODEL_OPTIONS.find(o => o.id === ans.correctModel)?.type} scale={0.5} />
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="text-xs text-gray-500 mb-1">正確答案</span>
+                                                                    <div className="p-2 border-2 border-green-500 bg-green-50 rounded-lg">
+                                                                        <ModelRenderer type={MODEL_OPTIONS.find(o => o.id === ans.correctModel)?.type} scale={0.5} />
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
-                                                    </div>
 
-                                                    {/* Right: Data Comparison Table */}
-                                                    <div>
-                                                        <h4 className="text-sm font-bold text-gray-500 mb-2">作答詳細比對</h4>
-                                                        <table className="w-full text-sm">
-                                                            <thead>
-                                                                <tr className="text-left text-gray-400 text-xs">
-                                                                    <th className="pb-1">項目</th>
-                                                                    <th className="pb-1">你的答案</th>
-                                                                    <th className="pb-1">正確答案</th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody className="divide-y">
-                                                                <ReviewRow label="數量/名稱" user={`${ans.user.count}個 ${ans.user.name}`} correct={`${ans.correctData.count}個 ${ans.correctData.name}`} />
-                                                                <ReviewRow label="分類" user={`${ans.user.category} / ${ans.user.purity}`} correct={`${ans.correctData.category} / ${ans.correctData.purity}`} />
-                                                                <ReviewRow label="原子總數" user={ans.user.totalAtoms} correct={ans.correctData.composition.totalAtoms} />
-                                                                <ReviewRow label="原子種類" user={ans.user.atomTypes} correct={ans.correctData.composition.atomTypes} />
-                                                                <ReviewRow label="分子個數" user={ans.user.moleculeCount} correct={ans.correctData.composition.moleculeCount} />
-                                                                <ReviewRow label="分子種類" user={ans.user.moleculeTypes} correct={ans.correctData.composition.moleculeTypes} />
-                                                            </tbody>
-                                                        </table>
+                                                        {/* Right: Data Comparison Table */}
+                                                        <div>
+                                                            <h4 className="text-sm font-bold text-gray-500 mb-2">作答詳細比對</h4>
+                                                            <table className="w-full text-sm">
+                                                                <thead>
+                                                                    <tr className="text-left text-gray-400 text-xs">
+                                                                        <th className="pb-1">項目</th>
+                                                                        <th className="pb-1">你的答案</th>
+                                                                        <th className="pb-1">正確答案</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody className="divide-y">
+                                                                    <ReviewRow label="數量/名稱" user={`${ans.user.count}個 ${ans.user.name}`} correct={`${ans.correctData.count}個 ${ans.correctData.name}`} />
+                                                                    <ReviewRow label="分類" user={`${ans.user.category} / ${ans.user.purity}`} correct={`${ans.correctData.category} / ${ans.correctData.purity}`} />
+                                                                    <ReviewRow label="原子總數" user={ans.user.totalAtoms} correct={ans.correctData.composition.totalAtoms} />
+                                                                    <ReviewRow label="原子種類" user={ans.user.atomTypes} correct={ans.correctData.composition.atomTypes} />
+                                                                    <ReviewRow label="分子個數" user={ans.user.moleculeCount} correct={ans.correctData.composition.moleculeCount} />
+                                                                    <ReviewRow label="分子種類" user={ans.user.moleculeTypes} correct={ans.correctData.composition.moleculeTypes} />
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        );
-                                    })}
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
 
-                            <div className="text-center pt-8">
-                                <button onClick={() => window.location.reload()} className="text-gray-400 text-sm underline hover:text-gray-600">
-                                重新開始測驗
-                                </button>
-                            </div>
+                                <div className="text-center pt-8">
+                                    <button onClick={() => window.location.reload()} className="text-gray-400 text-sm underline hover:text-gray-600">
+                                    重新開始測驗
+                                    </button>
+                                </div>
 
+                            </div>
                         </div>
-                    </div>
-                );
-            }
-
-            return null;
+                    )}
+                </div>
+            );
         }
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
