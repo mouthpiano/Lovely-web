@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>大學生記帳本</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .tab-active { color: #2563eb; border-bottom: 2px solid #2563eb; }
+        .tab-inactive { color: #6b7280; }
+        .fade-in { animation: fadeIn 0.3s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Loading Spinner */
+        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3498db; width: 20px; height: 20px; -webkit-animation: spin 1s linear infinite; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* iOS Specific fixes */
+        input[type="date"] { -webkit-appearance: none; min-height: 44px; }
+        button { min-height: 44px; } /* Hit target size */
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex justify-center items-start pt-safe sm:pt-10">
+
+    <div class="bg-white w-full max-w-md h-[100dvh] sm:h-auto sm:rounded-2xl shadow-xl overflow-hidden flex flex-col relative">
+        
+        <!-- Header -->
+        <div class="bg-blue-600 p-4 text-white flex justify-between items-center shadow-md z-10 pt-safe-top">
+            <div>
+                <h1 class="text-xl font-bold"><i class="fas fa-wallet mr-2"></i>大學生記帳本</h1>
+                <p class="text-xs text-blue-100">同步 Google Sheets</p>
+            </div>
+            <button onclick="toggleSettings()" class="text-white hover:text-blue-200 transition p-2">
+                <i class="fas fa-cog text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Notification Toast -->
+        <div id="toast" class="absolute top-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-4 py-3 rounded-lg text-sm shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none z-50 w-3/4 text-center">
+            訊息提示
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="flex-1 overflow-y-auto p-4 relative pb-24" id="main-content" style="-webkit-overflow-scrolling: touch;">
+            
+            <!-- Tab 1: 記帳 (Record) -->
+            <div id="view-record" class="fade-in">
+                
+                <!-- Chart Area -->
+                <div class="bg-white p-2 rounded-xl mb-4 border border-gray-200 shadow-sm">
+                    <h3 class="text-gray-500 text-xs font-bold mb-2 ml-1">收支趨勢 (近6個月)</h3>
+                    <div class="h-40 relative w-full">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-xl mb-6 border border-blue-100">
+                    <label class="block text-gray-500 text-sm mb-1">今日收支</label>
+                    <div class="flex justify-between items-end">
+                        <div>
+                            <span class="text-3xl font-bold text-gray-800" id="display-amount">0</span>
+                            <span class="text-gray-500">TWD</span>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="setTxType('expense')" id="btn-type-expense" class="px-3 py-1 rounded-full text-sm font-medium bg-red-500 text-white transition">支出</button>
+                            <button onclick="setTxType('income')" id="btn-type-income" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-200 text-gray-600 transition">收入</button>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="record-form" onsubmit="submitTransaction(event)" class="space-y-4">
+                    <!-- Amount -->
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">金額</label>
+                        <input type="number" id="input-amount" required class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg" placeholder="輸入金額" inputmode="decimal">
+                    </div>
+
+                    <!-- Date -->
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">日期</label>
+                        <input type="date" id="input-date" required class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
+                    </div>
+
+                    <!-- Category -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <label class="block text-gray-700 text-sm font-bold">分類</label>
+                            <button type="button" onclick="openCategoryManager()" class="text-xs text-blue-500 hover:underline p-2">編輯分類</button>
+                        </div>
+                        <div id="category-chips" class="flex flex-wrap gap-2">
+                            <!-- JS will populate this -->
+                        </div>
+                        <input type="hidden" id="input-category" required>
+                    </div>
+
+                    <!-- Note -->
+                    <div>
+                        <label class="block text-gray-700 text-sm font-bold mb-2">備註 (選填)</label>
+                        <input type="text" id="input-note" class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="例如：午餐、打工費">
+                    </div>
+
+                    <button type="submit" id="submit-btn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:bg-blue-700 transition flex justify-center items-center shadow-lg active:scale-95 transform duration-150">
+                        <span>儲存並同步</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Tab 2: 紀錄 (History) -->
+            <div id="view-history" class="hidden fade-in">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-700">最近紀錄</h2>
+                    <button onclick="renderHistory()" class="text-blue-500 text-sm"><i class="fas fa-sync-alt mr-1"></i>重新整理</button>
+                </div>
+                <div id="history-list" class="space-y-3 pb-16">
+                    <!-- History items will be injected here -->
+                    <div class="text-center text-gray-400 mt-10">
+                        <i class="fas fa-receipt text-4xl mb-2"></i>
+                        <p>暫無紀錄</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings / Setup Modal -->
+            <div id="settings-modal" class="hidden absolute top-0 left-0 w-full h-full bg-white z-50 p-4 overflow-y-auto fade-in">
+                <div class="flex justify-between items-center mb-6 pt-safe-top">
+                    <h2 class="text-xl font-bold text-gray-800">設定</h2>
+                    <button onclick="toggleSettings()" class="text-gray-500 hover:text-gray-800 p-2">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- Google Sheets Integration -->
+                    <div class="bg-green-50 p-4 rounded-xl border border-green-100">
+                        <h3 class="font-bold text-green-800 mb-2"><i class="fab fa-google-drive mr-2"></i>Google Sheets 連結</h3>
+                        <p class="text-xs text-green-700 mb-3">請在 Apps Script 部署後，將 Web App URL 貼在下方。</p>
+                        <input type="text" id="google-script-url" class="w-full px-3 py-2 border border-gray-300 rounded text-sm mb-2" placeholder="https://script.google.com/macros/s/...">
+                        <button onclick="saveGoogleUrl()" class="bg-green-600 text-white text-sm px-4 py-3 rounded w-full hover:bg-green-700 mb-2">
+                            <i class="fas fa-link mr-1"></i> 儲存連結
+                        </button>
+                        
+                        <div class="border-t border-green-200 my-2"></div>
+                        
+                        <button onclick="syncFromCloud()" id="btn-sync-down" class="bg-white text-green-600 border border-green-600 text-sm px-4 py-3 rounded w-full hover:bg-green-50 flex items-center justify-center">
+                            <i class="fas fa-cloud-download-alt mr-2"></i> 從雲端下載/還原資料
+                        </button>
+                        <p class="text-xs text-green-600 mt-1 text-center">如果更換手機或資料遺失，請點此按鈕</p>
+                    </div>
+
+                    <!-- Category Management Interface -->
+                    <div>
+                        <h3 class="font-bold text-gray-800 mb-2">自訂分類</h3>
+                        <div class="flex space-x-2 mb-2">
+                             <select id="edit-cat-type" class="border rounded px-2 text-sm bg-white h-10">
+                                 <option value="expense">支出</option>
+                                 <option value="income">收入</option>
+                             </select>
+                             <input type="text" id="new-cat-name" class="border rounded px-2 flex-1 text-sm h-10" placeholder="新分類名稱">
+                             <button onclick="addCustomCategory()" class="bg-blue-500 text-white px-3 rounded text-sm h-10">新增</button>
+                        </div>
+                        <div id="manage-category-list" class="flex flex-wrap gap-2 mt-4">
+                            <!-- Manage chips -->
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">點擊分類標籤可刪除 (預設分類無法刪除)</p>
+                    </div>
+
+                    <div class="pt-4 border-t pb-10">
+                        <button onclick="clearLocalStorage()" class="text-red-500 text-sm underline p-2">清除本機所有資料</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bg-white border-t border-gray-200 p-2 flex justify-around items-center absolute bottom-0 w-full z-40 pb-safe">
+            <button onclick="switchTab('record')" id="tab-record" class="flex flex-col items-center w-full py-2 tab-active transition active:bg-gray-50">
+                <i class="fas fa-pen mb-1 text-lg"></i>
+                <span class="text-xs">記帳</span>
+            </button>
+            <button onclick="switchTab('history')" id="tab-history" class="flex flex-col items-center w-full py-2 tab-inactive transition active:bg-gray-50">
+                <i class="fas fa-list mb-1 text-lg"></i>
+                <span class="text-xs">紀錄</span>
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- State Management ---
+        const defaultExpenseCats = ['餐飲', '交通', '服裝', '學校用品', '其他'];
+        const defaultIncomeCats = ['轉帳', '打工', '零用錢'];
+        
+        let appState = {
+            currentType: 'expense', // 'expense' or 'income'
+            transactions: JSON.parse(localStorage.getItem('transactions')) || [],
+            customExpenseCats: JSON.parse(localStorage.getItem('customExpenseCats')) || [],
+            customIncomeCats: JSON.parse(localStorage.getItem('customIncomeCats')) || [],
+            scriptUrl: localStorage.getItem('googleScriptUrl') || '',
+            chartInstance: null
+        };
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set default date to today
+            document.getElementById('input-date').valueAsDate = new Date();
+            renderCategories();
+            renderHistory();
+            renderChart();
+            updateGoogleUrlInput();
+            calculateTodayTotal();
+            
+            // Check if we need to nudge user to sync
+            if (appState.transactions.length === 0 && appState.scriptUrl) {
+                showToast("提示：點擊設定中的「下載資料」可同步雲端紀錄");
+            }
+        });
+
+        // --- Chart Logic ---
+        function renderChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            
+            // 1. Process Data: Group by YYYY-MM
+            const monthlyData = {};
+            const last6Months = [];
+            
+            // Generate last 6 months labels
+            for(let i=5; i>=0; i--) {
+                const d = new Date();
+                d.setMonth(d.getMonth() - i);
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const key = `${year}-${month}`;
+                last6Months.push(key);
+                monthlyData[key] = { income: 0, expense: 0 };
+            }
+
+            // Fill data
+            appState.transactions.forEach(tx => {
+                // Handle different date formats safely
+                let dateStr = tx.date;
+                if (!dateStr) return;
+                
+                // Ensure date format YYYY-MM
+                const dateKey = dateStr.substring(0, 7);
+                
+                if (monthlyData[dateKey]) {
+                    if (tx.type === 'income') {
+                        monthlyData[dateKey].income += parseFloat(tx.amount || 0);
+                    } else {
+                        monthlyData[dateKey].expense += parseFloat(tx.amount || 0);
+                    }
+                }
+            });
+
+            const labels = last6Months.map(k => k.substring(5)); // Show MM only (e.g. "01", "12")
+            const incomeData = last6Months.map(k => monthlyData[k].income);
+            const expenseData = last6Months.map(k => monthlyData[k].expense);
+
+            // 2. Destroy old chart if exists
+            if (appState.chartInstance) {
+                appState.chartInstance.destroy();
+            }
+
+            // 3. Create Chart
+            appState.chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '收入',
+                            data: incomeData,
+                            borderColor: '#10b981', // green-500
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3
+                        },
+                        {
+                            label: '支出',
+                            data: expenseData,
+                            borderColor: '#ef4444', // red-500
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            tension: 0.3,
+                            fill: true,
+                            pointRadius: 3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            align: 'end',
+                            labels: { boxWidth: 10, font: { size: 10 } }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: '#f3f4f6' },
+                            ticks: { font: { size: 10 } }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 10 } }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- UI Logic ---
+        function setTxType(type) {
+            appState.currentType = type;
+            const btnExp = document.getElementById('btn-type-expense');
+            const btnInc = document.getElementById('btn-type-income');
+            
+            if (type === 'expense') {
+                btnExp.className = "px-3 py-1 rounded-full text-sm font-medium bg-red-500 text-white transition";
+                btnInc.className = "px-3 py-1 rounded-full text-sm font-medium bg-gray-200 text-gray-600 transition";
+            } else {
+                btnExp.className = "px-3 py-1 rounded-full text-sm font-medium bg-gray-200 text-gray-600 transition";
+                btnInc.className = "px-3 py-1 rounded-full text-sm font-medium bg-green-500 text-white transition";
+            }
+            
+            document.getElementById('input-category').value = '';
+            renderCategories();
+        }
+
+        function calculateTodayTotal() {
+            const today = new Date().toISOString().split('T')[0];
+            let total = 0;
+            appState.transactions.forEach(tx => {
+                if (tx.date === today) {
+                    if (tx.type === 'income') total += parseFloat(tx.amount || 0);
+                    else total -= parseFloat(tx.amount || 0);
+                }
+            });
+            document.getElementById('display-amount').innerText = total;
+        }
+
+        function renderCategories() {
+            const container = document.getElementById('category-chips');
+            container.innerHTML = '';
+            
+            const defaults = appState.currentType === 'expense' ? defaultExpenseCats : defaultIncomeCats;
+            const customs = appState.currentType === 'expense' ? appState.customExpenseCats : appState.customIncomeCats;
+            const allCats = [...defaults, ...customs];
+
+            const currentVal = document.getElementById('input-category').value;
+
+            allCats.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                const isSelected = currentVal === cat;
+                const baseClass = "px-3 py-2 rounded-lg text-sm border transition mb-1 ";
+                const activeClass = isSelected 
+                    ? (appState.currentType === 'expense' ? "bg-red-50 border-red-500 text-red-600 font-bold ring-2 ring-red-200" : "bg-green-50 border-green-500 text-green-600 font-bold ring-2 ring-green-200")
+                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50";
+
+                btn.className = baseClass + activeClass;
+                btn.innerText = cat;
+                btn.onclick = (e) => {
+                    e.preventDefault(); // Prevent accidental form submit
+                    document.getElementById('input-category').value = cat;
+                    renderCategories();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function switchTab(tabName) {
+            const viewRecord = document.getElementById('view-record');
+            const viewHistory = document.getElementById('view-history');
+            const tabRecord = document.getElementById('tab-record');
+            const tabHistory = document.getElementById('tab-history');
+
+            if (tabName === 'record') {
+                viewRecord.classList.remove('hidden');
+                viewHistory.classList.add('hidden');
+                tabRecord.className = "flex flex-col items-center w-full py-2 tab-active transition";
+                tabHistory.className = "flex flex-col items-center w-full py-2 tab-inactive transition";
+            } else {
+                viewRecord.classList.add('hidden');
+                viewHistory.classList.remove('hidden');
+                tabRecord.className = "flex flex-col items-center w-full py-2 tab-inactive transition";
+                tabHistory.className = "flex flex-col items-center w-full py-2 tab-active transition";
+                renderHistory();
+            }
+        }
+
+        function toggleSettings() {
+            const modal = document.getElementById('settings-modal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                renderManageCategories();
+            } else {
+                modal.classList.add('hidden');
+                renderCategories();
+            }
+        }
+
+        // --- Global Functions (Attached to window) ---
+        window.deleteTransaction = async function(id) {
+            if (!confirm("確定要刪除這筆紀錄嗎？")) return;
+
+            // 1. Remove from local state
+            // Ensure ID comparison is robust (String vs Number)
+            const initialLength = appState.transactions.length;
+            appState.transactions = appState.transactions.filter(tx => tx.id != id);
+            
+            if (appState.transactions.length === initialLength) {
+                console.warn("No item deleted locally, ID mismatch?", id);
+            }
+
+            localStorage.setItem('transactions', JSON.stringify(appState.transactions));
+            
+            // 2. Update UI
+            renderHistory();
+            renderChart();
+            calculateTodayTotal();
+            showToast("紀錄已從本機刪除，正在同步...");
+
+            // 3. Sync Delete to Google Sheets
+            if (appState.scriptUrl) {
+                try {
+                    await fetch(appState.scriptUrl, {
+                        method: 'POST',
+                        mode: 'no-cors', 
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8', 
+                        },
+                        body: JSON.stringify({
+                            action: 'delete',
+                            id: id
+                        })
+                    });
+                    showToast("已發送刪除請求至 Google Sheets");
+                } catch (error) {
+                    console.error("Delete sync failed", error);
+                    showToast("同步刪除失敗 (請檢查網路)");
+                }
+            }
+        }
+
+        window.submitTransaction = async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submit-btn');
+            const originalBtnContent = btn.innerHTML;
+            
+            const amount = document.getElementById('input-amount').value;
+            const date = document.getElementById('input-date').value;
+            const category = document.getElementById('input-category').value;
+            const note = document.getElementById('input-note').value;
+            const type = appState.currentType;
+
+            if (!category) {
+                showToast("請選擇一個分類！");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<div class="loader mr-2"></div> 處理中...`;
+
+            // Ensure ID is a number/string safe for JSON
+            const newTx = {
+                id: Date.now(),
+                date,
+                type,
+                category,
+                amount,
+                note,
+                synced: false,
+                action: 'add'
+            };
+
+            appState.transactions.unshift(newTx);
+            localStorage.setItem('transactions', JSON.stringify(appState.transactions));
+            
+            // Update UI
+            renderChart();
+            calculateTodayTotal();
+
+            if (appState.scriptUrl) {
+                try {
+                    await fetch(appState.scriptUrl, {
+                        method: 'POST',
+                        mode: 'no-cors', 
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8', 
+                        },
+                        body: JSON.stringify(newTx)
+                    });
+                    newTx.synced = true;
+                    localStorage.setItem('transactions', JSON.stringify(appState.transactions));
+                    showToast("記帳成功！已同步至 Google Sheets");
+                } catch (error) {
+                    console.error("Sync failed", error);
+                    showToast("已儲存於本機，但同步失敗 (請檢查網路)");
+                }
+            } else {
+                showToast("已儲存於本機 (尚未設定 Google Sheets)");
+            }
+
+            document.getElementById('record-form').reset();
+            document.getElementById('input-date').valueAsDate = new Date();
+            document.getElementById('input-category').value = '';
+            setTxType(appState.currentType);
+            
+            btn.disabled = false;
+            btn.innerHTML = originalBtnContent;
+        }
+
+        window.renderHistory = function() {
+            const container = document.getElementById('history-list');
+            
+            if (appState.transactions.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-400 mt-10"><i class="fas fa-receipt text-4xl mb-2"></i><p>暫無紀錄</p></div>`;
+                return;
+            }
+
+            container.innerHTML = '';
+            appState.transactions.forEach(tx => {
+                const isExp = tx.type === 'expense';
+                const colorClass = isExp ? 'text-red-500' : 'text-green-500';
+                const sign = isExp ? '-' : '+';
+                const syncIcon = tx.synced ? '<i class="fas fa-check-circle text-green-400 text-xs ml-2" title="已同步"></i>' : '<i class="fas fa-exclamation-circle text-gray-300 text-xs ml-2" title="僅本機"></i>';
+
+                const item = document.createElement('div');
+                item.className = "bg-white p-3 rounded-lg shadow-sm border border-gray-100 flex justify-between items-center";
+                // Added p-3 to the delete button container and cursor-pointer for better touch targets
+                item.innerHTML = `
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 rounded-full ${isExp ? 'bg-red-100' : 'bg-green-100'} flex items-center justify-center mr-3 text-lg">
+                            <i class="${isExp ? 'fas fa-shopping-bag text-red-500' : 'fas fa-coins text-green-500'}"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-gray-800">${tx.category} ${syncIcon}</div>
+                            <div class="text-xs text-gray-500">${tx.date} ${tx.note ? '- ' + tx.note : ''}</div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <div class="font-bold ${colorClass} mr-2">
+                            ${sign}$${tx.amount}
+                        </div>
+                        <button onclick="deleteTransaction(${tx.id})" class="text-gray-400 hover:text-red-500 transition p-3 cursor-pointer rounded-full active:bg-gray-100" aria-label="刪除">
+                            <i class="fas fa-trash-alt text-lg"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // --- Sync Functionality (Read from Cloud) ---
+        window.syncFromCloud = async function() {
+            const btn = document.getElementById('btn-sync-down');
+            if (!appState.scriptUrl) {
+                showToast("請先設定 Google Sheets 連結");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<div class="loader mr-2"></div> 下載中...`;
+            
+            try {
+                // GET request to Google Apps Script
+                const response = await fetch(appState.scriptUrl);
+                const cloudData = await response.json();
+                
+                if (Array.isArray(cloudData)) {
+                    // Merge strategy: Overwrite local with cloud, but keep unsynced local
+                    // Actually, simpler strategy: Replace all local with cloud if cloud has data
+                    if (confirm(`雲端共有 ${cloudData.length} 筆資料，確定要覆蓋本機資料嗎？`)) {
+                        appState.transactions = cloudData;
+                        localStorage.setItem('transactions', JSON.stringify(appState.transactions));
+                        
+                        // Update UI
+                        renderHistory();
+                        renderChart();
+                        calculateTodayTotal();
+                        showToast(`成功同步 ${cloudData.length} 筆資料`);
+                    }
+                } else {
+                    showToast("雲端回傳格式錯誤，請檢查 Script");
+                }
+            } catch (error) {
+                console.error(error);
+                showToast("下載失敗！請確認 Apps Script 已更新並部署");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fas fa-cloud-download-alt mr-2"></i> 從雲端下載/還原資料`;
+            }
+        }
+
+        // --- Settings Logic ---
+        window.saveGoogleUrl = function() {
+            const url = document.getElementById('google-script-url').value;
+            appState.scriptUrl = url;
+            localStorage.setItem('googleScriptUrl', url);
+            showToast("Google Sheets 連結已儲存！");
+            toggleSettings();
+        }
+
+        window.updateGoogleUrlInput = function() {
+            if (appState.scriptUrl) {
+                document.getElementById('google-script-url').value = appState.scriptUrl;
+            }
+        }
+
+        window.renderManageCategories = function() {
+            const container = document.getElementById('manage-category-list');
+            const type = document.getElementById('edit-cat-type').value;
+            const customs = type === 'expense' ? appState.customExpenseCats : appState.customIncomeCats;
+            
+            container.innerHTML = '';
+            customs.forEach((cat, index) => {
+                const chip = document.createElement('div');
+                chip.className = "bg-gray-200 px-3 py-1 rounded-full text-sm flex items-center";
+                chip.innerHTML = `
+                    <span>${cat}</span>
+                    <button onclick="removeCategory('${type}', ${index})" class="ml-2 text-gray-500 hover:text-red-500 p-1"><i class="fas fa-times"></i></button>
+                `;
+                container.appendChild(chip);
+            });
+        }
+
+        document.getElementById('edit-cat-type').addEventListener('change', renderManageCategories);
+
+        window.addCustomCategory = function() {
+            const input = document.getElementById('new-cat-name');
+            const type = document.getElementById('edit-cat-type').value;
+            const name = input.value.trim();
+            
+            if (!name) return;
+            
+            const defaults = type === 'expense' ? defaultExpenseCats : defaultIncomeCats;
+            const customs = type === 'expense' ? appState.customExpenseCats : appState.customIncomeCats;
+            
+            if (defaults.includes(name) || customs.includes(name)) {
+                showToast("分類名稱重複");
+                return;
+            }
+
+            if (type === 'expense') {
+                appState.customExpenseCats.push(name);
+                localStorage.setItem('customExpenseCats', JSON.stringify(appState.customExpenseCats));
+            } else {
+                appState.customIncomeCats.push(name);
+                localStorage.setItem('customIncomeCats', JSON.stringify(appState.customIncomeCats));
+            }
+            
+            input.value = '';
+            renderManageCategories();
+            showToast(`已新增${type === 'expense' ? '支出' : '收入'}分類：${name}`);
+        }
+
+        window.removeCategory = function(type, index) {
+            if (type === 'expense') {
+                appState.customExpenseCats.splice(index, 1);
+                localStorage.setItem('customExpenseCats', JSON.stringify(appState.customExpenseCats));
+            } else {
+                appState.customIncomeCats.splice(index, 1);
+                localStorage.setItem('customIncomeCats', JSON.stringify(appState.customIncomeCats));
+            }
+            renderManageCategories();
+        }
+
+        window.clearLocalStorage = function() {
+            if(confirm("確定要清除本機所有資料嗎？(Google Sheets 上的資料不會被刪除)")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        window.showToast = function(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+            }, 3000);
+        }
+
+        window.openCategoryManager = function() {
+            toggleSettings();
+        }
+    </script>
+</body>
+</html>
