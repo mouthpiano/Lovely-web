@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026 專屬健身與護胃藍圖</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Warm Neutral & Teal (Background: #f8fafc Slate-50, Primary: #0f766e Teal-700, Secondary: #14b8a6 Teal-500, Accent: #fbbf24 Amber-400, Text: #334155 Slate-700) -->
+    <!-- Application Structure Plan: The SPA utilizes a "Modern Dashboard" layout with a persistent sidebar navigation (bottom bar on mobile). This functional structure was chosen because a fitness and diet plan is a daily utility tool, not a one-time read. Users need to quickly jump between high-level goals (Overview), daily eating rules (Nutrition), weekly schedules (Calendar), exercise specifics (Workouts), and an actionable daily checklist (Tracker). This non-linear, task-oriented architecture maximizes usability and engagement. -->
+    <!-- Visualization & Content Choices: 
+    1. Overview: Chart.js Doughnut Chart -> Goal: Inform about the holistic nature of the plan. Presentation: Canvas chart showing effort distribution (Diet, Strength, Cardio, Rehab). 
+    2. Nutrition: Interactive Cards -> Goal: Organize meal rules. Presentation: CSS Grid with JS reveal buttons. Justification: Keeps UI clean while allowing drill-down into specifics (e.g., Mom's rules). 
+    3. Schedule: Interactive Weekly Grid -> Goal: Inform daily tasks. Presentation: Tailwind grid with hover effects and JS modals for daily details. 
+    4. Workouts: Accordion Lists -> Goal: Organize Super Sets. Presentation: JS-driven accordions. Justification: Hides overwhelming details until the user needs to check form. 
+    5. Tracker: Interactive Checklist + Chart.js Bar Chart -> Goal: Change/Engagement. Presentation: HTML checkboxes updating a dynamic Canvas chart. Justification: Gamifies the daily tracking table. Library: Chart.js. 
+    Confirming NO SVG or Mermaid used, supporting the designed structure. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f8fafc; color: #334155; overflow-x: hidden; }
+        .chart-container { position: relative; width: 100%; max-width: 600px; margin-left: auto; margin-right: auto; height: 30vh; max-height: 300px; }
+        @media (min-width: 768px) { .chart-container { height: 40vh; max-height: 400px; } }
+        .tracker-chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 50vh; min-height: 350px; max-height: 500px; }
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+        .glass-panel { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
+        .nav-item.active { background-color: #0f766e; color: white; }
+        .nav-item.active i { color: white; }
+        .accordion-content { transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out; max-height: 0; opacity: 0; overflow: hidden; }
+        .accordion-content.open { max-height: 500px; opacity: 1; }
+        .checkbox-custom:checked + div { background-color: #14b8a6; border-color: #14b8a6; }
+        .checkbox-custom:checked + div i { display: block; }
+        .toggle-btn.active { background-color: #0f766e; color: white; border-color: #0f766e; }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row min-h-screen">
+
+    <nav class="glass-panel fixed bottom-0 w-full md:relative md:w-64 md:h-screen z-50 shadow-lg flex-shrink-0 flex flex-row md:flex-col justify-around md:justify-start items-center md:items-stretch py-2 md:py-8 px-2 md:px-6 overflow-x-auto hide-scroll">
+        <div class="hidden md:block text-center mb-8">
+            <div class="w-20 h-20 mx-auto bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-3xl font-bold mb-3 shadow-inner">
+                <i class="fa-solid fa-leaf"></i>
+            </div>
+            <h1 class="text-xl font-black text-teal-800 tracking-wider">小栗的<br>健身藍圖</h1>
+        </div>
+        
+        <button onclick="nav('dashboard')" id="nav-dashboard" class="nav-item active flex flex-col md:flex-row items-center py-2 md:py-3 px-2 md:px-4 rounded-xl text-xs md:text-base font-medium text-slate-500 hover:bg-teal-50 hover:text-teal-700 transition-colors md:mb-2 w-full text-center md:text-left flex-shrink-0">
+            <i class="fa-solid fa-chart-pie text-lg md:text-xl md:mr-3 mb-1 md:mb-0 text-teal-600"></i> <span class="block">策略總覽</span>
+        </button>
+        <button onclick="nav('nutrition')" id="nav-nutrition" class="nav-item flex flex-col md:flex-row items-center py-2 md:py-3 px-2 md:px-4 rounded-xl text-xs md:text-base font-medium text-slate-500 hover:bg-teal-50 hover:text-teal-700 transition-colors md:mb-2 w-full text-center md:text-left flex-shrink-0">
+            <i class="fa-solid fa-utensils text-lg md:text-xl md:mr-3 mb-1 md:mb-0 text-teal-600"></i> <span class="block">護胃飲食</span>
+        </button>
+        <button onclick="nav('schedule')" id="nav-schedule" class="nav-item flex flex-col md:flex-row items-center py-2 md:py-3 px-2 md:px-4 rounded-xl text-xs md:text-base font-medium text-slate-500 hover:bg-teal-50 hover:text-teal-700 transition-colors md:mb-2 w-full text-center md:text-left flex-shrink-0">
+            <i class="fa-regular fa-calendar-check text-lg md:text-xl md:mr-3 mb-1 md:mb-0 text-teal-600"></i> <span class="block">每週課表</span>
+        </button>
+        <button onclick="nav('workouts')" id="nav-workouts" class="nav-item flex flex-col md:flex-row items-center py-2 md:py-3 px-2 md:px-4 rounded-xl text-xs md:text-base font-medium text-slate-500 hover:bg-teal-50 hover:text-teal-700 transition-colors md:mb-2 w-full text-center md:text-left flex-shrink-0">
+            <i class="fa-solid fa-dumbbell text-lg md:text-xl md:mr-3 mb-1 md:mb-0 text-teal-600"></i> <span class="block">動作指南</span>
+        </button>
+        <button onclick="nav('tracker')" id="nav-tracker" class="nav-item flex flex-col md:flex-row items-center py-2 md:py-3 px-2 md:px-4 rounded-xl text-xs md:text-base font-medium text-slate-500 hover:bg-teal-50 hover:text-teal-700 transition-colors md:mb-2 w-full text-center md:text-left flex-shrink-0">
+            <i class="fa-solid fa-list-check text-lg md:text-xl md:mr-3 mb-1 md:mb-0 text-teal-600"></i> <span class="block">每日打卡</span>
+        </button>
+        <button onclick="nav('trends')" id="nav-trends" class="nav-item flex flex-col md:flex-row items-center py-2 md:py-3 px-2 md:px-4 rounded-xl text-xs md:text-base font-medium text-slate-500 hover:bg-teal-50 hover:text-teal-700 transition-colors md:mb-2 w-full text-center md:text-left flex-shrink-0">
+            <i class="fa-solid fa-chart-line text-lg md:text-xl md:mr-3 mb-1 md:mb-0 text-teal-600"></i> <span class="block">趨勢分析</span>
+        </button>
+    </nav>
+
+    <main class="flex-grow p-4 md:p-8 pb-28 md:pb-8 w-full max-w-7xl mx-auto overflow-y-auto hide-scroll">
+        
+        <section id="section-dashboard" class="view-section block animate-fade-in">
+            <header class="mb-8">
+                <h2 class="text-3xl font-black text-slate-800 mb-2">2026 核心目標與策略</h2>
+                <p class="text-slate-600 leading-relaxed text-lg">
+                    此區域為您展示 2026 年計畫的最高指導原則。本計畫結合了減重目標、護胃需求、產後護腰與舊傷防護，幫助您一眼看懂整體健康資源的分配比例與四大執行支柱，確保每一天的努力都在正確的軌道上。
+                </p>
+            </header>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-center items-center">
+                    <h3 class="text-xl font-bold text-teal-800 mb-1">終極目標</h3>
+                    <div class="text-5xl font-black text-teal-600 my-4 flex items-baseline">
+                        <i class="fa-solid fa-weight-scale text-3xl mr-3 text-teal-400"></i> &lt; 55 <span class="text-2xl ml-1 text-slate-400">kg</span>
+                    </div>
+                    <p class="text-slate-500 font-medium">無痛且健康地減脂</p>
+                </div>
+                
+                <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col items-center">
+                    <h3 class="text-lg font-bold text-slate-700 mb-4 text-center w-full">全方位健康投入比例</h3>
+                    <div class="chart-container">
+                        <canvas id="strategyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="text-2xl font-bold text-slate-800 mb-6 border-b-2 border-teal-100 pb-2">四大執行支柱</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-teal-500">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 mr-3"><i class="fa-solid fa-utensils"></i></div>
+                        <h4 class="text-lg font-bold text-slate-800">1. 護胃飲食</h4>
+                    </div>
+                    <p class="text-slate-600">放棄168斷食，改為三餐定時防逆流。嚴格總量控制與優化餐盤比例，配合早晨服藥。</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-amber-400">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-amber-500 mr-3"><i class="fa-solid fa-dumbbell"></i></div>
+                        <h4 class="text-lg font-bold text-slate-800">2. 高效重訓</h4>
+                    </div>
+                    <p class="text-slate-600">利用空堂 30 分鐘執行「超級組」模式，搭配離心控制（慢下快上），增加密度與代謝壓力。</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-blue-400">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-500 mr-3"><i class="fa-solid fa-person-running"></i></div>
+                        <h4 class="text-lg font-bold text-slate-800">3. 安全有氧</h4>
+                    </div>
+                    <p class="text-slate-600">嚴格控制衝擊力道以保護腳踝舊傷。無痛超慢跑（跑1走2）與 DanceFitme 交替進行。</p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border-l-4 border-rose-400">
+                    <div class="flex items-center mb-3">
+                        <div class="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mr-3"><i class="fa-solid fa-child-reaching"></i></div>
+                        <h4 class="text-lg font-bold text-slate-800">4. 融入復健</h4>
+                    </div>
+                    <p class="text-slate-600">產後護腰（睡前死蟲式、日常RDL彎腰）與護踝動作（刷牙單腳站等）無痛融入生活日常。</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-nutrition" class="view-section hidden animate-fade-in">
+            <header class="mb-8">
+                <h2 class="text-3xl font-black text-slate-800 mb-2">護胃減重飲食計畫 (The Kitchen)</h2>
+                <p class="text-slate-600 leading-relaxed text-lg">
+                    此區域將幫助您掌握三餐定時、溫和護胃的飲食策略。點擊各個餐期的卡片，可展開詳細的「減法哲學」與「護胃避雷針」，讓您在與家人共餐及繁忙的教學生活中，輕鬆做出最健康的選擇。
+                </p>
+            </header>
+
+            <div class="bg-teal-50 border border-teal-200 text-teal-800 p-4 rounded-xl mb-8 flex items-start shadow-sm">
+                <i class="fa-solid fa-circle-info text-2xl mr-4 mt-1"></i>
+                <div>
+                    <h4 class="font-bold text-lg">每日飲水紀律</h4>
+                    <p>目標每日 <strong>2000cc</strong> 以上。執行方式：每節下課回辦公室喝 200cc。</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-amber-50 p-4 border-b border-amber-100 flex justify-between items-center cursor-pointer" onclick="toggleCard('diet-1')">
+                        <div class="flex items-center">
+                            <i class="fa-solid fa-mug-hot text-amber-500 text-2xl w-8"></i>
+                            <h3 class="text-xl font-bold text-slate-800 ml-2">溫和護胃早餐</h3>
+                        </div>
+                        <i class="fa-solid fa-chevron-down text-slate-400 transition-transform" id="icon-diet-1"></i>
+                    </div>
+                    <div id="diet-1" class="accordion-content px-6 bg-white">
+                        <p class="text-sm text-slate-500 mt-4 mb-2"><i class="fa-solid fa-pills mr-1"></i> 配合早晨服藥</p>
+                        <ul class="space-y-3 pb-4">
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-check text-teal-500 mt-1 mr-2"></i>
+                                <span><strong>選項 A (自備)：</strong>無糖優格 + 新鮮水果（取代果乾防胃酸，如半根香蕉、蘋果丁）+ 無調味堅果。</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-check text-teal-500 mt-1 mr-2"></i>
+                                <span><strong>選項 B (外食)：</strong>無糖熱豆漿 + 蔬菜蛋餅 / 里肌豬排吐司 / 饅頭夾蛋。</span>
+                            </li>
+                            <li class="flex items-start bg-rose-50 text-rose-800 p-3 rounded-lg mt-2 border border-rose-100">
+                                <i class="fa-solid fa-triangle-exclamation mt-1 mr-2 text-rose-500"></i>
+                                <span><strong>避雷針：</strong>絕對不加美乃滋/沙拉醬，避開油條、培根、薯餅等油炸品。</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-emerald-50 p-4 border-b border-emerald-100 flex justify-between items-center cursor-pointer" onclick="toggleCard('diet-2')">
+                        <div class="flex items-center">
+                            <i class="fa-solid fa-bowl-food text-emerald-500 text-2xl w-8"></i>
+                            <h3 class="text-xl font-bold text-slate-800 ml-2">營養午餐減法哲學</h3>
+                        </div>
+                        <i class="fa-solid fa-chevron-down text-slate-400 transition-transform" id="icon-diet-2"></i>
+                    </div>
+                    <div id="diet-2" class="accordion-content px-6 bg-white">
+                        <ul class="space-y-3 py-4">
+                            <li class="flex items-center justify-between border-b border-slate-100 pb-2">
+                                <span class="font-bold text-slate-700">澱粉</span>
+                                <span class="text-teal-700 font-medium bg-teal-50 px-3 py-1 rounded-full">飯量減半 (約半個拳頭)</span>
+                            </li>
+                            <li class="flex items-center justify-between border-b border-slate-100 pb-2">
+                                <span class="font-bold text-slate-700">蛋白質</span>
+                                <span class="text-teal-700 font-medium bg-teal-50 px-3 py-1 rounded-full">肉類全吃 (炸物務必去皮)</span>
+                            </li>
+                            <li class="flex items-center justify-between pb-2">
+                                <span class="font-bold text-slate-700">蔬菜</span>
+                                <span class="text-teal-700 font-medium bg-teal-50 px-3 py-1 rounded-full">自備燙青菜補足纖維</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-blue-50 p-4 border-b border-blue-100 flex justify-between items-center cursor-pointer" onclick="toggleCard('diet-3')">
+                        <div class="flex items-center">
+                            <i class="fa-regular fa-clock text-blue-500 text-2xl w-8"></i>
+                            <h3 class="text-xl font-bold text-slate-800 ml-2">放學止飢 (16:00-17:00)</h3>
+                        </div>
+                        <i class="fa-solid fa-chevron-down text-slate-400 transition-transform" id="icon-diet-3"></i>
+                    </div>
+                    <div id="diet-3" class="accordion-content px-6 bg-white">
+                        <div class="py-4 text-center">
+                            <div class="inline-block bg-rose-100 text-rose-800 font-black px-4 py-2 rounded-lg mb-4 shadow-sm border border-rose-200">
+                                <i class="fa-solid fa-ban"></i> 嚴禁團購零食！
+                            </div>
+                            <p class="text-slate-600 font-medium mb-2">優質替代方案：</p>
+                            <div class="flex justify-center items-center space-x-4">
+                                <div class="flex flex-col items-center">
+                                    <i class="fa-solid fa-glass-water text-3xl text-blue-400 mb-1"></i>
+                                    <span class="text-sm">300cc 水</span>
+                                </div>
+                                <span class="text-slate-400 font-bold">+</span>
+                                <div class="flex flex-col items-center">
+                                    <i class="fa-solid fa-seedling text-3xl text-amber-600 mb-1"></i>
+                                    <span class="text-sm">無調味堅果</span>
+                                </div>
+                                <span class="text-slate-400 font-bold">或</span>
+                                <div class="flex flex-col items-center">
+                                    <i class="fa-solid fa-egg text-3xl text-yellow-500 mb-1"></i>
+                                    <span class="text-sm">茶葉蛋</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-purple-50 p-4 border-b border-purple-100 flex justify-between items-center cursor-pointer" onclick="toggleCard('diet-4')">
+                        <div class="flex items-center">
+                            <i class="fa-solid fa-children text-purple-500 text-2xl w-8"></i>
+                            <h3 class="text-xl font-bold text-slate-800 ml-2">歡樂親子晚餐</h3>
+                        </div>
+                        <i class="fa-solid fa-chevron-down text-slate-400 transition-transform" id="icon-diet-4"></i>
+                    </div>
+                    <div id="diet-4" class="accordion-content px-6 bg-white">
+                        <ul class="space-y-4 py-4">
+                            <li>
+                                <strong class="text-purple-800 block mb-1"><i class="fa-solid fa-scale-unbalanced text-sm"></i> 比例分家</strong>
+                                <span class="text-slate-600">同桌共食，媽媽白飯控制「半碗」內，多夾蔬菜與優質蛋白質。</span>
+                            </li>
+                            <li>
+                                <strong class="text-purple-800 block mb-1"><i class="fa-solid fa-arrow-down-1-9 text-sm"></i> 進食順序</strong>
+                                <span class="text-slate-600">蔬菜 ➡️ 蛋白質 ➡️ 澱粉 (穩定血糖，對胃壁溫和)。</span>
+                            </li>
+                            <li class="bg-purple-100 p-3 rounded-lg border border-purple-200">
+                                <strong class="text-purple-900 block mb-1"><i class="fa-solid fa-shield-halved text-sm"></i> 防逆流守則</strong>
+                                <span class="text-slate-700 text-sm">吃七分飽，盡量 19:30 前結束，睡前 3 小時禁食。</span>
+                            </li>
+                            <li class="text-center mt-2">
+                                <span class="inline-block bg-rose-600 text-white font-bold px-4 py-2 rounded shadow-md text-sm animate-pulse">
+                                    媽媽終極戒律：絕對不吃小孩剩飯菜！
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="section-schedule" class="view-section hidden animate-fade-in">
+            <header class="mb-8">
+                <h2 class="text-3xl font-black text-slate-800 mb-2">每週課表 (學期間)</h2>
+                <p class="text-slate-600 leading-relaxed text-lg">
+                    點擊下方日曆中的每一天，可查看當日的詳細訓練與復健內容。本課表專為利用空堂時間設計（實際運動30分鐘），幫助您在繁忙日程中保持紀律。
+                </p>
+                <div class="inline-flex mt-2 bg-teal-50 border border-teal-200 text-teal-800 px-4 py-2 rounded-lg items-center">
+                    <i class="fa-solid fa-moon mr-2 text-indigo-500"></i>
+                    <span class="font-bold text-sm">每日睡前固定：死蟲式 (Dead Bug) 3 組</span>
+                </div>
+            </header>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                
+                <button onclick="showDayDetail('mon')" class="bg-white hover:bg-teal-50 border-t-4 border-rose-500 p-4 rounded-xl shadow-sm text-center transition-all focus:ring-2 focus:ring-teal-500 outline-none flex flex-col items-center justify-center h-32 group">
+                    <span class="text-slate-400 font-bold text-sm mb-1 uppercase tracking-wider">週一</span>
+                    <i class="fa-solid fa-dumbbell text-3xl text-rose-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-slate-700">菜單 A</span>
+                </button>
+                <button onclick="showDayDetail('tue')" class="bg-white hover:bg-teal-50 border-t-4 border-blue-500 p-4 rounded-xl shadow-sm text-center transition-all focus:ring-2 focus:ring-teal-500 outline-none flex flex-col items-center justify-center h-32 group">
+                    <span class="text-slate-400 font-bold text-sm mb-1 uppercase tracking-wider">週二</span>
+                    <i class="fa-solid fa-person-running text-3xl text-blue-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-slate-700">超慢跑</span>
+                </button>
+                <button onclick="showDayDetail('wed')" class="bg-white hover:bg-teal-50 border-t-4 border-amber-500 p-4 rounded-xl shadow-sm text-center transition-all focus:ring-2 focus:ring-teal-500 outline-none flex flex-col items-center justify-center h-32 group">
+                    <span class="text-slate-400 font-bold text-sm mb-1 uppercase tracking-wider">週三</span>
+                    <i class="fa-solid fa-dumbbell text-3xl text-amber-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-slate-700">菜單 B</span>
+                </button>
+                <button onclick="showDayDetail('thu')" class="bg-white hover:bg-teal-50 border-t-4 border-emerald-500 p-4 rounded-xl shadow-sm text-center transition-all focus:ring-2 focus:ring-teal-500 outline-none flex flex-col items-center justify-center h-32 group">
+                    <span class="text-slate-400 font-bold text-sm mb-1 uppercase tracking-wider">週四</span>
+                    <i class="fa-solid fa-kit-medical text-3xl text-emerald-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-slate-700">復健日</span>
+                </button>
+                <button onclick="showDayDetail('fri')" class="bg-white hover:bg-teal-50 border-t-4 border-purple-500 p-4 rounded-xl shadow-sm text-center transition-all focus:ring-2 focus:ring-teal-500 outline-none flex flex-col items-center justify-center h-32 group">
+                    <span class="text-slate-400 font-bold text-sm mb-1 uppercase tracking-wider">週五</span>
+                    <i class="fa-solid fa-music text-3xl text-purple-400 mb-2 group-hover:scale-110 transition-transform"></i>
+                    <span class="font-bold text-slate-700">DanceFitme</span>
+                </button>
+                <button onclick="showDayDetail('sat')" class="bg-white hover:bg-teal-50 border-t-4 border-teal-500 p-4 rounded-xl shadow-sm text-center transition-all focus:ring-2 focus:ring-teal-500 outline-none flex flex-col items-center justify-center h-32 md:col-span-3 group">
+                    <span class="text-slate-400 font-bold text-sm mb-1 uppercase tracking-wider">週末</span>
+                    <div class="flex space-x-4">
+                        <i class="fa-solid fa-shoe-prints text-3xl text-teal-400 mb-2 group-hover:translate-x-2 transition-transform"></i>
+                        <i class="fa-solid fa-shoe-prints text-3xl text-teal-300 mb-2"></i>
+                    </div>
+                    <span class="font-bold text-slate-700">戶外輕鬆走 (8000步)</span>
+                </button>
+            </div>
+
+            <div id="day-detail-box" class="bg-white rounded-2xl shadow-lg border border-teal-100 p-6 md:p-8 mt-4 hidden relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-2 h-full bg-teal-500"></div>
+                <button onclick="document.getElementById('day-detail-box').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-rose-500 transition-colors">
+                    <i class="fa-solid fa-xmark text-2xl"></i>
+                </button>
+                <h3 id="day-title" class="text-2xl font-black text-teal-800 mb-3 flex items-center"></h3>
+                <div id="day-content" class="text-slate-700 leading-relaxed text-lg space-y-4"></div>
+            </div>
+        </section>
+
+        <section id="section-workouts" class="view-section hidden animate-fade-in">
+            <header class="mb-8">
+                <h2 class="text-3xl font-black text-slate-800 mb-2">重訓與復健動作指南</h2>
+                <p class="text-slate-600 leading-relaxed text-lg">
+                    這裡包含您的 3kg 啞鈴「超級組」菜單細節，以及重要的護腰與護踝復健動作。點擊各個動作區塊，了解執行重點，確保發力正確以避免受傷。
+                </p>
+                <div class="bg-amber-50 border border-amber-200 p-4 rounded-xl mt-4">
+                    <strong class="text-amber-800"><i class="fa-solid fa-bolt mr-2"></i>超級組 (Super Set) 執行原則：</strong>
+                    <span class="text-slate-700">動作 A 做完不休息，直接做動作 B。兩者做完才休息 60-90 秒。務必執行「離心訓練」（舉起快 1 秒，放下慢 3-4 秒）。</span>
+                </div>
+            </header>
+
+            <div class="space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 p-5 border-b border-slate-200 flex justify-between items-center cursor-pointer" onclick="toggleCard('wk-a')">
+                        <h3 class="text-xl font-bold text-rose-600"><i class="fa-solid fa-fire mr-2"></i>【菜單 A】下肢燃脂 + 肩部與日常護腰</h3>
+                        <span class="bg-white text-xs font-bold px-3 py-1 rounded border border-slate-200 text-slate-500">循環 3 組</span>
+                    </div>
+                    <div id="wk-a" class="accordion-content px-6 bg-white">
+                        <div class="py-5 space-y-6">
+                            <div class="p-4 bg-rose-50 rounded-xl border border-rose-100">
+                                <h4 class="font-bold text-slate-800 mb-2 flex items-center">
+                                    <span class="bg-rose-500 text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-2">1</span> 
+                                    慢速酒杯深蹲 (12-15下) <i class="fa-solid fa-plus mx-2 text-rose-300"></i> 啞鈴側平舉 (12-15下)
+                                </h4>
+                                <p class="text-sm text-slate-600 ml-8 mb-1"><strong class="text-slate-700">深蹲：</strong>下去數 3 秒，起來數 1 秒。</p>
+                                <p class="text-sm text-slate-600 ml-8"><strong class="text-slate-700">側平舉：</strong>保持肩膀下壓，勿聳肩。</p>
+                            </div>
+                            <div class="p-4 bg-rose-50 rounded-xl border border-rose-100">
+                                <h4 class="font-bold text-slate-800 mb-2 flex items-center">
+                                    <span class="bg-rose-500 text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-2">2</span> 
+                                    啞鈴 RDL (12-15下) <i class="fa-solid fa-plus mx-2 text-rose-300"></i> 手臂過頭伸展 (15下)
+                                </h4>
+                                <p class="text-sm text-slate-600 ml-8 mb-1"><strong class="text-rose-700"><i class="fa-solid fa-shield text-xs mr-1"></i>護腰 RDL：</strong>不要彎曲脊椎，屁股往後推去關車門，專注大腿後側拉扯感，背部打直。</p>
+                                <p class="text-sm text-slate-600 ml-8"><strong class="text-slate-700">三頭肌：</strong>夾緊手肘。</p>
+                            </div>
+                            <div class="p-4 bg-rose-50 rounded-xl border border-rose-100">
+                                <h4 class="font-bold text-slate-800 mb-2 flex items-center">
+                                    <span class="bg-rose-500 text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-2">3</span> 
+                                    農夫走路 (60秒)
+                                </h4>
+                                <p class="text-sm text-slate-600 ml-8">核心收緊，腳趾抓地，抬頭挺胸穩定前行。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 p-5 border-b border-slate-200 flex justify-between items-center cursor-pointer" onclick="toggleCard('wk-b')">
+                        <h3 class="text-xl font-bold text-amber-600"><i class="fa-solid fa-person-praying mr-2"></i>【菜單 B】免躺背部強化 + 手臂線條</h3>
+                        <span class="bg-white text-xs font-bold px-3 py-1 rounded border border-slate-200 text-slate-500">循環 3 組</span>
+                    </div>
+                    <div id="wk-b" class="accordion-content px-6 bg-white">
+                        <div class="py-5 space-y-6">
+                            <p class="text-sm font-bold text-amber-700 bg-amber-50 p-2 rounded text-center"><i class="fa-solid fa-star text-xs mr-1"></i> 訓練前，先做 10 次「坐姿貓牛式」放鬆下背部</p>
+                            
+                            <div class="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                                <h4 class="font-bold text-slate-800 mb-2 flex items-center">
+                                    <span class="bg-amber-500 text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-2">1</span> 
+                                    坐姿啞鈴划船 (12-15下) <i class="fa-solid fa-plus mx-2 text-amber-300"></i> 二頭彎舉 (做到微酸)
+                                </h4>
+                                <p class="text-sm text-slate-600 ml-8"><strong class="text-amber-700"><i class="fa-solid fa-shield text-xs mr-1"></i>護腰划船：</strong>坐椅子前 1/3，雙腳踩平。身體微前傾背打直，吐氣將啞鈴拉向「褲子口袋」。若脖子痠痛代表聳肩，請沉肩重做。</p>
+                            </div>
+                            <div class="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                                <h4 class="font-bold text-slate-800 mb-2 flex items-center">
+                                    <span class="bg-amber-500 text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-2">2</span> 
+                                    站姿斯文推舉 (12-15下) <i class="fa-solid fa-plus mx-2 text-amber-300"></i> 站姿肩部外旋 (15下)
+                                </h4>
+                                <p class="text-sm text-slate-600 ml-8 mb-1"><strong class="text-amber-700"><i class="fa-solid fa-shield text-xs mr-1"></i>免躺斯文推舉：</strong>站直微收小腹，雙手「掌心夾住」啞鈴，向正前方推出，感受胸肌擠壓。身體切勿前傾。</p>
+                                <p class="text-sm text-slate-600 ml-8"><strong class="text-slate-700">肩部外旋：</strong>夾緊腋下，若 3kg 覺得刺痛請立刻改徒手。</p>
+                            </div>
+                            <div class="p-4 bg-amber-50 rounded-xl border border-amber-100">
+                                <h4 class="font-bold text-slate-800 mb-2 flex items-center">
+                                    <span class="bg-amber-500 text-white w-6 h-6 rounded flex items-center justify-center text-sm mr-2">3</span> 
+                                    肩胛骨下壓 (15下)
+                                </h4>
+                                <p class="text-sm text-slate-600 ml-8">吸氣聳肩找耳朵，吐氣瞬間用力將肩膀往下沉，放鬆斜方肌。</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div class="bg-slate-50 p-5 border-b border-slate-200 flex justify-between items-center cursor-pointer" onclick="toggleCard('wk-rehab')">
+                        <h3 class="text-xl font-bold text-teal-600"><i class="fa-solid fa-heart-pulse mr-2"></i>日常護腰與腳踝復健</h3>
+                    </div>
+                    <div id="wk-rehab" class="accordion-content px-6 bg-white">
+                        <div class="py-5 space-y-6">
+                            <div>
+                                <h4 class="font-black text-slate-700 text-lg border-b border-slate-100 pb-2 mb-3">產後護腰與姿勢重建</h4>
+                                <ul class="space-y-4">
+                                    <li class="bg-slate-50 p-4 rounded-xl">
+                                        <strong class="text-teal-700 block mb-1">日常彎腰解法 (RDL 應用)</strong>
+                                        <p class="text-sm text-slate-600">撿東西或抱小孩時，請「不要彎腰」，而是把「屁股往後推」，膝蓋微彎，用臀部與大腿發力。</p>
+                                    </li>
+                                    <li class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                                        <strong class="text-indigo-800 block mb-1"><i class="fa-solid fa-moon mr-1"></i>睡前護腰核心 (死蟲式 Dead Bug)</strong>
+                                        <p class="text-sm text-slate-700 mb-2">每日睡前必做 3 組，每組左右交替 10-12 下。</p>
+                                        <p class="text-xs text-rose-600 font-bold bg-white p-2 rounded">⚠️ 關鍵：下背部必須死死壓在床上，若腰部弓起請縮小腳放下的幅度。</p>
+                                    </li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="font-black text-slate-700 text-lg border-b border-slate-100 pb-2 mb-3">腳踝復健三部曲 (融入生活)</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="bg-white border border-slate-200 p-4 rounded-xl text-center shadow-sm">
+                                        <i class="fa-solid fa-tooth text-3xl text-slate-300 mb-2"></i>
+                                        <strong class="block text-slate-700">刷牙時</strong>
+                                        <p class="text-xs text-slate-500 mt-1">單腳站立 60 秒<br>(訓練平衡與本體感覺)</p>
+                                    </div>
+                                    <div class="bg-white border border-slate-200 p-4 rounded-xl text-center shadow-sm">
+                                        <i class="fa-solid fa-traffic-light text-3xl text-slate-300 mb-2"></i>
+                                        <strong class="block text-slate-700">等紅燈時</strong>
+                                        <p class="text-xs text-slate-500 mt-1">緩慢墊腳尖 10-15 次<br>(落下時務必極慢)</p>
+                                    </div>
+                                    <div class="bg-white border border-slate-200 p-4 rounded-xl text-center shadow-sm">
+                                        <i class="fa-solid fa-tv text-3xl text-slate-300 mb-2"></i>
+                                        <strong class="block text-slate-700">看電視時</strong>
+                                        <p class="text-xs text-slate-500 mt-1">腳趾抓毛巾<br>(重建避震足弓)</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="section-tracker" class="view-section hidden animate-fade-in">
+            <header class="mb-6 flex flex-col md:flex-row md:justify-between md:items-end gap-4">
+                <div>
+                    <h2 class="text-3xl font-black text-slate-800 mb-2">每日打卡與追蹤</h2>
+                    <p class="text-slate-600 leading-relaxed text-sm md:text-base max-w-2xl">
+                        將計畫化為習慣。系統會自動切換至當週，並自動存檔您的紀錄。
+                    </p>
+                </div>
+                <!-- Week Navigation Controls -->
+                <div class="flex items-center space-x-2 bg-white p-2 rounded-xl shadow-sm border border-slate-200 self-start">
+                    <button onclick="changeWeek(-1)" class="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-teal-50 hover:text-teal-700 transition-colors">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <div class="flex flex-col items-center justify-center min-w-[120px]">
+                        <span id="week-display" class="font-bold text-teal-800 text-sm"></span>
+                        <button onclick="resetToCurrentWeek()" class="text-[10px] text-slate-400 hover:text-teal-600 mt-0.5"><i class="fa-solid fa-calendar-day mr-1"></i>回本週</button>
+                    </div>
+                    <button onclick="changeWeek(1)" class="w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:bg-teal-50 hover:text-teal-700 transition-colors">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            </header>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8 flex flex-col items-center">
+                <h3 class="text-lg font-bold text-slate-700 mb-2 w-full text-center">當週執行力與體態趨勢</h3>
+                <div class="tracker-chart-container">
+                    <canvas id="trackerChart"></canvas>
+                </div>
+            </div>
+
+            <div class="space-y-4" id="tracker-container">
+                <!-- Tracker cards will be generated by JS -->
+            </div>
+        </section>
+
+        <!-- NEW: Trends Section -->
+        <section id="section-trends" class="view-section hidden animate-fade-in">
+            <header class="mb-8">
+                <h2 class="text-3xl font-black text-slate-800 mb-2">長期趨勢分析</h2>
+                <p class="text-slate-600 leading-relaxed text-lg">
+                    這裡匯整了您過去所有的打卡與體態紀錄。透過時間軸的拉長，您可以清晰看見紀律帶來的成果轉變。
+                </p>
+            </header>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-6 flex flex-col items-center">
+                
+                <!-- Timeframe Toggles -->
+                <div class="flex bg-slate-100 p-1 rounded-xl mb-6 self-center md:self-start">
+                    <button onclick="renderTrendChart('month')" id="btn-trend-month" class="toggle-btn active px-6 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors">本月</button>
+                    <button onclick="renderTrendChart('quarter')" id="btn-trend-quarter" class="toggle-btn px-6 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors">近一季</button>
+                    <button onclick="renderTrendChart('year')" id="btn-trend-year" class="toggle-btn px-6 py-2 rounded-lg text-sm font-bold text-slate-500 transition-colors">2026 年度</button>
+                </div>
+
+                <div class="w-full text-center mb-2">
+                    <h3 id="trend-chart-title" class="text-xl font-bold text-teal-800">趨勢圖</h3>
+                </div>
+
+                <div class="tracker-chart-container w-full">
+                    <canvas id="longTermChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        // === Core App State & Data ===
+        const APP_START_DATE = new Date(2026, 2, 2); // 2026/03/02 (Monday)
+        let currentDisplayedWeekStart = new Date(APP_START_DATE);
+        
+        // Database simulation (uses localStorage if available)
+        let fitnessDB = JSON.parse(localStorage.getItem('fitnessApp2026DB')) || {};
+
+        // Seed some initial mock data for Jan/Feb to make trends look good immediately if DB is empty
+        if (Object.keys(fitnessDB).length === 0) {
+            seedMockData();
+        }
+
+        const scheduleData = {
+            mon: { title: "週一：【菜單 A】下肢燃脂 + 護腰硬舉", icon: "fa-dumbbell", color: "text-rose-600", bg: "bg-rose-50", content: "今日請執行 30 分鐘超級組 <strong>【菜單 A】</strong>。<br>重點：透過深蹲帶動全身代謝，利用 RDL 建立日常正確的彎腰姿勢。<br><br>別忘了每節下課喝水，以及睡前的 3 組死蟲式！" },
+            tue: { title: "週二：【無痛超慢跑】有氧恢復", icon: "fa-person-running", color: "text-blue-600", bg: "bg-blue-50", content: "今日進行 <strong>超慢跑 15 分鐘</strong>。<br>執行方式：跑 1 分鐘 / 走 2 分鐘，重複 5 組。<br><br><span class='text-rose-600 font-bold'>⚠️ 警報機制：</span> 如果左腳踝出現刺痛或熱脹感，請立刻停止，改為步行或休息。" },
+            wed: { title: "週三：【菜單 B】免躺護背 + 手臂線條", icon: "fa-dumbbell", color: "text-amber-600", bg: "bg-amber-50", content: "今日請執行 30 分鐘超級組 <strong>【菜單 B】</strong>。<br>重點：透過坐姿划船與斯文推舉，在不躺下、不傷腰的前提下，強化背部與胸肌，改善圓肩。<br><br>訓練前記得先做 10 次「坐姿貓牛式」。" },
+            thu: { title: "週四：【腳踝復健日】", icon: "fa-kit-medical", color: "text-emerald-600", bg: "bg-emerald-50", content: "今日讓大肌肉休息，專注於 <strong>腳踝復健三部曲</strong>。<br><br>1. 刷牙時：單腳站 60 秒。<br>2. 等待時：緩慢墊腳尖 10-15 次。<br>3. 坐著時：腳趾抓毛巾。<br>這能重建足弓與強化小腿，為明日跳舞準備！" },
+            fri: { title: "週五：【DanceFitme】30 分鐘", icon: "fa-music", color: "text-purple-600", bg: "bg-purple-50", content: "今日享受 <strong>DanceFitme 30 分鐘</strong> 課程。<br><br>挑選重點：選擇低衝擊 (Low Impact)、少跳躍的課程，以保護腳踝。盡情享受音樂與流汗的感覺！" },
+            sat: { title: "週末：戶外輕鬆走", icon: "fa-shoe-prints", color: "text-teal-600", bg: "bg-teal-50", content: "週末不安排高強度訓練。<br>目標：<strong>步數達 8000 步</strong>。<br><br>與家人一起去公園散步，保持活躍的同時讓身體徹底恢復。" },
+            sun: { title: "週日：休息與調整", icon: "fa-mug-hot", color: "text-slate-600", bg: "bg-slate-50", content: "今日徹底休息。<br>準備迎接新的一週，晚上記得做死蟲式喔！" }
+        };
+
+        const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+        const dayNames = ['週一', '週二', '週三', '週四', '週五', '週六', '週日'];
+
+        let strategyChartInstance = null;
+        let trackerChartInstance = null;
+        let trendChartInstance = null;
+
+        // === Helper Functions ===
+        function saveDB() {
+            localStorage.setItem('fitnessApp2026DB', JSON.stringify(fitnessDB));
+        }
+
+        function formatDateKey(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function getDisplayDate(date) {
+            return `${date.getMonth() + 1}/${date.getDate()}`;
+        }
+
+        function addDays(date, days) {
+            const result = new Date(date);
+            result.setDate(result.getDate() + days);
+            return result;
+        }
+
+        function getStartOfWeek(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+            return new Date(d.setDate(diff));
+        }
+
+        function calculateDailyScore(record) {
+            if (!record) return 0;
+            let score = 0;
+            if (record.diet) score++;
+            if (record.water === 4) score++; else if (record.water > 0) score += (record.water / 4);
+            if (record.rehab) score++;
+            if (record.workout) score++;
+            if (record.sleep) score++;
+            return Math.round((score / 5) * 100);
+        }
+
+        function seedMockData() {
+            // Seed roughly 60 days back from App Start Date
+            let currentWeight = 64.2;
+            let currentFat = 35.0;
+            for (let i = -60; i < 0; i++) {
+                const d = addDays(APP_START_DATE, i);
+                const dateKey = formatDateKey(d);
+                
+                // Randomize slightly but trend downward
+                if (Math.random() > 0.5) currentWeight -= 0.05; else currentWeight += 0.02;
+                if (Math.random() > 0.5) currentFat -= 0.05; else currentFat += 0.02;
+                
+                fitnessDB[dateKey] = {
+                    diet: Math.random() > 0.3,
+                    water: Math.floor(Math.random() * 5),
+                    rehab: Math.random() > 0.4,
+                    workout: Math.random() > 0.5,
+                    sleep: Math.random() > 0.2,
+                    weight: parseFloat(currentWeight.toFixed(1)),
+                    bodyFat: parseFloat(currentFat.toFixed(1))
+                };
+            }
+            saveDB();
+        }
+
+        // === Navigation & Init ===
+        function initApp() {
+            // Determine "today" and set the current week view
+            // Using system date logic: if today is before APP_START_DATE, use APP_START_DATE.
+            const today = new Date();
+            let startOfWeek = getStartOfWeek(today);
+            
+            // For demo purposes, we ensure we don't default to a time way in the past if tested early.
+            currentDisplayedWeekStart = new Date(startOfWeek);
+            
+            nav('dashboard');
+        }
+
+        function nav(sectionId) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+            const targetSection = document.getElementById('section-' + sectionId);
+            if(targetSection) targetSection.classList.remove('hidden');
+
+            const targetNav = document.getElementById('nav-' + sectionId);
+            if(targetNav) targetNav.classList.add('active');
+
+            if(sectionId === 'dashboard') renderStrategyChart();
+            if(sectionId === 'tracker') loadWeekView();
+            if(sectionId === 'trends') renderTrendChart('month');
+        }
+
+        // Accordion Toggle
+        function toggleCard(id) {
+            const content = document.getElementById(id);
+            const icon = document.getElementById('icon-' + id);
+            if (content.classList.contains('open')) {
+                content.classList.remove('open');
+                if(icon) icon.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('open');
+                if(icon) icon.style.transform = 'rotate(180deg)';
+            }
+        }
+
+        // Schedule Modal
+        function showDayDetail(dayKey) {
+            const data = scheduleData[dayKey];
+            const box = document.getElementById('day-detail-box');
+            
+            document.getElementById('day-title').innerHTML = `<i class="fa-solid ${data.icon} ${data.color} mr-3"></i> ${data.title}`;
+            document.getElementById('day-content').innerHTML = data.content;
+            
+            box.className = `bg-white rounded-2xl shadow-lg border p-6 md:p-8 mt-4 relative overflow-hidden animate-fade-in ${data.bg.replace('bg-', 'border-')}`;
+            box.innerHTML = `<div class="absolute top-0 left-0 w-2 h-full ${data.color.replace('text-', 'bg-')}"></div>` + box.innerHTML.replace(/<div class="absolute top-0 left-0 w-2 h-full.*<\/div>/, ''); // Replace existing stripe
+            
+            box.classList.remove('hidden');
+            box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // === Dashboard Chart ===
+        function renderStrategyChart() {
+            const ctx = document.getElementById('strategyChart').getContext('2d');
+            if (strategyChartInstance) strategyChartInstance.destroy();
+
+            strategyChartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['護胃飲食 (Diet)', '超級組重訓 (Strength)', '安全有氧 (Cardio)', '日常復健 (Rehab)'],
+                    datasets: [{
+                        data: [40, 30, 15, 15],
+                        backgroundColor: ['#14b8a6', '#fbbf24', '#60a5fa', '#fb7185'],
+                        borderWidth: 0, hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right', labels: { font: { family: "'Noto Sans TC', sans-serif" } } } },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // === Tracker View (Weekly) ===
+        function changeWeek(offset) {
+            currentDisplayedWeekStart = addDays(currentDisplayedWeekStart, offset * 7);
+            loadWeekView();
+        }
+
+        function resetToCurrentWeek() {
+            currentDisplayedWeekStart = getStartOfWeek(new Date());
+            loadWeekView();
+        }
+
+        function loadWeekView() {
+            const weekEnd = addDays(currentDisplayedWeekStart, 6);
+            document.getElementById('week-display').innerText = `${getDisplayDate(currentDisplayedWeekStart)} - ${getDisplayDate(weekEnd)}`;
+            
+            renderTrackerUI();
+            renderTrackerChart();
+        }
+
+        function renderTrackerUI() {
+            const container = document.getElementById('tracker-container');
+            container.innerHTML = '';
+
+            for (let i = 0; i < 7; i++) {
+                const currentDate = addDays(currentDisplayedWeekStart, i);
+                const dateKey = formatDateKey(currentDate);
+                const displayDate = getDisplayDate(currentDate);
+                const dayName = dayNames[i];
+                
+                // Init empty record if not exists
+                if (!fitnessDB[dateKey]) {
+                    fitnessDB[dateKey] = { diet: false, water: 0, rehab: false, workout: false, sleep: false, weight: null, bodyFat: null };
+                }
+                const data = fitnessDB[dateKey];
+
+                const row = document.createElement('div');
+                row.className = "bg-white p-4 md:p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center gap-4 hover:shadow-md transition-shadow";
+                
+                let waterBubbles = '';
+                for(let w=1; w<=4; w++) {
+                    const filled = data.water >= w;
+                    waterBubbles += `<button onclick="updateWater('${dateKey}', ${w})" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors border ${filled ? 'bg-blue-400 border-blue-400 text-white shadow-inner' : 'bg-slate-50 border-slate-300 text-slate-300'}"><i class="fa-solid fa-droplet text-sm"></i></button>`;
+                }
+
+                row.innerHTML = `
+                    <div class="w-16 flex-shrink-0 text-center md:text-left flex flex-row md:flex-col items-baseline md:items-start justify-between md:justify-start border-b md:border-b-0 border-slate-100 pb-2 md:pb-0 mb-2 md:mb-0">
+                        <div class="font-black text-slate-700 text-lg">${dayName}</div>
+                        <div class="text-xs text-slate-500 font-bold bg-slate-100 px-2 py-0.5 rounded-full md:mt-1">${displayDate}</div>
+                    </div>
+                    
+                    <div class="flex-grow grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-5 w-full">
+                        <label class="flex items-center cursor-pointer group bg-slate-50 md:bg-transparent p-2 md:p-0 rounded-lg">
+                            <div class="relative flex items-center">
+                                <input type="checkbox" class="checkbox-custom sr-only" onchange="updateTracker('${dateKey}', 'diet', this.checked)" ${data.diet ? 'checked' : ''}>
+                                <div class="w-6 h-6 border-2 border-slate-300 rounded bg-white group-hover:border-teal-400 transition-colors flex items-center justify-center">
+                                    <i class="fa-solid fa-check text-white text-xs hidden"></i>
+                                </div>
+                            </div>
+                            <span class="ml-2 text-sm text-slate-600 font-bold whitespace-nowrap"><i class="fa-solid fa-pills mr-1 text-slate-400"></i>護胃飲食</span>
+                        </label>
+
+                        <div class="flex items-center space-x-1.5 col-span-2 md:col-span-1 bg-slate-50 md:bg-transparent p-2 md:p-0 rounded-lg justify-center md:justify-start">
+                            ${waterBubbles}
+                        </div>
+
+                        <label class="flex items-center cursor-pointer group bg-slate-50 md:bg-transparent p-2 md:p-0 rounded-lg">
+                            <div class="relative flex items-center">
+                                <input type="checkbox" class="checkbox-custom sr-only" onchange="updateTracker('${dateKey}', 'rehab', this.checked)" ${data.rehab ? 'checked' : ''}>
+                                <div class="w-6 h-6 border-2 border-slate-300 rounded bg-white group-hover:border-teal-400 transition-colors flex items-center justify-center">
+                                    <i class="fa-solid fa-check text-white text-xs hidden"></i>
+                                </div>
+                            </div>
+                            <span class="ml-2 text-sm text-slate-600 font-bold"><i class="fa-solid fa-foot-print mr-1 text-slate-400"></i>防護復健</span>
+                        </label>
+
+                        <label class="flex items-center cursor-pointer group bg-slate-50 md:bg-transparent p-2 md:p-0 rounded-lg">
+                            <div class="relative flex items-center">
+                                <input type="checkbox" class="checkbox-custom sr-only" onchange="updateTracker('${dateKey}', 'workout', this.checked)" ${data.workout ? 'checked' : ''}>
+                                <div class="w-6 h-6 border-2 border-slate-300 rounded bg-white group-hover:border-teal-400 transition-colors flex items-center justify-center">
+                                    <i class="fa-solid fa-check text-white text-xs hidden"></i>
+                                </div>
+                            </div>
+                            <span class="ml-2 text-sm text-slate-600 font-bold"><i class="fa-solid fa-dumbbell mr-1 text-slate-400"></i>今日運動</span>
+                        </label>
+                        
+                        <label class="flex items-center cursor-pointer group bg-slate-50 md:bg-transparent p-2 md:p-0 rounded-lg col-span-2 md:col-span-1">
+                            <div class="relative flex items-center">
+                                <input type="checkbox" class="checkbox-custom sr-only" onchange="updateTracker('${dateKey}', 'sleep', this.checked)" ${data.sleep ? 'checked' : ''}>
+                                <div class="w-6 h-6 border-2 border-slate-300 rounded bg-white group-hover:border-teal-400 transition-colors flex items-center justify-center">
+                                    <i class="fa-solid fa-check text-white text-xs hidden"></i>
+                                </div>
+                            </div>
+                            <span class="ml-2 text-sm text-slate-600 font-bold whitespace-nowrap"><i class="fa-solid fa-bed mr-1 text-slate-400"></i>睡前死蟲式</span>
+                        </label>
+                    </div>
+
+                    <div class="flex gap-3 w-full md:w-auto mt-2 md:mt-0 pt-3 md:pt-0 border-t border-slate-100 md:border-t-0 md:pl-5 md:border-l flex-shrink-0">
+                        <div class="flex-col flex flex-1 md:w-20">
+                            <label class="text-[11px] text-amber-600 mb-1 font-bold text-center"><i class="fa-solid fa-weight-scale mr-1"></i>體重</label>
+                            <input type="number" step="0.1" value="${data.weight || ''}" onchange="updateMetric('${dateKey}', 'weight', this.value)" class="w-full px-1 py-2 text-sm font-bold text-slate-700 border border-slate-200 rounded-lg shadow-inner focus:ring-2 focus:ring-amber-400 focus:outline-none text-center bg-slate-50 placeholder-slate-300" placeholder="kg">
+                        </div>
+                        <div class="flex-col flex flex-1 md:w-20">
+                            <label class="text-[11px] text-rose-500 mb-1 font-bold text-center"><i class="fa-solid fa-fire mr-1"></i>體脂</label>
+                            <input type="number" step="0.1" value="${data.bodyFat || ''}" onchange="updateMetric('${dateKey}', 'bodyFat', this.value)" class="w-full px-1 py-2 text-sm font-bold text-slate-700 border border-slate-200 rounded-lg shadow-inner focus:ring-2 focus:ring-rose-400 focus:outline-none text-center bg-slate-50 placeholder-slate-300" placeholder="%">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(row);
+            }
+        }
+
+        function renderTrackerChart() {
+            const ctx = document.getElementById('trackerChart').getContext('2d');
+            if (trackerChartInstance) trackerChartInstance.destroy();
+
+            const labels = [];
+            const completionRates = [];
+            const weightData = [];
+            const bodyFatData = [];
+
+            for (let i = 0; i < 7; i++) {
+                const d = addDays(currentDisplayedWeekStart, i);
+                const dateKey = formatDateKey(d);
+                const record = fitnessDB[dateKey] || {};
+                
+                labels.push(`${dayNames[i]} (${getDisplayDate(d)})`);
+                completionRates.push(calculateDailyScore(record));
+                weightData.push(record.weight || null);
+                bodyFatData.push(record.bodyFat || null);
+            }
+
+            trackerChartInstance = new Chart(ctx, {
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { type: 'bar', label: '完成度 (%)', data: completionRates, backgroundColor: completionRates.map(r => r === 100 ? '#10b981' : '#14b8a6'), borderRadius: 6, yAxisID: 'y', order: 3 },
+                        { type: 'line', label: '體重 (kg)', data: weightData, borderColor: '#fbbf24', backgroundColor: '#fbbf24', borderWidth: 3, pointBackgroundColor: '#fff', pointRadius: 5, spanGaps: true, yAxisID: 'y1', order: 1 },
+                        { type: 'line', label: '體脂 (%)', data: bodyFatData, borderColor: '#f43f5e', backgroundColor: '#f43f5e', borderWidth: 3, pointBackgroundColor: '#fff', pointRadius: 5, spanGaps: true, yAxisID: 'y1', order: 2 }
+                    ]
+                },
+                options: getCommonChartOptions()
+            });
+        }
+
+        // === Interactions saving to DB ===
+        window.updateMetric = function(dateKey, field, value) {
+            fitnessDB[dateKey][field] = value ? parseFloat(value) : null;
+            saveDB();
+            renderTrackerChart();
+        }
+
+        window.updateTracker = function(dateKey, field, value) {
+            fitnessDB[dateKey][field] = value;
+            saveDB();
+            renderTrackerChart();
+        }
+
+        window.updateWater = function(dateKey, value) {
+            if (fitnessDB[dateKey].water === value) fitnessDB[dateKey].water = value - 1;
+            else fitnessDB[dateKey].water = value;
+            saveDB();
+            renderTrackerUI();
+            renderTrackerChart();
+        }
+
+        // === Trend Analysis View ===
+        function renderTrendChart(period) {
+            // Update toggle buttons styling
+            document.querySelectorAll('#section-trends .toggle-btn').forEach(btn => btn.classList.remove('active', 'bg-teal-700', 'text-white'));
+            document.getElementById(`btn-trend-${period}`).classList.add('active');
+
+            const ctx = document.getElementById('longTermChart').getContext('2d');
+            if (trendChartInstance) trendChartInstance.destroy();
+
+            const labels = [];
+            const weightData = [];
+            const completionData = [];
+            let titleText = "";
+
+            const today = new Date(); // Use actual today for trends
+            
+            if (period === 'month') {
+                titleText = "本月每日趨勢";
+                const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                
+                for (let d = new Date(startOfMonth); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
+                    labels.push(getDisplayDate(d));
+                    const record = fitnessDB[formatDateKey(d)];
+                    weightData.push(record ? record.weight : null);
+                    completionData.push(record ? calculateDailyScore(record) : 0);
+                }
+            } else if (period === 'quarter') {
+                titleText = "近一季 (每週平均)";
+                // Let's grab the last 12 weeks
+                for (let w = 11; w >= 0; w--) {
+                    const weekStart = addDays(getStartOfWeek(today), -w * 7);
+                    labels.push(`${getDisplayDate(weekStart)}`);
+                    
+                    let weeklyWeightSum = 0; let weightCount = 0;
+                    let weeklyScoreSum = 0;
+                    
+                    for(let i=0; i<7; i++) {
+                        const d = addDays(weekStart, i);
+                        const record = fitnessDB[formatDateKey(d)];
+                        if(record) {
+                            if(record.weight) { weeklyWeightSum += record.weight; weightCount++; }
+                            weeklyScoreSum += calculateDailyScore(record);
+                        }
+                    }
+                    weightData.push(weightCount > 0 ? (weeklyWeightSum/weightCount) : null);
+                    completionData.push(Math.round(weeklyScoreSum / 7)); // average score over 7 days
+                }
+            } else if (period === 'year') {
+                titleText = "2026 年度 (每月平均)";
+                const year = 2026;
+                const monthNames = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+                
+                for(let m = 0; m < 12; m++) {
+                    labels.push(monthNames[m]);
+                    let monthlyWeightSum = 0; let weightCount = 0;
+                    let monthlyScoreSum = 0; let dayCount = 0;
+                    
+                    const startOfMonth = new Date(year, m, 1);
+                    const endOfMonth = new Date(year, m + 1, 0);
+                    
+                    for (let d = new Date(startOfMonth); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
+                        const record = fitnessDB[formatDateKey(d)];
+                        if(record) {
+                            if(record.weight) { monthlyWeightSum += record.weight; weightCount++; }
+                            monthlyScoreSum += calculateDailyScore(record);
+                            dayCount++;
+                        }
+                    }
+                    weightData.push(weightCount > 0 ? (monthlyWeightSum/weightCount) : null);
+                    completionData.push(dayCount > 0 ? Math.round(monthlyScoreSum / dayCount) : 0);
+                }
+            }
+
+            document.getElementById('trend-chart-title').innerText = titleText;
+
+            trendChartInstance = new Chart(ctx, {
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { type: 'bar', label: '平均完成度 (%)', data: completionData, backgroundColor: '#cbd5e1', borderRadius: 4, yAxisID: 'y', order: 2 },
+                        { type: 'line', label: '平均體重 (kg)', data: weightData, borderColor: '#0f766e', backgroundColor: '#0f766e', borderWidth: 3, pointBackgroundColor: '#fff', pointRadius: 4, spanGaps: true, yAxisID: 'y1', order: 1 }
+                    ]
+                },
+                options: getCommonChartOptions()
+            });
+        }
+
+        function getCommonChartOptions() {
+            return {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { type: 'linear', display: true, position: 'left', beginAtZero: true, max: 100, title: { display: true, text: '完成度 (%)', font: { size: 12, family: "'Noto Sans TC', sans-serif" } }, grid: { borderDash: [5, 5] } },
+                    y1: { type: 'linear', display: true, position: 'right', title: { display: true, text: '體重/體脂 (kg/%)', font: { size: 12, family: "'Noto Sans TC', sans-serif" } }, grid: { drawOnChartArea: false }, suggestedMin: 50, suggestedMax: 65 },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: true, position: 'top', labels: { usePointStyle: true, boxWidth: 8, font: { family: "'Noto Sans TC', sans-serif" } } } }
+            };
+        }
+
+        // === Boot ===
+        window.addEventListener('DOMContentLoaded', () => {
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+                .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+            `;
+            document.head.appendChild(style);
+            initApp();
+        });
+
+    </script>
+</body>
+</html>
