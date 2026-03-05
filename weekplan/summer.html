@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小栗老師的暑假倒數時計 🏖️</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes sparkle {
+            0%, 100% { opacity: 0; transform: scale(0.5); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+        @keyframes wave {
+            0% { transform: translateX(0) translateZ(0) scaleY(1); }
+            50% { transform: translateX(-25%) translateZ(0) scaleY(0.95); }
+            100% { transform: translateX(-50%) translateZ(0) scaleY(1); }
+        }
+        @keyframes leap-x {
+            0% { transform: translateX(-10vw); }
+            100% { transform: translateX(110vw); }
+        }
+        @keyframes leap-y {
+            0% { transform: translateY(15vh) rotate(-30deg); opacity: 0; }
+            10% { opacity: 1; }
+            50% { transform: translateY(-25vh) rotate(15deg); }
+            90% { opacity: 1; }
+            100% { transform: translateY(15vh) rotate(60deg); opacity: 0; }
+        }
+        
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        .sparkle-element { animation: sparkle 3s ease-in-out infinite; }
+        .wave-bg {
+            animation: wave 15s cubic-bezier(0.36, 0.45, 0.63, 0.53) infinite linear;
+            width: 200%;
+            height: 100%;
+        }
+        .fish-wrapper {
+            position: absolute;
+            bottom: 15%;
+            left: 0;
+            animation: leap-x 14s linear infinite;
+        }
+        .fish-inner {
+            animation: leap-y 14s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+            width: 80px;
+            height: 80px;
+            color: rgba(255, 255, 255, 0.9);
+            filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.2));
+        }
+    </style>
+</head>
+<body class="selection:bg-teal-200 m-0 p-0 overflow-hidden">
+    <div class="relative w-full h-screen overflow-hidden">
+        <!-- 右上角標註 -->
+        <div class="absolute top-4 right-4 text-right text-xs md:text-sm text-teal-800/60 font-medium z-50 pointer-events-none">
+            Designed by 黃鈺心<br>Gemini Canvas輔助生成
+        </div>
+
+        <!-- 背景：溫暖夕陽/晨光天空 -->
+        <div class="absolute inset-0 bg-gradient-to-b from-orange-200 via-rose-100 to-teal-100 -z-50"></div>
+
+        <!-- 太陽 -->
+        <div class="absolute top-20 left-1/2 -translate-x-1/2 w-48 h-48 bg-white/40 rounded-full blur-2xl -z-40"></div>
+        <div class="absolute top-24 left-1/2 -translate-x-1/2 w-32 h-32 bg-yellow-100/60 rounded-full blur-xl -z-40"></div>
+
+        <!-- 遠山 -->
+        <div class="absolute bottom-[30%] left-0 w-full h-[40%] opacity-60 pointer-events-none -z-30 flex items-end">
+            <svg viewBox="0 0 1440 320" preserveAspectRatio="none" class="w-full h-full fill-teal-800/20">
+                <path d="M0,256L48,245.3C96,235,192,213,288,213.3C384,213,480,235,576,224C672,213,768,171,864,170.7C960,171,1056,213,1152,229.3C1248,245,1344,235,1392,229.3L1440,224L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+            </svg>
+        </div>
+        <div class="absolute bottom-[25%] left-0 w-full h-[35%] opacity-70 pointer-events-none -z-20 flex items-end">
+            <svg viewBox="0 0 1440 320" preserveAspectRatio="none" class="w-full h-full fill-teal-700/30">
+                <path d="M0,192L60,197.3C120,203,240,213,360,197.3C480,181,600,139,720,138.7C840,139,960,181,1080,197.3C1200,213,1320,203,1380,197.3L1440,192L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z"></path>
+            </svg>
+        </div>
+
+        <!-- 療癒的海面 -->
+        <div class="absolute bottom-0 left-0 w-full h-[35%] pointer-events-none -z-10 overflow-hidden">
+            <!-- 背景海色 -->
+            <div class="absolute inset-0 bg-gradient-to-b from-teal-400/60 to-cyan-700/80 backdrop-blur-[2px]"></div>
+            
+            <!-- 海浪 SVG 1 -->
+            <div class="absolute top-0 left-0 w-full h-24 text-teal-200/40">
+                <div class="wave-bg" style="animation-duration: 12s;">
+                    <svg viewBox="0 0 1440 120" preserveAspectRatio="none" class="w-1/2 h-full inline-block fill-current"><path d="M0,60 C320,120 420,0 720,60 C1020,120 1120,0 1440,60 L1440,120 L0,120 Z"/></svg>
+                    <svg viewBox="0 0 1440 120" preserveAspectRatio="none" class="w-1/2 h-full inline-block fill-current"><path d="M0,60 C320,120 420,0 720,60 C1020,120 1120,0 1440,60 L1440,120 L0,120 Z"/></svg>
+                </div>
+            </div>
+
+            <!-- 海浪 SVG 2 -->
+            <div class="absolute top-4 left-0 w-full h-24 text-cyan-300/30">
+                <div class="wave-bg" style="animation-duration: 18s; animation-direction: reverse;">
+                    <svg viewBox="0 0 1440 120" preserveAspectRatio="none" class="w-1/2 h-full inline-block fill-current"><path d="M0,60 C240,0 480,120 720,60 C960,0 1200,120 1440,60 L1440,120 L0,120 Z"/></svg>
+                    <svg viewBox="0 0 1440 120" preserveAspectRatio="none" class="w-1/2 h-full inline-block fill-current"><path d="M0,60 C240,0 480,120 720,60 C960,0 1200,120 1440,60 L1440,120 L0,120 Z"/></svg>
+                </div>
+            </div>
+
+            <!-- 波光粼粼 (由 JS 動態生成) -->
+            <div id="sparkles-container"></div>
+        </div>
+
+        <!-- 躍起的魚 -->
+        <div class="fish-wrapper pointer-events-none">
+            <div class="fish-inner">
+                <svg viewBox="0 0 24 24" fill="currentColor" class="w-full h-full transform -scale-x-100">
+                    <path d="M21.4,10.74C20.25,7.82,17.58,6,14.5,6c-1.46,0-2.84,0.55-3.99,1.42C7.37,5.46,3.82,5.03,3.48,4.98C2.87,4.88,2.29,5.32,2.12,5.92C1.96,6.52,2.28,7.15,2.85,7.43c1.69,0.84,3.2,2.04,4.42,3.52C6.46,12.39,6.46,14.1,7.27,15.54c-1.22,1.48-2.73,2.68-4.42,3.52C2.28,19.34,1.96,19.97,2.12,20.57c0.17,0.6,0.75,1.04,1.36,0.94c0.34-0.05,3.89-0.48,7.03-2.44C11.66,19.94,13.04,20.49,14.5,20.49c3.08,0,5.75-1.82,6.9-4.74C22.18,13.78,22.18,12.71,21.4,10.74z M16.5,11.5C15.67,11.5,15,10.83,15,10c0-0.83,0.67-1.5,1.5-1.5S18,9.17,18,10C18,10.83,17.33,11.5,16.5,11.5z"/>
+                </svg>
+            </div>
+        </div>
+
+        <!-- 主內容區：倒數卡片 -->
+        <div class="relative z-10 flex flex-col items-center justify-center h-full px-4">
+            <div class="animate-float bg-white/30 backdrop-blur-xl border border-white/40 shadow-2xl rounded-[3rem] p-8 md:p-14 max-w-2xl w-full text-center">
+                
+                <h1 class="text-3xl md:text-4xl font-bold text-teal-800 mb-2 drop-shadow-sm">
+                    小栗老師，辛苦了！
+                </h1>
+                <p class="text-teal-700/80 text-lg md:text-xl font-medium mb-8">
+                    美好的暑假正在前方海域等著您 🏖️
+                </p>
+
+                <!-- 倒數計時區 -->
+                <div class="flex flex-wrap justify-center gap-4 md:gap-8 mb-10">
+                    <div class="flex flex-col items-center">
+                        <div class="w-20 h-24 md:w-28 md:h-32 bg-white/50 rounded-2xl flex items-center justify-center shadow-inner border border-white/60 mb-2">
+                            <span id="display-days" class="text-4xl md:text-6xl font-bold text-orange-500 drop-shadow-sm">0</span>
+                        </div>
+                        <span class="text-teal-800 font-bold tracking-widest text-sm md:text-base">天</span>
+                    </div>
+                    
+                    <div class="flex flex-col items-center">
+                        <div class="w-16 h-20 md:w-20 md:h-24 bg-white/40 rounded-2xl flex items-center justify-center shadow-inner border border-white/50 mb-2">
+                            <span id="display-hours" class="text-3xl md:text-4xl font-bold text-teal-600">0</span>
+                        </div>
+                        <span class="text-teal-800 font-bold tracking-widest text-xs md:text-sm">時</span>
+                    </div>
+
+                    <div class="flex flex-col items-center">
+                        <div class="w-16 h-20 md:w-20 md:h-24 bg-white/40 rounded-2xl flex items-center justify-center shadow-inner border border-white/50 mb-2">
+                            <span id="display-minutes" class="text-3xl md:text-4xl font-bold text-teal-600">0</span>
+                        </div>
+                        <span class="text-teal-800 font-bold tracking-widest text-xs md:text-sm">分</span>
+                    </div>
+                </div>
+
+                <!-- 上班日區塊 -->
+                <div class="inline-block bg-teal-50/60 rounded-full px-6 py-4 shadow-sm border border-white/60">
+                    <p class="text-teal-800 font-medium text-lg md:text-xl">
+                        再撐一下！距離 7/1 只剩下 <span id="display-workdays" class="text-2xl md:text-3xl font-extrabold text-rose-500 mx-1">0</span> 個上班日囉！
+                    </p>
+                </div>
+                
+                <p class="text-teal-600/70 text-xs mt-4">
+                    * 已經為您貼心排除週休二日及國定假日
+                </p>
+            </div>
+            
+            <!-- 底部小語 -->
+            <p id="daily-quote" class="absolute bottom-8 text-white/90 text-sm md:text-base font-medium drop-shadow-md tracking-wider text-center px-4 w-full">
+                「 每一天的努力，都是為了更美好的相遇。 」
+            </p>
+
+            <!-- 底部標註 -->
+            <div class="absolute bottom-2 w-full text-center text-[10px] md:text-xs text-white/70 font-medium z-50 pointer-events-none tracking-wider">
+                Designed by 黃鈺心, Gemini Canvas輔助生成
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        // 台灣 2026 年 (2月至7月) 國定假日列表 (排除週末)
+        const TAIWAN_HOLIDAYS_2026 = [
+            '2026-02-27', // 228和平紀念日(補假)
+            '2026-04-03', // 兒童節(補假)
+            '2026-04-06', // 清明節(補假)
+            '2026-06-19', // 端午節
+        ];
+
+        // 目標日期：2026年7月1日 00:00:00
+        const targetDate = new Date('2026-07-01T00:00:00');
+
+        // DOM 元素
+        const daysEl = document.getElementById('display-days');
+        const hoursEl = document.getElementById('display-hours');
+        const minutesEl = document.getElementById('display-minutes');
+        const workdaysEl = document.getElementById('display-workdays');
+        const dailyQuoteEl = document.getElementById('daily-quote');
+
+        // 每日療癒語錄 (適合老師)
+        const quotes = [
+            "每一天的努力，都是為了更美好的相遇。",
+            "教育不是注滿一桶水，而是點燃一把火。",
+            "即使再微小的光芒，也能照亮孩子心中的角落。",
+            "播下的每一顆種子，都會在未來的某個時刻發芽。",
+            "您今天的耐心，是孩子明天飛翔的翅膀。",
+            "站在講台上的您，本身就是最美的風景。",
+            "疲憊的時候請記得，您正在創造無限的可能。",
+            "您的溫柔與堅持，會成為孩子生命裡最溫暖的記憶。",
+            "深呼吸，感受這世界為您準備的波光粼粼。",
+            "休息是為了走更長遠的路，倒數的每一天都值得被期待。",
+            "看著海浪起伏，所有的壓力都會隨之退去。",
+            "您是孩子眼中的星光，也是自己生命裡的太陽。",
+            "那些平凡的日常，都是未來閃閃發光的寶藏。",
+            "放慢腳步，傾聽內心的聲音，您已經做得很好了。"
+        ];
+
+        // 設置每日小語
+        function setDailyQuote() {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), 0, 0);
+            const diff = now - start;
+            const oneDay = 1000 * 60 * 60 * 24;
+            const dayOfYear = Math.floor(diff / oneDay);
+            
+            const quoteIndex = dayOfYear % quotes.length;
+            dailyQuoteEl.textContent = `「 ${quotes[quoteIndex]} 」`;
+        }
+
+        // 計算倒數時間
+        function calculateTime() {
+            const now = new Date();
+            const difference = targetDate.getTime() - now.getTime();
+
+            if (difference > 0) {
+                daysEl.textContent = Math.floor(difference / (1000 * 60 * 60 * 24));
+                hoursEl.textContent = Math.floor((difference / (1000 * 60 * 60)) % 24);
+                minutesEl.textContent = Math.floor((difference / 1000 / 60) % 60);
+            } else {
+                daysEl.textContent = 0;
+                hoursEl.textContent = 0;
+                minutesEl.textContent = 0;
+            }
+        }
+
+        // 計算剩餘上班日
+        function calculateWorkDays() {
+            let count = 0;
+            let curDate = new Date();
+            curDate.setHours(0, 0, 0, 0);
+            const end = new Date(targetDate.getTime());
+            end.setHours(0, 0, 0, 0);
+
+            while (curDate < end) {
+                const dayOfWeek = curDate.getDay();
+                const year = curDate.getFullYear();
+                const month = String(curDate.getMonth() + 1).padStart(2, '0');
+                const day = String(curDate.getDate()).padStart(2, '0');
+                const dateString = `${year}-${month}-${day}`;
+
+                const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+                const isHoliday = TAIWAN_HOLIDAYS_2026.includes(dateString);
+
+                if (!isWeekend && !isHoliday) {
+                    count++;
+                }
+                curDate.setDate(curDate.getDate() + 1);
+            }
+            workdaysEl.textContent = count;
+        }
+
+        // 動態生成海面上的波光粼粼
+        function generateSparkles() {
+            const container = document.getElementById('sparkles-container');
+            for (let i = 0; i < 40; i++) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle-element absolute rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)]';
+                sparkle.style.width = (Math.random() * 4 + 2) + 'px';
+                sparkle.style.height = (Math.random() * 2 + 1) + 'px';
+                sparkle.style.left = (Math.random() * 100) + '%';
+                sparkle.style.top = (Math.random() * 80 + 20) + '%';
+                sparkle.style.animationDelay = (Math.random() * 4) + 's';
+                sparkle.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                container.appendChild(sparkle);
+            }
+        }
+
+        // 初始化與啟動定時器
+        calculateTime();
+        calculateWorkDays();
+        generateSparkles();
+        setDailyQuote();
+
+        setInterval(calculateTime, 1000); // 每秒更新時間
+        setInterval(() => {
+            calculateWorkDays();
+            setDailyQuote();
+        }, 1000 * 60 * 60); // 每小時重新確認一次上班日與語錄
+    </script>
+</body>
+</html>
