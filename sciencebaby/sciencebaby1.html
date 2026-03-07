@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>科學寶貝：位移之石傳說</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #10b981;
+            --background-color: #f3f4f6;
+            --text-color: #1f2937;
+            --card-bg: #ffffff;
+            --grid-color: rgba(0, 0, 0, 0.2);
+            --axis-color: #000000;
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+
+        /* 設計者標籤樣式 - 強制最上層顯示 */
+        .designer-tag {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(31, 41, 55, 0.85);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            z-index: 9999;
+            pointer-events: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            text-align: right;
+            line-height: 1.4;
+            backdrop-filter: blur(2px);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translate(-50%, -50%) rotate(0deg); }
+            10%, 30%, 50%, 70%, 90% { transform: translate(-50%, -50%) rotate(-15deg); }
+            20%, 40%, 60%, 80% { transform: translate(-50%, -50%) rotate(15deg); }
+        }
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        .shake-horizontal {
+             animation: shake-h 0.5s ease-in-out;
+        }
+        @keyframes shake-h {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        #locations-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; 
+        }
+
+        .location-dot {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            transform: translate(-50%, -50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: auto; 
+        }
+       
+        .location-dot:hover {
+            transform: translate(-50%, -50%) scale(1.5);
+            z-index: 30;
+        }
+        .location-dot svg {
+            width: 100%;
+            height: 100%;
+            transition: filter 0.3s ease;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.3));
+        }
+
+        .location-dot.discovered .pokeball-svg {
+            filter: grayscale(80%) opacity(60%);
+        }
+
+        #player-avatar {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            transform: translate(-50%, -50%);
+            z-index: 25;
+            pointer-events: none;
+            transition: top 0.8s ease-in-out, left 0.8s ease-in-out;
+            animation: pulse 2s infinite;
+        }
+
+        #player-avatar svg {
+             width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+        }
+
+        .location-name {
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: white;
+            color: var(--text-color);
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 10px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .location-dot:hover .location-name {
+            opacity: 1;
+        }
+        .location-dot.discovered .location-name {
+            opacity: 1;
+        }
+        
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.15); }
+            100% { transform: translate(-50%, -50%) scale(1); }
+        }
+
+        .path-line {
+            stroke: #4f46e5;
+            stroke-width: 4;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            fill: none;
+        }
+        
+        .modal, .screen {
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+        .modal.hidden, .screen.hidden {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+            display: none; /* Changed from just opacity to actually hide */
+        }
+        
+        .screen {
+            display: flex; /* Ensure flex is active when not hidden */
+        }
+
+        /* Grid styles */
+        .grid-line {
+            stroke: var(--grid-color);
+            stroke-width: 1;
+            stroke-dasharray: 4 2;
+        }
+        .axis-line {
+            stroke: var(--axis-color);
+            stroke-width: 2.5;
+        }
+        .grid-label {
+            font-family: monospace;
+            font-size: 12px;
+            font-weight: bold;
+            fill: var(--axis-color);
+        }
+        .axis-label {
+            font-family: 'Noto Sans TC', sans-serif;
+            font-size: 14px;
+            font-weight: bold;
+            fill: var(--axis-color);
+        }
+        .character-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .character-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .rock-option {
+            border: 2px solid #e2e8f0;
+            transition: all 0.2s ease-in-out;
+        }
+        .rock-option:hover {
+            border-color: #a3bffa;
+            background-color: #ebf4ff;
+        }
+        .rock-option.selected {
+            border-color: #4f46e5;
+            background-color: #c7d2fe;
+            font-weight: bold;
+        }
+         .quiz-option {
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db;
+        }
+        .quiz-option.selected {
+            background-color: #c7d2fe;
+            border-color: #4f46e5;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 relative">
+
+    <!-- 全域 Designer Tag -->
+    <div class="designer-tag">Designed by 黃鈺心,<br>Gemini Canvas輔助生成</div>
+
+    <!-- Password Screen (New) -->
+    <div id="password-screen" class="screen fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-sm w-full relative" id="password-container">
+            <h1 class="text-3xl font-bold mb-2 text-indigo-700">科學寶貝</h1>
+            <h2 class="text-xl font-bold mb-6 text-gray-800">位移之石傳說</h2>
+            <p class="text-gray-600 mb-4">請輸入通關密碼以進入遊戲：</p>
+            <form id="password-form" class="space-y-4">
+                <input type="password" id="game-password" placeholder="請輸入密碼" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-center" required>
+                <p id="password-error" class="text-red-500 text-sm hidden font-bold">密碼錯誤，請再試一次！</p>
+                <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors">確認進入</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Student Info Screen (Originally Start Screen) -->
+    <div id="start-screen" class="screen hidden fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-sm w-full relative">
+            <h2 class="text-2xl font-bold mb-4">開始遊戲前...</h2>
+            <p class="text-gray-600 mb-6">請輸入你的資料，以便記錄分數！</p>
+            <form id="student-form" class="space-y-4">
+                <input type="text" id="student-class" placeholder="班級 (例如: 701)" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                <input type="text" id="student-seat" placeholder="座號 (例如: 01)" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                <input type="text" id="student-name" placeholder="姓名" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500" required>
+                <button type="submit" id="start-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors">下一步</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Character Selection Screen -->
+    <div id="character-selection-screen" class="screen hidden fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-2xl w-full relative">
+            <h2 class="text-2xl font-bold mb-4">選擇你的玩家！</h2>
+            <p class="text-gray-600 mb-6">不同的玩家有不同的挑戰路線喔！</p>
+            <div class="flex flex-wrap justify-center gap-4 sm:gap-8">
+                <!-- Character 1: 小岩 -->
+                <div id="select-xiaoYan" class="character-card cursor-pointer p-4 rounded-lg w-32 sm:w-auto">
+                    <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto">
+                        <svg viewBox="0 0 24 24">
+                            <g>
+                                <rect x="8.5" y="18" width="3" height="4" fill="#000000"/>
+                                <rect x="12.5" y="18" width="3" height="4" fill="#000000"/>
+                                <circle cx="12" cy="8" r="4" fill="#ffde7a"/>
+                                <circle cx="11" cy="8" r="0.7" fill="black"/>
+                                <circle cx="13" cy="8" r="0.7" fill="black"/>
+                                <path d="M11 9.5 C 11.5 10.5, 12.5 10.5, 13 9.5" stroke="black" stroke-width="0.5" fill="none"/>
+                                <rect x="8" y="12" width="8" height="6" rx="1" fill="#f56565"/>
+                                <path d="M7,12 L7,16 L8,16 L8,12 z" fill="#ffde7a"/>
+                                <path d="M17,12 L17,16 L16,16 L16,12 z" fill="#ffde7a"/>
+                                <rect x="8" y="18" width="4" height="2" fill="#2c5282"/>
+                                <rect x="12" y="18" width="4" height="2" fill="#2c5282"/>
+                                <path d="M8,5 C8,3 16,3 16,5 L18,6 L6,6 z" fill="#4299e1"/>
+                                <path d="M16,5 A 4 2 0 0 1 20 5" fill="#4299e1" stroke="#2b6cb0" stroke-width="0.5"/>
+                            </g>
+                        </svg>
+                    </div>
+                    <p class="mt-2 font-bold text-lg">小岩</p>
+                </div>
+                <!-- Character 2: 小石 -->
+                <div id="select-xiaoShi" class="character-card cursor-pointer p-4 rounded-lg w-32 sm:w-auto">
+                     <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto">
+                        <svg viewBox="0 0 24 24">
+                            <g>
+                                <rect x="8.5" y="18" width="3" height="4" fill="#000000"/>
+                                <rect x="12.5" y="18" width="3" height="4" fill="#000000"/>
+                                <circle cx="12" cy="8" r="4" fill="#ffde7a"/>
+                                <circle cx="11" cy="8" r="0.7" fill="black"/>
+                                <circle cx="13" cy="8" r="0.7" fill="black"/>
+                                <path d="M11 9.5 C 11.5 10.5, 12.5 10.5, 13 9.5" stroke="black" stroke-width="0.5" fill="none"/>
+                                <rect x="8" y="12" width="8" height="6" rx="1" fill="#48bb78"/>
+                                <path d="M7,12 L7,16 L8,16 L8,12 z" fill="#ffde7a"/>
+                                <path d="M17,12 L17,16 L16,16 L16,12 z" fill="#ffde7a"/>
+                                <rect x="8" y="18" width="4" height="2" fill="#2c5282"/>
+                                <rect x="12" y="18" width="4" height="2" fill="#2c5282"/>
+                                <path d="M8,5 C8,3 16,3 16,5 L18,6 L6,6 z" fill="#f56565"/>
+                                <path d="M16,5 A 4 2 0 0 1 20 5" fill="#f56565" stroke="#c53030" stroke-width="0.5"/>
+                            </g>
+                        </svg>
+                    </div>
+                    <p class="mt-2 font-bold text-lg">小石</p>
+                </div>
+                <!-- Character 3: 小礦 -->
+                <div id="select-xiaoKuang" class="character-card cursor-pointer p-4 rounded-lg w-32 sm:w-auto">
+                     <div class="w-20 h-20 sm:w-24 sm:h-24 mx-auto">
+                        <svg viewBox="0 0 24 24">
+                            <g>
+                                <rect x="8.5" y="18" width="3" height="4" fill="#000000"/>
+                                <rect x="12.5" y="18" width="3" height="4" fill="#000000"/>
+                                <circle cx="12" cy="8" r="4" fill="#ffde7a"/>
+                                <circle cx="11" cy="8" r="0.7" fill="black"/>
+                                <circle cx="13" cy="8" r="0.7" fill="black"/>
+                                <path d="M11 9.5 C 11.5 10.5, 12.5 10.5, 13 9.5" stroke="black" stroke-width="0.5" fill="none"/>
+                                <rect x="8" y="12" width="8" height="6" rx="1" fill="#667eea"/>
+                                <path d="M7,12 L7,16 L8,16 L8,12 z" fill="#ffde7a"/>
+                                <path d="M17,12 L17,16 L16,16 L16,12 z" fill="#ffde7a"/>
+                                <rect x="8" y="18" width="4" height="2" fill="#2c5282"/>
+                                <rect x="12" y="18" width="4" height="2" fill="#2c5282"/>
+                                <path d="M8,5 C8,3 16,3 16,5 L18,6 L6,6 z" fill="#a0aec0"/>
+                                <path d="M16,5 A 4 2 0 0 1 20 5" fill="#a0aec0" stroke="#718096" stroke-width="0.5"/>
+                            </g>
+                        </svg>
+                    </div>
+                    <p class="mt-2 font-bold text-lg">小礦</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="main-content" class="max-w-7xl mx-auto hidden">
+        <header class="text-center mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-indigo-700">科學寶貝：位移之石傳說</h1>
+            <p class="text-lg text-gray-600 mt-2">根據線索，解開位移之謎，在校園中移動吧！</p>
+        </header>
+
+        <div id="game-container" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Panel: Map -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-4 relative overflow-hidden">
+                <div id="map-area" class="relative w-full aspect-[4/3] max-w-full mx-auto">
+                    <img id="map-image" src="圖1.jpg" alt="校園地圖" class="absolute w-full h-full object-contain opacity-50">
+                    <svg id="grid-svg" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0"></svg>
+                    <svg id="path-svg" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10"></svg>
+                    <div id="locations-container" class="absolute top-0 left-0 w-full h-full z-20"></div>
+                    <div id="player-avatar"></div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Clue & Status -->
+            <div id="info-panel" class="bg-white rounded-xl shadow-lg p-6 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center border-b pb-4 mb-4">
+                        <h2 class="text-2xl font-bold">狀態</h2>
+                        <div>
+                            <span class="text-lg">分數: <span id="score" class="font-bold text-green-600">0</span></span>
+                        </div>
+                    </div>
+                    <div id="clue-area">
+                        <h3 class="text-xl font-bold mb-2">第 <span id="level">1</span> 關</h3>
+                        <p id="question" class="text-gray-700 mb-4"></p>
+                        <div class="bg-gray-100 rounded-lg p-2">
+                             <img id="clue-image" src="" alt="關卡提示" class="w-full h-auto rounded-md object-contain max-h-60">
+                        </div>
+                    </div>
+                     <div id="final-challenge-area" class="hidden">
+                        <h3 class="text-xl font-bold mb-2">🎉 恭喜完成所有關卡！🎉</h3>
+                        <p class="text-gray-700 mb-4">請根據你走過的路徑，回答以下最終問題：</p>
+                        <div class="space-y-6">
+                            <!-- Rock Question -->
+                            <div id="rock-question-area">
+                                <label id="rock-question-label" class="block font-medium mb-2">(問題10分) 請問小岩所抓取的寶貝球中，以哪一種岩石數量最多？</label>
+                                <div id="rock-options" class="flex justify-center gap-4">
+                                    <button data-answer="沉積岩" class="rock-option w-full py-2 px-4 rounded-md font-semibold">沉積岩</button>
+                                    <button data-answer="火成岩" class="rock-option w-full py-2 px-4 rounded-md font-semibold">火成岩</button>
+                                    <button data-answer="變質岩" class="rock-option w-full py-2 px-4 rounded-md font-semibold">變質岩</button>
+                                </div>
+                            </div>
+                            <hr/>
+                            <!-- Other Questions -->
+                            <div>
+                                <label for="path-length" class="block font-medium">(問題10分) 全程總路徑長為多少公尺？</label>
+                                <input type="number" id="path-length" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label for="displacement" class="block font-medium">(問題10分) 全程總位移為多少公尺？</label>
+                                <input type="number" id="displacement" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label for="reversals" class="block font-medium">(問題10分) 過程中總共折返了幾次？</label>
+                                <input type="number" id="reversals" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <button id="action-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors hidden">提交最終答案</button>
+                    <button id="restart-button" class="w-full bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors hidden mt-2">重新開始</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal for feedback -->
+    <div id="feedback-modal" class="modal hidden fixed inset-0 bg-gray-900 bg-opacity-60 flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-sm w-full relative">
+            <div id="modal-icon" class="mx-auto mb-4 w-16 h-16"></div>
+            <h3 id="modal-title" class="text-2xl font-bold mb-2"></h3>
+            <p id="modal-message" class="text-gray-600 mb-6"></p>
+            <button id="modal-close-button" class="bg-indigo-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-indigo-700 transition-colors">繼續</button>
+        </div>
+    </div>
+
+    <!-- Volcano Quiz Screen -->
+    <div id="volcano-quiz-screen" class="screen hidden fixed inset-0 bg-white z-50 overflow-y-auto p-8">
+        <div class="max-w-4xl mx-auto relative">
+             <div class="designer-tag" style="position: absolute; top: 10px; right: 10px;">Designed by 黃鈺心,<br>Gemini Canvas輔助生成</div>
+
+            <h2 class="text-3xl font-bold mb-4 text-center">特別關卡：火山的考驗！</h2>
+            <div class="aspect-video bg-black rounded-lg mb-6">
+                <video id="volcano-video" class="w-full h-full" controls>
+                    <source src="gopro火山.mp4" type="video/mp4">
+                    你的瀏覽器不支援影片播放。
+                </video>
+            </div>
+            <form id="volcano-form" class="space-y-6">
+                <!-- Question 1 -->
+                <div>
+                    <label class="block font-bold text-lg mb-2">1. 當岩漿從火山口流出時，熔岩流雖然還在流動，但其表層漸漸發生了什麼變化？ (單選)</label>
+                    <div class="space-y-2">
+                        <div><input type="radio" name="q1" value="熔化" id="q1a"><label for="q1a" class="ml-2">熔化</label></div>
+                        <div><input type="radio" name="q1" value="流動" id="q1b"><label for="q1b" class="ml-2">流動</label></div>
+                        <div><input type="radio" name="q1" value="蒸發" id="q1c"><label for="q1c" class="ml-2">蒸發</label></div>
+                        <div><input type="radio" name="q1" value="凝固" id="q1d"><label for="q1d" class="ml-2">凝固</label></div>
+                        <div><input type="radio" name="q1" value="凝結" id="q1e"><label for="q1e" class="ml-2">凝結</label></div>
+                    </div>
+                </div>
+                <!-- Question 2 -->
+                <div>
+                    <label class="block font-bold text-lg mb-2">2. 根據困在熔岩流裡的GoPro所拍攝到的影像，可以發現岩漿內部的狀態為何？ (複選，請選兩項)</label>
+                    <div class="space-y-2">
+                        <div><input type="checkbox" name="q2" value="灼熱" id="q2a"><label for="q2a" class="ml-2">灼熱</label></div>
+                        <div><input type="checkbox" name="q2" value="寒冷" id="q2b"><label for="q2b" class="ml-2">寒冷</label></div>
+                        <div><input type="checkbox" name="q2" value="流動" id="q2c"><label for="q2c" class="ml-2">流動</label></div>
+                        <div><input type="checkbox" name="q2" value="蒸發" id="q2d"><label for="q2d" class="ml-2">蒸發</label></div>
+                        <div><input type="checkbox" name="q2" value="凝固" id="q2e"><label for="q2e" class="ml-2">凝固</label></div>
+                        <div><input type="checkbox" name="q2" value="凝結" id="q2f"><label for="q2f" class="ml-2">凝結</label></div>
+                    </div>
+                </div>
+                <!-- Question 3 -->
+                <div>
+                    <label class="block font-bold text-lg mb-2">3. 最後GoPro所拍攝到的影像能看見外面的人隔著薄薄的一層看著GoPro，請問根據你們的學習，GoPro可能被什麼種類的岩石所包覆住？ (單選)</label>
+                    <div class="space-y-2">
+                        <div><input type="radio" name="q3" value="沉積岩" id="q3a"><label for="q3a" class="ml-2">沉積岩</label></div>
+                        <div><input type="radio" name="q3" value="火成岩" id="q3b"><label for="q3b" class="ml-2">火成岩</label></div>
+                        <div><input type="radio" name="q3" value="變質岩" id="q3c"><label for="q3c" class="ml-2">變質岩</label></div>
+                    </div>
+                </div>
+                <!-- Question 4 -->
+                <div>
+                    <label class="block font-bold text-lg mb-2">4. 根據你們的學習，猜猜看熔岩流流經區域的岩石應該是什麼種類的岩石？ (單選)</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <div><input type="radio" name="q4" value="礫岩" id="q4a"><label for="q4a" class="ml-2">礫岩</label></div>
+                        <div><input type="radio" name="q4" value="砂岩" id="q4b"><label for="q4b" class="ml-2">砂岩</label></div>
+                        <div><input type="radio" name="q4" value="頁岩" id="q4c"><label for="q4c" class="ml-2">頁岩</label></div>
+                        <div><input type="radio" name="q4" value="石灰岩" id="q4d"><label for="q4d" class="ml-2">石灰岩</label></div>
+                        <div><input type="radio" name="q4" value="鹽岩" id="q4e"><label for="q4e" class="ml-2">鹽岩</label></div>
+                        <div><input type="radio" name="q4" value="玄武岩" id="q4f"><label for="q4f" class="ml-2">玄武岩</label></div>
+                        <div><input type="radio" name="q4" value="安山岩" id="q4g"><label for="q4g" class="ml-2">安山岩</label></div>
+                        <div><input type="radio" name="q4" value="花崗岩" id="q4h"><label for="q4h" class="ml-2">花崗岩</label></div>
+                        <div><input type="radio" name="q4" value="板岩" id="q4i"><label for="q4i" class="ml-2">板岩</label></div>
+                        <div><input type="radio" name="q4" value="片岩" id="q4j"><label for="q4j" class="ml-2">片岩</label></div>
+                        <div><input type="radio" name="q4" value="花崗片麻岩" id="q4k"><label for="q4k" class="ml-2">花崗片麻岩</label></div>
+                        <div><input type="radio" name="q4" value="大理岩" id="q4l"><label for="q4l" class="ml-2">大理岩</label></div>
+                    </div>
+                </div>
+                <button type="submit" id="submit-volcano-quiz" class="w-full mt-8 bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 transition-colors">提交答案</button>
+            </form>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- !!! IMPORTANT !!! ---
+            const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhUwuPBaqtBjcEevxLyvBIaeLjR4_Gy4Vrb9FqCO4ZVWrWmjMt0Qm59-tNMf9J8X_zXw/exec';
+            // --- GAME PASSWORD ---
+            const CORRECT_PASSWORD = 'LovelyRun';
+
+            const playerSvgs = {
+                'xiaoyan': `...`, // (省略，同前)
+                'xiaoshi': `...`, // (省略，同前)
+                'xiaokuang': `...` // (省略，同前)
+            };
+            
+            // Re-inserting SVG strings directly to ensure no breaking issues
+             playerSvgs['xiaoyan'] = `<svg viewBox="0 0 24 24"><g><rect x="8.5" y="18" width="3" height="4" fill="#000000"/><rect x="12.5" y="18" width="3" height="4" fill="#000000"/><circle cx="12" cy="8" r="4" fill="#ffde7a"/><circle cx="11" cy="8" r="0.7" fill="black"/><circle cx="13" cy="8" r="0.7" fill="black"/><path d="M11 9.5 C 11.5 10.5, 12.5 10.5, 13 9.5" stroke="black" stroke-width="0.5" fill="none"/><rect x="8" y="12" width="8" height="6" rx="1" fill="#f56565"/><path d="M7,12 L7,16 L8,16 L8,12 z" fill="#ffde7a"/><path d="M17,12 L17,16 L16,16 L16,12 z" fill="#ffde7a"/><rect x="8" y="18" width="4" height="2" fill="#2c5282"/><rect x="12" y="18" width="4" height="2" fill="#2c5282"/><path d="M8,5 C8,3 16,3 16,5 L18,6 L6,6 z" fill="#4299e1"/><path d="M16,5 A 4 2 0 0 1 20 5" fill="#4299e1" stroke="#2b6cb0" stroke-width="0.5"/></g></svg>`;
+             playerSvgs['xiaoshi'] = `<svg viewBox="0 0 24 24"><g><rect x="8.5" y="18" width="3" height="4" fill="#000000"/><rect x="12.5" y="18" width="3" height="4" fill="#000000"/><circle cx="12" cy="8" r="4" fill="#ffde7a"/><circle cx="11" cy="8" r="0.7" fill="black"/><circle cx="13" cy="8" r="0.7" fill="black"/><path d="M11 9.5 C 11.5 10.5, 12.5 10.5, 13 9.5" stroke="black" stroke-width="0.5" fill="none"/><rect x="8" y="12" width="8" height="6" rx="1" fill="#48bb78"/><path d="M7,12 L7,16 L8,16 L8,12 z" fill="#ffde7a"/><path d="M17,12 L17,16 L16,16 L16,12 z" fill="#ffde7a"/><rect x="8" y="18" width="4" height="2" fill="#2c5282"/><rect x="12" y="18" width="4" height="2" fill="#2c5282"/><path d="M8,5 C8,3 16,3 16,5 L18,6 L6,6 z" fill="#f56565"/><path d="M16,5 A 4 2 0 0 1 20 5" fill="#f56565" stroke="#c53030" stroke-width="0.5"/></g></svg>`;
+             playerSvgs['xiaokuang'] = `<svg viewBox="0 0 24 24"><g><rect x="8.5" y="18" width="3" height="4" fill="#000000"/><rect x="12.5" y="18" width="3" height="4" fill="#000000"/><circle cx="12" cy="8" r="4" fill="#ffde7a"/><circle cx="11" cy="8" r="0.7" fill="black"/><circle cx="13" cy="8" r="0.7" fill="black"/><path d="M11 9.5 C 11.5 10.5, 12.5 10.5, 13 9.5" stroke="black" stroke-width="0.5" fill="none"/><rect x="8" y="12" width="8" height="6" rx="1" fill="#667eea"/><path d="M7,12 L7,16 L8,16 L8,12 z" fill="#ffde7a"/><path d="M17,12 L17,16 L16,16 L16,12 z" fill="#ffde7a"/><rect x="8" y="18" width="4" height="2" fill="#2c5282"/><rect x="12" y="18" width="4" height="2" fill="#2c5282"/><path d="M8,5 C8,3 16,3 16,5 L18,6 L6,6 z" fill="#a0aec0"/><path d="M16,5 A 4 2 0 0 1 20 5" fill="#a0aec0" stroke="#718096" stroke-width="0.5"/></g></svg>`;
+
+            // --- Game Data ---
+            const gameData = {
+                'xiaoYan': {
+                    startLocation: 'library',
+                    stages: [
+                        { level: 1, clue: '圖1-1.jpg', question: '第一關在 t=6 分處，求出 V-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'admin_building'},
+                        { level: 2, clue: '圖1-2.jpg', question: '第二關在 t=10 分處，求出 V-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'pan_pond'},
+                        { level: 3, clue: '圖1-3.jpg', question: '第三關在 t=16 分處，求出 V-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'banyan_garden'},
+                        { level: 4, clue: '圖1-4.jpg', question: '第四關在 t=20 分處，求出 X-t 圖中，自出發到最高點的位移，即可獲得關卡確切位置。', correctLocationId: 'coop_store'},
+                        { level: 5, clue: '圖1-5.jpg', question: '第五關在 t=22 分處，此物體以初速=0m/s往負方向前進，以此 a-t 圖為線索，求出物體的位移。', correctLocationId: 'athletic_field'},
+                        { level: 6, clue: '圖1-6.jpg', question: '第六關在 t=28 分處，此物體以初速=50m/s往正方向前進，以此 a-t 圖為線索，求出物體的位移。', correctLocationId: 'scout_camp'}
+                    ],
+                    finalAnswers: { pathLength: 225, displacement: -15, reversals: 3 },
+                    rockQuestionAnswer: '變質岩'
+                },
+                'xiaoShi': {
+                    startLocation: 'bike_shed',
+                    stages: [
+                        { level: 1, clue: '腳1-1.jpg', question: '第一關在 t=4 分處，求出 V-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'zhiyu_building'},
+                        { level: 2, clue: '腳1-2.jpg', question: '第二關在 t=6 分處，求出 V-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'admin_building'},
+                        { level: 3, clue: '腳1-3.jpg', question: '第三關在 t=14 分處，求出 V-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'student_affairs'},
+                        { level: 4, clue: '腳1-4.jpg', question: '第四關在 t=16 分處，求出 X-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'art_plaza'},
+                        { level: 5, clue: '腳1-5.jpg', question: '第五關在 t=22 分處，此物體以初速=0m/s往負方向前進，以此 a-t 圖為線索，求出物體的位移。', correctLocationId: 'volleyball_court'},
+                        { level: 6, clue: '腳1-6.jpg', question: '第六關在 t=26 分處，此物體以初速=50m/s往正方向前進，以此 a-t 圖為線索，求出物體的位移。', correctLocationId: 'qunlun_terrace'}
+                    ],
+                    finalAnswers: { pathLength: 240, displacement: -40, reversals: 3 },
+                    rockQuestionAnswer: '火成岩'
+                },
+                'xiaoKuang': {
+                    startLocation: 'home_ec_building',
+                    stages: [
+                        { level: 1, clue: '家1-1.jpg', question: '第一關在 t=4 分處，求出 V-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'yangxin_garden'},
+                        { level: 2, clue: '家1-2.jpg', question: '第二關在 t=6 分處，求出 V-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'front_gate_circle'},
+                        { level: 3, clue: '家1-3.jpg', question: '第三關在 t=10 分處，求出 V-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'feiyue_pavilion'},
+                        { level: 4, clue: '家1-4.jpg', question: '第四關在 t=16 分處，求出 X-t 圖中的位移，即可獲得關卡確切位置。', correctLocationId: 'banyan_garden'},
+                        { level: 5, clue: '家1-5.jpg', question: '第五關在 t=24 分處，此物體以初速=0m/s往正方向前進，以此 a-t 圖為線索，求出物體的位移。', correctLocationId: 'qing_garden'},
+                        { level: 6, clue: '家1-6.jpg', question: '第六關在 t=36 分處，此物體以初速=10m/s往正方向前進，以此 a-t 圖為線索，求出物體的位移。', correctLocationId: 'arts_building'}
+                    ],
+                    finalAnswers: { pathLength: 200, displacement: -60, reversals: 2 },
+                    rockQuestionAnswer: '沉積岩'
+                }
+            };
+            
+            // --- DOM Elements ---
+            const passwordScreen = document.getElementById('password-screen');
+            const passwordForm = document.getElementById('password-form');
+            const gamePasswordInput = document.getElementById('game-password');
+            const passwordError = document.getElementById('password-error');
+            const passwordContainer = document.getElementById('password-container');
+
+            const startScreen = document.getElementById('start-screen');
+            const studentForm = document.getElementById('student-form');
+            const characterSelectionScreen = document.getElementById('character-selection-screen');
+            const mainContent = document.getElementById('main-content');
+            
+            const scoreEl = document.getElementById('score');
+            const levelEl = document.getElementById('level');
+            const questionEl = document.getElementById('question');
+            const clueImageEl = document.getElementById('clue-image');
+            const locationsContainer = document.getElementById('locations-container');
+            const playerAvatar = document.getElementById('player-avatar');
+            const clueArea = document.getElementById('clue-area');
+            const finalChallengeArea = document.getElementById('final-challenge-area');
+            const actionButton = document.getElementById('action-button');
+            const restartButton = document.getElementById('restart-button');
+            const pathSvg = document.getElementById('path-svg');
+            const gridSvg = document.getElementById('grid-svg');
+            const rockQuestionLabel = document.getElementById('rock-question-label');
+            const volcanoQuizScreen = document.getElementById('volcano-quiz-screen');
+            const volcanoForm = document.getElementById('volcano-form');
+            
+            // Modal elements
+            const modal = document.getElementById('feedback-modal');
+            const modalIcon = document.getElementById('modal-icon');
+            const modalTitle = document.getElementById('modal-title');
+            const modalMessage = document.getElementById('modal-message');
+            const modalCloseButton = document.getElementById('modal-close-button');
+
+            // --- Coordinate System ---
+            const T_MAX = 38; 
+            const X_MAX = 120; 
+            const PADDING = { top: 5, right: 8, bottom: 8, left: 8 }; 
+
+            const locationData = [
+                { id: 'library', name: '小岩', coords: [0, 20] },
+                { id: 'bike_shed', name: '小石', coords: [0, 60] },
+                { id: 'home_ec_building', name: '小礦', coords: [0, 100] },
+                { id: 'yangxin_garden', name: '礫岩', coords: [4, 55] },
+                { id: 'zhiyu_building', name: '砂岩', coords: [4, 95] },
+                { id: 'admin_building', name: '玄武岩', coords: [6, 30] },
+                { id: 'front_gate_circle', name: '石灰岩', coords: [6, 10] },
+                { id: 'science_hall', name: 'V型谷', coords: [6, 75] },
+                { id: 'zhongzheng_building', name: 'U型谷', coords: [8, 90] },
+                { id: 'feiyue_pavilion', name: '鹽岩', coords: [10, 60] },
+                { id: 'health_center', name: '沙丘', coords: [10, 80] },
+                { id: 'pan_pond', name: '頁岩', coords: [10, 100] },
+                { id: 'student_affairs', name: '安山岩', coords: [14, 70] },
+                { id: 'deyu_building', name: '沙洲', coords: [14, 90] },
+                { id: 'chidong_building', name: '海蝕崖', coords: [16, 40] },
+                { id: 'banyan_garden', name: '板岩', coords: [16, 60] },
+                { id: 'art_plaza', name: '花崗岩', coords: [16, 85] },
+                { id: 'coop_store', name: '片岩', coords: [20, 85] },
+                { id: 'athletic_field', name: '大理岩', coords: [22, 35] },
+                { id: 'volleyball_court', name: '花崗片麻岩', coords: [22, 55] },
+                { id: 'meiyu_building', name: '風稜石', coords: [22, 95] },
+                { id: 'qing_garden', name: '方解石', coords: [24, 80] },
+                { id: 'qunlun_terrace', name: '石英', coords: [26, 20] },
+                { id: 'scout_camp', name: '長石', coords: [28, 5] },
+                { id: 'leyu_building', name: '三角洲', coords: [28, 100] },
+                { id: 'spirit_fortress', name: '雲母', coords: [30, 55] },
+                { id: 'jinde_hall', name: '石膏', coords: [32, 90] },
+                { id: 'arts_building', name: '鑽石', coords: [36, 40] }
+            ];
+
+            const locations = locationData.map(loc => {
+                const [t, x] = loc.coords;
+                const plotWidth = 100 - PADDING.left - PADDING.right;
+                const plotHeight = 100 - PADDING.top - PADDING.bottom;
+                return {
+                    id: loc.id,
+                    name: loc.name,
+                    pos: {
+                        left: `${PADDING.left + (t / T_MAX) * plotWidth}%`,
+                        top: `${PADDING.top + (1 - (x / X_MAX)) * plotHeight}%`
+                    }
+                };
+            });
+
+            // --- Game State ---
+            let studentInfo = {};
+            let chosenCharacterData = null;
+            let currentStageIndex = 0;
+            let score = 0;
+            let wrongAttempts = 0;
+            let playerPath = [];
+            let gameActive = true;
+            let advanceOnClose = false;
+
+            // --- Password Logic ---
+            passwordForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const enteredPassword = gamePasswordInput.value;
+                if (enteredPassword === CORRECT_PASSWORD) {
+                    passwordScreen.classList.add('hidden');
+                    startScreen.classList.remove('hidden');
+                    passwordError.classList.add('hidden');
+                } else {
+                    passwordError.classList.remove('hidden');
+                    passwordContainer.classList.add('shake-horizontal');
+                    setTimeout(() => {
+                        passwordContainer.classList.remove('shake-horizontal');
+                    }, 500);
+                    gamePasswordInput.value = '';
+                }
+            });
+
+
+            // --- Game Logic ---
+            function startGame(characterId) {
+                chosenCharacterData = gameData[characterId];
+                characterSelectionScreen.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                initGame();
+            }
+
+            function initGame() {
+                currentStageIndex = 0;
+                score = 0;
+                wrongAttempts = 0;
+                playerPath = [chosenCharacterData.startLocation];
+                gameActive = true;
+                advanceOnClose = false;
+
+                scoreEl.textContent = score;
+                pathSvg.innerHTML = '';
+                clueArea.classList.remove('hidden');
+                finalChallengeArea.classList.add('hidden');
+                actionButton.disabled = false;
+                actionButton.classList.add('hidden');
+                actionButton.textContent = '提交最終答案';
+                restartButton.classList.add('hidden');
+                
+                playerAvatar.innerHTML = playerSvgs[studentInfo.characterId];
+                
+                document.querySelectorAll('.rock-option').forEach(btn => btn.classList.remove('selected'));
+                const finalChallengeForm = finalChallengeArea.querySelector('.space-y-6');
+                if (finalChallengeForm) {
+                    const inputs = finalChallengeForm.querySelectorAll('input');
+                    inputs.forEach(input => input.value = '');
+                }
+
+                renderGrid();
+                renderLocations();
+                
+                setTimeout(() => {
+                    updatePlayerPosition();
+                }, 100);
+
+                loadStage(currentStageIndex);
+            }
+
+            function renderGrid() {
+                gridSvg.innerHTML = '';
+                const plotWidth = 100 - PADDING.left - PADDING.right;
+                const plotHeight = 100 - PADDING.top - PADDING.bottom;
+
+                for (let t = 2; t < T_MAX; t += 2) {
+                    const xPos = PADDING.left + (t / T_MAX) * plotWidth;
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', `${xPos}%`);
+                    line.setAttribute('y1', `${PADDING.top}%`);
+                    line.setAttribute('x2', `${xPos}%`);
+                    line.setAttribute('y2', `${100 - PADDING.bottom}%`);
+                    line.setAttribute('class', 'grid-line');
+                    gridSvg.appendChild(line);
+
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', `${xPos}%`);
+                    text.setAttribute('y', `${100 - PADDING.bottom + 4}%`);
+                    text.setAttribute('class', 'grid-label');
+                    text.setAttribute('text-anchor', 'middle');
+                    text.textContent = t;
+                    gridSvg.appendChild(text);
+                }
+                for (let x = 10; x < X_MAX; x += 10) {
+                     const yPos = PADDING.top + (1 - (x / X_MAX)) * plotHeight;
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', `${PADDING.left}%`);
+                    line.setAttribute('y1', `${yPos}%`);
+                    line.setAttribute('x2', `${100 - PADDING.right}%`);
+                    line.setAttribute('y2', `${yPos}%`);
+                    line.setAttribute('class', 'grid-line');
+                    gridSvg.appendChild(line);
+
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', `${PADDING.left - 1}%`);
+                    text.setAttribute('y', `${yPos}%`);
+                    text.setAttribute('dy', '4');
+                    text.setAttribute('class', 'grid-label');
+                    text.setAttribute('text-anchor', 'end');
+                    text.textContent = x;
+                    gridSvg.appendChild(text);
+                }
+
+                const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                xAxis.setAttribute('x1', `${PADDING.left}%`);
+                xAxis.setAttribute('y1', `${100 - PADDING.bottom}%`);
+                xAxis.setAttribute('x2', `${100 - PADDING.right}%`);
+                xAxis.setAttribute('y2', `${100 - PADDING.bottom}%`);
+                xAxis.setAttribute('class', 'axis-line');
+                gridSvg.appendChild(xAxis);
+
+                const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                yAxis.setAttribute('x1', `${PADDING.left}%`);
+                yAxis.setAttribute('y1', `${PADDING.top}%`);
+                yAxis.setAttribute('x2', `${PADDING.left}%`);
+                yAxis.setAttribute('y2', `${100 - PADDING.bottom}%`);
+                yAxis.setAttribute('class', 'axis-line');
+                gridSvg.appendChild(yAxis);
+
+                const tLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                tLabel.setAttribute('x', `${100 - PADDING.right + 2}%`);
+                tLabel.setAttribute('y', `${100 - PADDING.bottom}%`);
+                tLabel.setAttribute('dy', '4');
+                tLabel.setAttribute('class', 'axis-label');
+                tLabel.textContent = 't (分)';
+                gridSvg.appendChild(tLabel);
+
+                const xLabel = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                xLabel.setAttribute('x', `${PADDING.left}%`);
+                xLabel.setAttribute('y', `${PADDING.top - 2}%`);
+                xLabel.setAttribute('class', 'axis-label');
+                xLabel.setAttribute('text-anchor', 'middle');
+                xLabel.textContent = 'X (m)';
+                gridSvg.appendChild(xLabel);
+            }
+
+            function renderLocations() {
+                locationsContainer.innerHTML = '';
+                locations.forEach(loc => {
+                    const dot = document.createElement('div');
+                    dot.className = 'location-dot';
+                    dot.id = loc.id;
+                    
+                    dot.innerHTML = `
+                        <svg viewBox="0 0 24 24" class="pokeball-svg">
+                            <circle cx="12" cy="12" r="11" fill="white" stroke="black" stroke-width="1.5"/>
+                            <path d="M12,1 A11,11 0 0,0 1,12 H23 A11,11 0 0,0 12,1 z" fill="#f44336"/>
+                            <circle cx="12" cy="12" r="4" fill="white" stroke="black" stroke-width="1.5"/>
+                            <circle cx="12" cy="12" r="2" fill="white" />
+                        </svg>
+                    `;
+
+                    dot.style.top = loc.pos.top;
+                    dot.style.left = loc.pos.left;
+                    dot.dataset.id = loc.id;
+
+                    const name = document.createElement('span');
+                    name.className = 'location-name';
+                    name.textContent = loc.name;
+                    dot.appendChild(name);
+                    
+                    dot.addEventListener('click', () => handleLocationClick(loc.id));
+                    locationsContainer.appendChild(dot);
+                });
+                updateLocationStyles();
+            }
+            
+            function updateLocationStyles() {
+                document.querySelectorAll('.location-dot').forEach(dot => {
+                    dot.classList.remove('discovered');
+                    const locationId = dot.dataset.id;
+                    if (playerPath.slice(0, -1).includes(locationId)) {
+                        dot.classList.add('discovered');
+                    }
+                });
+            }
+
+            function updatePlayerPosition() {
+                const currentLocationId = playerPath[playerPath.length - 1];
+                const currentLoc = locations.find(l => l.id === currentLocationId);
+                if (currentLoc) {
+                    playerAvatar.style.top = currentLoc.pos.top;
+                    playerAvatar.style.left = currentLoc.pos.left;
+                }
+                 const currentDot = document.getElementById(currentLocationId);
+                if(currentDot) {
+                    currentDot.classList.add('discovered');
+                }
+            }
+
+            function loadStage(index) {
+                const stages = chosenCharacterData.stages;
+                if (index >= stages.length) {
+                    endOfStages();
+                    return;
+                }
+                wrongAttempts = 0;
+                const stage = stages[index];
+                levelEl.textContent = stage.level;
+                questionEl.textContent = stage.question;
+                clueImageEl.src = stage.clue;
+                clueImageEl.alt = `第 ${stage.level} 關提示`;
+            }
+
+            function handleLocationClick(clickedId) {
+                if (!gameActive || currentStageIndex >= chosenCharacterData.stages.length) return;
+                
+                const correctId = chosenCharacterData.stages[currentStageIndex].correctLocationId;
+                const clickedEl = document.getElementById(clickedId);
+
+                if (clickedId === correctId) {
+                    score += 10;
+                    scoreEl.textContent = score;
+                    
+                    drawPathSegment(playerPath[playerPath.length - 1], correctId);
+                    playerPath.push(correctId);
+                    updatePlayerPosition();
+                    updateLocationStyles();
+                    
+                    if (currentStageIndex === 2) {
+                        showVolcanoQuiz();
+                    } else {
+                        advanceOnClose = true;
+                        showModal('correct', `答對了！`, `你成功抵達 ${locations.find(l => l.id === correctId).name}！`);
+                    }
+                    
+                } else {
+                    wrongAttempts++;
+                    clickedEl.classList.add('shake');
+                    setTimeout(() => clickedEl.classList.remove('shake'), 500);
+
+                    if (wrongAttempts >= 3) {
+                        drawPathSegment(playerPath[playerPath.length - 1], correctId);
+                        playerPath.push(correctId);
+                        updatePlayerPosition();
+                        updateLocationStyles();
+
+                        if (currentStageIndex === 2) {
+                             showVolcanoQuiz();
+                        } else {
+                            advanceOnClose = true;
+                            showModal('info', `唉呀，嘗試太多次了`, `正確地點是 ${locations.find(l => l.id === correctId).name}。我們直接前往下一關吧！`);
+                        }
+                        
+                    } else {
+                        advanceOnClose = false;
+                        showModal('wrong', '再試一次！', `這裡不是正確的地點喔，還有 ${3 - wrongAttempts} 次機會。`);
+                    }
+                }
+            }
+
+            function showVolcanoQuiz() {
+                mainContent.classList.add('hidden');
+                volcanoQuizScreen.classList.remove('hidden');
+            }
+
+            function handleVolcanoQuizSubmit(e) {
+                e.preventDefault();
+                let volcanoScore = 0;
+                const q1Answer = document.querySelector('input[name="q1"]:checked');
+                if (q1Answer && q1Answer.value === '凝固') volcanoScore += 10;
+                
+                const q2Answers = Array.from(document.querySelectorAll('input[name="q2"]:checked')).map(cb => cb.value);
+                if (q2Answers.length === 2 && q2Answers.includes('灼熱') && q2Answers.includes('流動')) volcanoScore += 10;
+                
+                const q3Answer = document.querySelector('input[name="q3"]:checked');
+                if (q3Answer && q3Answer.value === '火成岩') volcanoScore += 10;
+                
+                const q4Answer = document.querySelector('input[name="q4"]:checked');
+                if (q4Answer && q4Answer.value === '安山岩') volcanoScore += 10;
+
+                score += volcanoScore;
+                scoreEl.textContent = score;
+
+                volcanoQuizScreen.classList.add('hidden');
+                mainContent.classList.remove('hidden');
+                volcanoForm.reset();
+
+                showModal('info', '特別關卡完成！', `你在火山的考驗中獲得了 ${volcanoScore} 分！`);
+                advanceOnClose = true;
+            }
+            
+            function drawPathSegment(fromId, toId) {
+                const fromLoc = locations.find(l => l.id === fromId);
+                const toLoc = locations.find(l => l.id === toId);
+
+                if (!fromLoc || !toLoc) return;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', fromLoc.pos.left);
+                line.setAttribute('y1', fromLoc.pos.top);
+                line.setAttribute('x2', toLoc.pos.left);
+                line.setAttribute('y2', toLoc.pos.top);
+                line.setAttribute('class', 'path-line');
+                pathSvg.appendChild(line);
+            }
+
+            function endOfStages() {
+                gameActive = false;
+                clueArea.classList.add('hidden');
+                rockQuestionLabel.textContent = `(問題10分) 請問${studentInfo.character}所抓取的寶貝球中，以哪一種岩石數量最多？`;
+                finalChallengeArea.classList.remove('hidden');
+                actionButton.classList.remove('hidden');
+            }
+
+            function checkFinalAnswers() {
+                let finalScore = 0;
+                
+                const selectedRockOption = document.querySelector('.rock-option.selected');
+                let rockResult = `岩石題：未作答`;
+                if (selectedRockOption) {
+                    const selectedAnswer = selectedRockOption.dataset.answer;
+                    if (selectedAnswer === chosenCharacterData.rockQuestionAnswer) {
+                        finalScore += 10;
+                        rockResult = "岩石題：答對！";
+                    } else {
+                        rockResult = `岩石題：答錯 (正確答案: ${chosenCharacterData.rockQuestionAnswer})`;
+                    }
+                }
+                
+                const pathLengthInput = parseFloat(document.getElementById('path-length').value);
+                const displacementInput = parseFloat(document.getElementById('displacement').value);
+                const reversalsInput = parseInt(document.getElementById('reversals').value);
+                
+                const finalAnswers = chosenCharacterData.finalAnswers;
+                let results = [rockResult];
+                if (pathLengthInput === finalAnswers.pathLength) { finalScore += 10; results.push("路徑長：答對！"); } 
+                else { results.push(`路徑長：答錯 (正確答案: ${finalAnswers.pathLength})`); }
+
+                if (displacementInput === finalAnswers.displacement) { finalScore += 10; results.push("位移：答對！"); } 
+                else { results.push(`位移：答錯 (正確答案: ${finalAnswers.displacement})`); }
+
+                if (reversalsInput === finalAnswers.reversals) { finalScore += 10; results.push("折返次數：答對！"); } 
+                else { results.push(`折返次數：答錯 (正確答案: ${finalAnswers.reversals})`); }
+
+                score += finalScore;
+                scoreEl.textContent = score;
+
+                showModal('info', '遊戲結束！', `最終挑戰獲得 ${finalScore} 分！<br>你的總分是 ${score} 分。`);
+                
+                actionButton.disabled = true;
+                actionButton.textContent = '分數上傳中...';
+                sendDataToSheet();
+            }
+            
+            function sendDataToSheet() {
+                if (GOOGLE_SCRIPT_URL === '在此貼上你的 Google Apps Script 網頁應用程式網址' || GOOGLE_SCRIPT_URL === '') {
+                    console.error("Google Apps Script URL is not set.");
+                    alert("老師尚未設定成績紀錄網址！");
+                    actionButton.textContent = '上傳失敗';
+                    restartButton.classList.remove('hidden');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('class', studentInfo.class);
+                formData.append('seat', studentInfo.seat);
+                formData.append('name', studentInfo.name);
+                formData.append('score', score);
+                formData.append('character', studentInfo.character);
+
+
+                fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    body: formData,
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.result === 'success') {
+                        modalMessage.innerHTML += "<br><br><span class='text-green-600 font-bold'>成績已成功上傳！</span>";
+                        actionButton.textContent = '已上傳';
+                    } else {
+                        throw new Error(data.message || 'Unknown error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error sending data to Google Sheet:', error);
+                    modalMessage.innerHTML += "<br><br><span class='text-red-600 font-bold'>成績上傳失敗！請洽詢老師。</span>";
+                     actionButton.textContent = '上傳失敗';
+                })
+                .finally(() => {
+                     restartButton.classList.remove('hidden');
+                });
+            }
+
+            function showModal(type, title, message) {
+                modalTitle.textContent = title;
+                modalMessage.innerHTML = message;
+                
+                modalIcon.innerHTML = '';
+                if (type === 'correct') {
+                    modalIcon.innerHTML = `<svg class="w-full h-full text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                    modalCloseButton.className = 'bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700';
+                } else if (type === 'wrong') {
+                    modalIcon.innerHTML = `<svg class="w-full h-full text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                    modalCloseButton.className = 'bg-red-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-700';
+                } else { // info
+                    modalIcon.innerHTML = `<svg class="w-full h-full text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`;
+                    modalCloseButton.className = 'bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700';
+                }
+
+                modal.classList.remove('hidden');
+            }
+
+            function closeModal() {
+                modal.classList.add('hidden');
+                if (advanceOnClose && gameActive) {
+                    currentStageIndex++;
+                    loadStage(currentStageIndex);
+                    advanceOnClose = false; 
+                }
+            }
+
+            // --- Event Listeners ---
+            studentForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                studentInfo.class = document.getElementById('student-class').value;
+                studentInfo.seat = document.getElementById('student-seat').value;
+                studentInfo.name = document.getElementById('student-name').value;
+                
+                startScreen.classList.add('hidden');
+                characterSelectionScreen.classList.remove('hidden');
+            });
+            
+            document.getElementById('select-xiaoYan').addEventListener('click', () => {
+                studentInfo.character = '小岩';
+                studentInfo.characterId = 'xiaoyan';
+                startGame('xiaoYan');
+            });
+            document.getElementById('select-xiaoShi').addEventListener('click', () => {
+                studentInfo.character = '小石';
+                studentInfo.characterId = 'xiaoshi';
+                startGame('xiaoShi');
+            });
+            document.getElementById('select-xiaoKuang').addEventListener('click', () => {
+                studentInfo.character = '小礦';
+                studentInfo.characterId = 'xiaokuang';
+                startGame('xiaoKuang');
+            });
+            
+            volcanoForm.addEventListener('submit', handleVolcanoQuizSubmit);
+            
+            document.querySelectorAll('.rock-option').forEach(button => {
+                button.addEventListener('click', () => {
+                    document.querySelectorAll('.rock-option').forEach(btn => btn.classList.remove('selected'));
+                    button.classList.add('selected');
+                });
+            });
+
+            actionButton.addEventListener('click', checkFinalAnswers);
+            restartButton.addEventListener('click', () => {
+                 mainContent.classList.add('hidden');
+                 characterSelectionScreen.classList.add('hidden');
+                 passwordScreen.classList.remove('hidden'); // 回到最最最開始的密碼頁
+                 document.getElementById('password-form').reset();
+                 document.getElementById('student-form').reset();
+            });
+            modalCloseButton.addEventListener('click', closeModal);
+
+        });
+    </script>
+</body>
+</html>
