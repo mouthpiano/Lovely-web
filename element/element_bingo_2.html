@@ -3,13 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>元素週期表賓果</title>
+    <title>元素週期表賓果 - 教學網頁</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', 'Noto Sans TC', sans-serif;
-            touch-action: manipulation; /* 防止雙擊縮放 */
+            touch-action: manipulation;
+        }
+        /* 右上角署名標籤 */
+        .top-right-credits {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 100;
+            background-color: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(4px);
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-align: right;
+            line-height: 1.4;
+            pointer-events: none;
         }
         .bingo-card {
             display: grid;
@@ -24,24 +41,22 @@
             font-size: 1.75rem;
             font-weight: 600;
             border-radius: 0.5rem;
-            background-color: #f1f5f9; /* slate-100 */
-            color: #1e293b; /* slate-800 */
+            background-color: #f1f5f9;
+            color: #1e293b;
             transition: all 0.2s ease-in-out;
-            border: 2px solid #cbd5e1; /* slate-300 */
-            -webkit-user-select: none; /* Safari */
-            -ms-user-select: none; /* IE 10+ */
+            border: 2px solid #cbd5e1;
             user-select: none;
-            cursor: pointer; /* 新增鼠標指針 */
+            cursor: pointer;
         }
         .bingo-cell:not(.marked):hover {
-            background-color: #e2e8f0; /* slate-200 */
+            background-color: #e2e8f0;
         }
         .bingo-cell.marked {
-            background-color: #f59e0b; /* amber-500 */
+            background-color: #f59e0b;
             color: white;
             transform: scale(1.05);
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            border-color: #f59e0b; /* amber-500 */
+            border-color: #f59e0b;
             cursor: default;
         }
         .bingo-card.disabled .bingo-cell:not(.marked) {
@@ -49,13 +64,12 @@
             opacity: 0.6;
         }
         .bingo-cell.free {
-            background-color: #10b981; /* emerald-500 */
+            background-color: #10b981;
             color: white;
             font-size: 1.25rem;
-            border-color: #10b981; /* emerald-500 */
+            border-color: #10b981;
             cursor: default;
         }
-        /* 錯誤點擊的晃動動畫 */
         @keyframes shake {
             10%, 90% { transform: translate3d(-1px, 0, 0); }
             20%, 80% { transform: translate3d(2px, 0, 0); }
@@ -64,362 +78,181 @@
         }
         .shake {
             animation: shake 0.4s cubic-bezier(.36,.07,.19,.97) both;
-            border-color: #ef4444; /* red-500 */
+            border-color: #ef4444;
         }
-        /* 針對行動裝置優化字體大小 */
         @media (max-width: 640px) {
-            .bingo-cell {
-                font-size: 1rem; /* 中文模式下字體縮小 */
-            }
-             .bingo-cell.symbol-mode {
-                font-size: 1.25rem; /* 英文模式字體 */
-            }
-            .bingo-cell.free {
-                font-size: 0.875rem;
-            }
+            .bingo-cell { font-size: 1rem; }
+            .bingo-cell.symbol-mode { font-size: 1.25rem; }
+            .bingo-cell.free { font-size: 0.875rem; }
+            .top-right-credits { top: 0.5rem; right: 0.5rem; font-size: 0.7rem; }
         }
-        /* 彈出視窗樣式 */
         .modal-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            top: 0; left: 0; right: 0; bottom: 0;
             background-color: rgba(0, 0, 0, 0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 50;
-            opacity: 0;
-            visibility: hidden;
+            display: flex; justify-content: center; align-items: center;
+            z-index: 50; opacity: 0; visibility: hidden;
             transition: opacity 0.3s ease, visibility 0.3s ease;
         }
-        .modal-overlay.visible {
-            opacity: 1;
-            visibility: visible;
-        }
+        .modal-overlay.visible { opacity: 1; visibility: visible; }
         .modal-content {
-            background: white;
-            padding: 2rem 3rem;
-            border-radius: 1rem;
-            text-align: center;
-            transform: scale(0.9);
+            background: white; padding: 2rem 3rem; border-radius: 1rem;
+            text-align: center; transform: scale(0.9);
             transition: transform 0.3s ease;
         }
-        .modal-overlay.visible .modal-content {
-            transform: scale(1);
+        .modal-overlay.visible .modal-content { transform: scale(1); }
+        .footer-credits {
+            margin-top: 2rem;
+            text-align: center;
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.5);
+            line-height: 1.5;
+            width: 100%;
+            padding: 1rem 0;
         }
     </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center p-4">
 
-    <div class="w-full max-w-2xl mx-auto">
+    <!-- 右上角署名 -->
+    <div class="top-right-credits">
+        Designed by 黃鈺心<br>Gemini Canvas 輔助生成
+    </div>
+
+    <div class="w-full max-w-2xl mx-auto flex-grow flex flex-col justify-center">
         <header class="text-center mb-6">
             <h1 class="text-4xl sm:text-5xl font-bold text-amber-400">元素週期表賓果</h1>
             <p id="subtitle" class="text-slate-300 mt-2">抽出元素，點擊對應的符號！</p>
         </header>
 
         <main class="bg-slate-800 p-4 sm:p-8 rounded-2xl shadow-2xl">
-            <!-- 遊戲資訊區 -->
             <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
                 <div class="text-center">
                     <span class="text-sm text-slate-400">目前抽出</span>
-                    <div id="current-element" class="text-6xl font-bold text-white bg-slate-700 w-28 h-28 flex items-center justify-center rounded-lg mt-1 shadow-inner">
-                        ?
-                    </div>
+                    <div id="current-element" class="text-6xl font-bold text-white bg-slate-700 w-28 h-28 flex items-center justify-center rounded-lg mt-1 shadow-inner">?</div>
                     <div id="attempts-tracker" class="text-slate-200 mt-2 font-semibold h-6"></div>
                 </div>
                 <div class="w-full sm:w-auto flex flex-col items-center gap-4">
-                     <button id="draw-btn" class="w-full sm:w-48 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-amber-300">
-                        抽出元素
-                    </button>
-                    <button id="new-game-btn" class="w-full sm:w-48 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-emerald-300">
-                        產生新卡片
-                    </button>
-                     <button id="switch-mode-btn" class="w-full sm:w-48 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-sky-300">
-                        模式: 中 → 英
-                    </button>
+                    <button id="draw-btn" class="w-full sm:w-48 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">抽出元素</button>
+                    <button id="new-game-btn" class="w-full sm:w-48 bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">產生新卡片</button>
+                    <button id="switch-mode-btn" class="w-full sm:w-48 bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-6 rounded-lg text-lg shadow-lg">模式: 中 → 英</button>
                 </div>
             </div>
 
-            <!-- 賓果卡 -->
-            <div id="bingo-card-container" class="bingo-card p-2 bg-slate-700 rounded-xl">
-                <!-- Bingo cells will be generated by JavaScript -->
-            </div>
+            <div id="bingo-card-container" class="bingo-card p-2 bg-slate-700 rounded-xl"></div>
 
-            <!-- 已抽出元素列表 -->
             <div class="mt-6">
                 <h3 class="text-lg font-semibold text-center mb-2 text-slate-300">已抽出元素 (<span id="called-count">0</span>/<span id="total-count">0</span>)</h3>
-                <div id="called-elements-list" class="flex flex-wrap justify-center gap-2 p-3 bg-slate-900 rounded-lg min-h-[3rem]">
-                    <!-- Called elements will appear here -->
-                </div>
+                <div id="called-elements-list" class="flex flex-wrap justify-center gap-2 p-3 bg-slate-900 rounded-lg min-h-[3rem]"></div>
             </div>
         </main>
     </div>
 
-    <!-- 獲勝彈出視窗 -->
+    <!-- 頁尾署名 -->
+    <footer class="footer-credits">
+        ＜Designed by 黃鈺心, Gemini Canvas 輔助生成＞
+    </footer>
+
     <div id="win-modal" class="modal-overlay">
         <div class="modal-content">
             <h2 class="text-4xl font-bold text-emerald-500 mb-2">🎉 賓果！ 🎉</h2>
             <p class="text-slate-600 text-lg mb-6">恭喜你，成功連成三條線！</p>
-            <button id="modal-new-game-btn" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg transition-transform transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-amber-300">
-                再玩一局
-            </button>
+            <button id="modal-new-game-btn" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-8 rounded-lg text-lg shadow-lg">再玩一局</button>
         </div>
     </div>
 
-
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // DOM 元素
-            const bingoCardContainer = document.getElementById('bingo-card-container');
-            const drawBtn = document.getElementById('draw-btn');
-            const newGameBtn = document.getElementById('new-game-btn');
-            const switchModeBtn = document.getElementById('switch-mode-btn');
-            const currentElementDisplay = document.getElementById('current-element');
-            const calledElementsList = document.getElementById('called-elements-list');
-            const calledCountSpan = document.getElementById('called-count');
-            const totalCountSpan = document.getElementById('total-count');
-            const winModal = document.getElementById('win-modal');
-            const modalNewGameBtn = document.getElementById('modal-new-game-btn');
-            const subtitle = document.getElementById('subtitle');
-            const attemptsTracker = document.getElementById('attempts-tracker');
+        const elementMap = {'氫':'H','鋰':'Li','鈉':'Na','鉀':'K','銣':'Rb','銫':'Cs','鍅':'Fr','鈹':'Be','鎂':'Mg','鈣':'Ca','鍶':'Sr','鋇':'Ba','鐳':'Ra','硼':'B','鋁':'Al','碳':'C','矽':'Si','鍺':'Ge','錫':'Sn','鉛':'Pb','氮':'N','磷':'P','氧':'O','硫':'S','氟':'F','氯':'Cl','溴':'Br','碘':'I','氦':'He','氖':'Ne','氬':'Ar','氪':'Kr','氙':'Xe','氡':'Rn','銀':'Ag','銅':'Cu','金':'Au','鐵':'Fe','鈾':'U','鋅':'Zn','鈦':'Ti','鉻':'Cr','錳':'Mn','鈷':'Co','鎳':'Ni'};
+        const symbolMap = Object.fromEntries(Object.entries(elementMap).map(([cn, en]) => [en, cn]));
+        const allElements = Object.keys(elementMap);
+        let gameMode = 'cnToEn', gameElementsPool = [], cardState = [], markedState = [], isGameOver = false, clickAttemptsLeft = 0;
 
-            // 元素對照表 (已更新)
-            const elementMap = {
-                '氫': 'H', '鋰': 'Li', '鈉': 'Na', '鉀': 'K', '銣': 'Rb', '銫': 'Cs', '鍅': 'Fr',
-                '鈹': 'Be', '鎂': 'Mg', '鈣': 'Ca', '鍶': 'Sr', '鋇': 'Ba', '鐳': 'Ra',
-                '硼': 'B', '鋁': 'Al',
-                '碳': 'C', '矽': 'Si', '鍺': 'Ge', '錫': 'Sn', '鉛': 'Pb',
-                '氮': 'N', '磷': 'P',
-                '氧': 'O', '硫': 'S',
-                '氟': 'F', '氯': 'Cl', '溴': 'Br', '碘': 'I',
-                '氦': 'He', '氖': 'Ne', '氬': 'Ar', '氪': 'Kr', '氙': 'Xe', '氡': 'Rn',
-                '銀': 'Ag', '銅': 'Cu', '金': 'Au', '鐵': 'Fe', '鈾': 'U', '鋅': 'Zn', '鈦': 'Ti', '鉻': 'Cr', '錳': 'Mn', '鈷': 'Co', '鎳': 'Ni'
-            };
-            const symbolMap = Object.fromEntries(Object.entries(elementMap).map(([cn, en]) => [en, cn]));
+        function initGame() {
+            isGameOver = false;
+            gameElementsPool = [...allElements].sort(() => Math.random() - 0.5);
+            cardState = generateCardData();
+            markedState = Array(5).fill().map(() => Array(5).fill(false));
+            markedState[2][2] = true;
+            renderCard();
+            updateCalledElementsUI();
+            document.getElementById('current-element').textContent = '?';
+            document.getElementById('attempts-tracker').textContent = '';
+            document.getElementById('win-modal').classList.remove('visible');
+            document.getElementById('draw-btn').disabled = false;
+        }
 
+        function generateCardData() {
+            const items = gameMode === 'cnToEn' ? Object.values(elementMap) : Object.keys(elementMap);
+            const shuffled = [...items].sort(() => Math.random() - 0.5);
+            let idx = 0;
+            return Array(5).fill().map((_, i) => Array(5).fill().map((_, j) => (i===2 && j===2) ? 'FREE' : shuffled[idx++]));
+        }
 
-            // 遊戲元素池 (中文)
-            const allElements = Object.keys(elementMap);
-            const BINGO_SIZE = 5;
-            const MAX_ATTEMPTS = 3;
-            
-            // 遊戲狀態
-            let gameMode = 'cnToEn'; // 'cnToEn' (中→英) or 'enToCn' (英→中)
-            let gameElementsPool = [];
-            let cardState = [];
-            let markedState = [];
-            let isGameOver = false;
-            let clickAttemptsLeft = 0;
+        function renderCard() {
+            const container = document.getElementById('bingo-card-container');
+            container.innerHTML = '';
+            cardState.forEach((row, i) => row.forEach((el, j) => {
+                const cell = document.createElement('div');
+                cell.className = `bingo-cell ${el==='FREE'?'free marked':''} ${gameMode==='cnToEn'?'symbol-mode':''}`;
+                cell.textContent = el;
+                cell.onclick = () => handleCellClick(cell, i, j);
+                container.appendChild(cell);
+            }));
+        }
 
-            // 初始化遊戲
-            function initGame() {
-                isGameOver = false;
-                gameElementsPool = shuffleArray([...allElements]); // 抽獎池固定為中文
-                cardState = generateCardData();
-                markedState = Array(BINGO_SIZE).fill(0).map(() => Array(BINGO_SIZE).fill(false));
-                markedState[2][2] = true; // 中心點是 FREE
-
-                updateModeUI();
-                renderCard();
-                updateCalledElementsUI();
-                
+        function handleCellClick(cell, i, j) {
+            if (isGameOver || clickAttemptsLeft <= 0 || cell.classList.contains('marked')) return;
+            const current = document.getElementById('current-element').textContent;
+            const correct = gameMode === 'cnToEn' ? elementMap[current] : symbolMap[current];
+            if (cell.textContent === correct) {
+                cell.classList.add('marked');
+                markedState[i][j] = true;
                 clickAttemptsLeft = 0;
-                attemptsTracker.textContent = '';
-                bingoCardContainer.classList.remove('disabled');
-
-                currentElementDisplay.textContent = '?';
-                drawBtn.disabled = false;
-                drawBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-                winModal.classList.remove('visible');
+                document.getElementById('attempts-tracker').textContent = '✔️ 答對了！';
+                checkBingo();
+            } else {
+                clickAttemptsLeft--;
+                cell.classList.add('shake');
+                setTimeout(() => cell.classList.remove('shake'), 400);
+                document.getElementById('attempts-tracker').textContent = clickAttemptsLeft > 0 ? `剩餘次數: ${clickAttemptsLeft}` : '❌ 次數用完';
             }
+        }
 
-            // 更新模式相關的UI
-            function updateModeUI() {
-                if (gameMode === 'cnToEn') {
-                    switchModeBtn.textContent = '模式: 中 → 英';
-                    subtitle.textContent = '抽出中文，點擊對應的英文符號！';
-                } else {
-                    switchModeBtn.textContent = '模式: 英 → 中';
-                    subtitle.textContent = '抽出英文符號，點擊對應的中文！';
-                }
+        function checkBingo() {
+            let lines = 0;
+            for(let i=0; i<5; i++) if(markedState[i].every(v=>v)) lines++;
+            for(let i=0; i<5; i++) if(markedState.map(r=>r[i]).every(v=>v)) lines++;
+            if([0,1,2,3,4].every(i=>markedState[i][i])) lines++;
+            if([0,1,2,3,4].every(i=>markedState[i][4-i])) lines++;
+            if(lines >= 3) { isGameOver = true; document.getElementById('win-modal').classList.add('visible'); }
+        }
+
+        function updateCalledElementsUI(newEl) {
+            const list = document.getElementById('called-elements-list');
+            if(!newEl) list.innerHTML = '';
+            else {
+                const span = document.createElement('span');
+                span.className = 'bg-slate-700 text-amber-300 px-2 py-1 rounded text-sm';
+                span.textContent = gameMode === 'cnToEn' ? newEl : elementMap[newEl];
+                list.appendChild(span);
             }
-            
-            // 洗牌演算法 (Fisher-Yates)
-            function shuffleArray(array) {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]];
-                }
-                return array;
-            }
+            document.getElementById('called-count').textContent = allElements.length - gameElementsPool.length;
+            document.getElementById('total-count').textContent = allElements.length;
+        }
 
-            // 產生賓果卡數據
-            function generateCardData() {
-                const itemsForCard = gameMode === 'cnToEn' ? Object.values(elementMap) : Object.keys(elementMap);
-                const shuffled = shuffleArray([...itemsForCard]);
-                const cardData = [];
-                let elementIndex = 0;
-                for (let i = 0; i < BINGO_SIZE; i++) {
-                    const row = [];
-                    for (let j = 0; j < BINGO_SIZE; j++) {
-                        if (i === 2 && j === 2) {
-                            row.push('FREE');
-                        } else {
-                            row.push(shuffled[elementIndex++]);
-                        }
-                    }
-                    cardData.push(row);
-                }
-                return cardData;
-            }
+        document.getElementById('draw-btn').onclick = () => {
+            if(gameElementsPool.length === 0) return;
+            clickAttemptsLeft = 3;
+            const el = gameElementsPool.pop();
+            document.getElementById('current-element').textContent = gameMode === 'cnToEn' ? el : elementMap[el];
+            document.getElementById('attempts-tracker').textContent = `剩餘次數: 3`;
+            updateCalledElementsUI(el);
+        };
+        document.getElementById('new-game-btn').onclick = initGame;
+        document.getElementById('modal-new-game-btn').onclick = initGame;
+        document.getElementById('switch-mode-btn').onclick = () => { gameMode = gameMode === 'cnToEn' ? 'enToCn' : 'cnToEn'; initGame(); document.getElementById('switch-mode-btn').textContent = `模式: ${gameMode==='cnToEn'?'中 → 英':'英 → 中'}`; };
 
-            // 渲染賓果卡到畫面上
-            function renderCard() {
-                bingoCardContainer.innerHTML = '';
-                const isSymbolMode = gameMode === 'cnToEn';
-                cardState.forEach((row, i) => {
-                    row.forEach((element, j) => {
-                        const cell = document.createElement('div');
-                        cell.classList.add('bingo-cell');
-                        if (isSymbolMode) {
-                            cell.classList.add('symbol-mode');
-                        }
-                        cell.dataset.row = i;
-                        cell.dataset.col = j;
-                        cell.textContent = element;
-                        if (element === 'FREE') {
-                            cell.classList.add('free', 'marked');
-                        }
-                        bingoCardContainer.appendChild(cell);
-                    });
-                });
-            }
-            
-            // 抽出一個新元素
-            function drawElement() {
-                if (isGameOver || gameElementsPool.length === 0) return;
-                
-                clickAttemptsLeft = MAX_ATTEMPTS;
-                attemptsTracker.textContent = `剩餘機會: ${clickAttemptsLeft}`;
-                bingoCardContainer.classList.remove('disabled');
-
-                const drawnChineseElement = gameElementsPool.pop();
-                const displayElement = gameMode === 'cnToEn' ? drawnChineseElement : elementMap[drawnChineseElement];
-                
-                currentElementDisplay.textContent = displayElement;
-                updateCalledElementsUI(drawnChineseElement);
-            }
-
-            // 更新已抽出元素的 UI
-            function updateCalledElementsUI(newChineseElement = null) {
-                if (newChineseElement) {
-                    const elementSpan = document.createElement('span');
-                    elementSpan.className = 'bg-slate-700 text-amber-300 font-semibold px-2 py-1 rounded text-sm';
-                    const textToShow = gameMode === 'cnToEn' ? newChineseElement : elementMap[newChineseElement];
-                    elementSpan.textContent = textToShow;
-                    calledElementsList.appendChild(elementSpan);
-                } else {
-                    calledElementsList.innerHTML = '';
-                }
-                const calledCount = allElements.length - gameElementsPool.length;
-                calledCountSpan.textContent = calledCount;
-                totalCountSpan.textContent = allElements.length;
-            }
-            
-            // 處理學生點擊格子的事件
-            function handleCellClick(e) {
-                const cell = e.target.closest('.bingo-cell');
-                if (!cell || cell.classList.contains('marked') || isGameOver || clickAttemptsLeft <= 0) return;
-                
-                const currentDisplayedElement = currentElementDisplay.textContent;
-                if (currentDisplayedElement === '?') return;
-
-                let isCorrect = false;
-                if (gameMode === 'cnToEn') {
-                    const correctSymbol = elementMap[currentDisplayedElement];
-                    isCorrect = cell.textContent === correctSymbol;
-                } else { // 'enToCn'
-                    const correctName = symbolMap[currentDisplayedElement];
-                    isCorrect = cell.textContent === correctName;
-                }
-                
-                if (isCorrect) {
-                    const row = parseInt(cell.dataset.row);
-                    const col = parseInt(cell.dataset.col);
-                    cell.classList.add('marked');
-                    markedState[row][col] = true;
-                    
-                    clickAttemptsLeft = 0; // 答對了，鎖定點擊
-                    attemptsTracker.textContent = '✔️ 答對了！';
-                    bingoCardContainer.classList.add('disabled');
-                    
-                    setTimeout(checkBingo, 200);
-                } else {
-                    clickAttemptsLeft--;
-                    attemptsTracker.textContent = `剩餘機會: ${clickAttemptsLeft}`;
-                    cell.classList.add('shake');
-                    setTimeout(() => cell.classList.remove('shake'), 400);
-
-                    if (clickAttemptsLeft <= 0) {
-                        attemptsTracker.textContent = '❌ 沒有機會了！';
-                        bingoCardContainer.classList.add('disabled');
-                    }
-                }
-            }
-
-            // 檢查是否達成賓果
-            function checkBingo() {
-                if (isGameOver) return;
-                
-                let completedLines = 0;
-                // 檢查橫列
-                for (let i = 0; i < BINGO_SIZE; i++) {
-                    if (markedState[i].every(Boolean)) completedLines++;
-                }
-                // 檢查直行
-                for (let j = 0; j < BINGO_SIZE; j++) {
-                    if (markedState.map(row => row[j]).every(Boolean)) completedLines++;
-                }
-                // 檢查對角線
-                if (markedState.map((row, i) => row[i]).every(Boolean)) completedLines++;
-                if (markedState.map((row, i) => row[BINGO_SIZE - 1 - i]).every(Boolean)) completedLines++;
-
-                if (completedLines >= 3) {
-                    gameOver();
-                }
-            }
-            
-            function gameOver() {
-                isGameOver = true;
-                drawBtn.disabled = true;
-                drawBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                winModal.classList.add('visible');
-            }
-
-            // 切換遊戲模式
-            function switchMode() {
-                gameMode = gameMode === 'cnToEn' ? 'enToCn' : 'cnToEn';
-                initGame();
-            }
-
-            // 事件監聽
-            drawBtn.addEventListener('click', drawElement);
-            newGameBtn.addEventListener('click', initGame);
-            switchModeBtn.addEventListener('click', switchMode);
-            modalNewGameBtn.addEventListener('click', initGame);
-            bingoCardContainer.addEventListener('click', handleCellClick);
-            winModal.addEventListener('click', (e) => {
-                if (e.target === winModal) {
-                    winModal.classList.remove('visible');
-                }
-            });
-
-            // 遊戲開始
-            initGame();
-        });
+        initGame();
     </script>
 </body>
 </html>
-
