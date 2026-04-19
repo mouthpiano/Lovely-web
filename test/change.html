@@ -25,7 +25,6 @@
     }
   </style>
 </head>
-<!-- 修改 overflow-hidden 為 overflow-x-hidden，允許頁面上下滑動 -->
 <body class="min-h-screen bg-gray-100 font-sans flex flex-col relative overflow-x-hidden">
 
   <!-- 浮水印 (右上角與正下方) -->
@@ -122,7 +121,6 @@
       <!-- 題目區 (AI 圖片) -->
       <div class="flex-1 w-full bg-white p-4 rounded-2xl shadow-lg border-4 border-indigo-100 flex flex-col items-center">
         <h3 class="text-2xl font-bold text-indigo-800 mb-4 text-center">請問這個情境對應哪張圖？</h3>
-        <!-- 新增點擊放大功能 -->
         <div class="relative w-full h-[300px] md:h-[400px] flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden group cursor-zoom-in" onclick="openModal(document.getElementById('question-img').src)">
           <div class="absolute top-2 right-2 bg-black/60 text-white px-3 py-1 rounded-full opacity-80 group-hover:opacity-100 transition-opacity z-10 flex items-center gap-1 shadow-md">
             <span>🔍</span> 點擊放大
@@ -132,7 +130,7 @@
             src="" 
             alt="題目圖片" 
             class="max-w-full max-h-full object-contain transition-transform transform group-hover:scale-105"
-            onerror="this.onerror=null; this.src='https://via.placeholder.com/400?text=圖片載入失敗';"
+            onerror="this.onerror=null; this.src='https://via.placeholder.com/400?text=圖片載入失敗，請確認Google雲端權限是否公開';"
           />
         </div>
       </div>
@@ -144,7 +142,7 @@
           <!-- 選項按鈕會由 JS 動態生成 -->
         </div>
 
-        <!-- 下一題 / 送出按鈕 (預設隱藏) -->
+        <!-- 下一題 / 送出按鈕 -->
         <div id="next-btn-container" class="mt-4 text-center hidden-stage">
           <button id="next-btn" onclick="goToNextQuestion()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-10 rounded-full shadow-lg transition-all transform hover:scale-105 text-xl">
             下一題 ➡️
@@ -162,7 +160,6 @@
   </div>
 
   <!-- 第六頁：最終結果與解答 -->
-  <!-- 移除原本的 overflow-y-auto，讓整個網頁自然捲動 -->
   <div id="stage-result" class="flex-1 flex-col p-4 md:p-8 bg-purple-50 pb-16 hidden-stage flex">
     <div class="max-w-4xl mx-auto w-full">
       <div class="bg-white rounded-3xl shadow-2xl p-8 mb-8 text-center border-t-8 border-purple-500">
@@ -203,24 +200,41 @@
       { id: 5, questionImg: '05_ai.png', answerImg: '05_1.png' },
     ];
 
-    // --- 請替換為您的 Google Apps Script Web App URL ---
+    // --- ⭐ 請在這裡填入您的 Google Apps Script Web App URL ⭐ ---
     const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyM5vnzYMal05lMJ2aPttO3n-xeT88F8Y3K3eNbzBj2t51BPe3OhZdypP4chk1Nz8x8/exec"; 
 
     let userInfo = { class: '', seat: '', name: '' };
     let currentQuestionIdx = 0;
     let userAnswers = [];
     let score = 0;
-    let currentSelectedOption = null; // 紀錄目前這題選了哪張圖
+    let currentSelectedOption = null;
+
+    // --- 💡 核心魔法：將 Google 雲端分享網址，自動轉換成圖片直連網址 ---
+    function getDirectImageUrl(url) {
+      if (!url) return '';
+      // 處理格式: https://drive.google.com/file/d/【檔案ID】/view...
+      const driveRegex = /drive\.google\.com\/file\/d\/([-\w]+)/;
+      const match = url.match(driveRegex);
+      if (match && match[1]) {
+        return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+      }
+      // 處理格式: https://drive.google.com/open?id=【檔案ID】
+      const driveOpenRegex = /drive\.google\.com\/open\?id=([-\w]+)/;
+      const matchOpen = url.match(driveOpenRegex);
+      if (matchOpen && matchOpen[1]) {
+         return `https://drive.google.com/uc?export=view&id=${matchOpen[1]}`;
+      }
+      // 如果不是 Google Drive 連結，就原封不動回傳 (可能您後來用了別的圖床或本地檔案)
+      return url;
+    }
 
     // --- 網頁載入時，從 Google Sheets 抓取題庫 ---
     window.onload = async function() {
-      // 檢查是否尚未替換 URL
       if (GOOGLE_SCRIPT_URL === "YOUR_GOOGLE_SCRIPT_URL_HERE" || !GOOGLE_SCRIPT_URL) {
         console.log("尚未設定 Google Sheets URL，使用預設測試題庫");
         QUIZ_DATA = DEFAULT_QUIZ_DATA;
         ALL_OPTIONS = QUIZ_DATA.map(item => item.answerImg);
         isDataLoaded = true;
-        
         document.getElementById('loading-text').classList.add('hidden-stage');
         document.getElementById('start-text').classList.remove('hidden-stage');
         document.getElementById('start-text').innerHTML = "( 尚未設定試算表，目前為預設測試模式<br>點擊畫面任意處開始 )";
@@ -229,11 +243,17 @@
 
       try {
         const response = await fetch(GOOGLE_SCRIPT_URL);
-        const data = await response.json();
+        const rawData = await response.json();
         
-        if (data && data.length > 0) {
-          QUIZ_DATA = data;
-          // 自動將所有題目的「答案圖檔」集合起來當作所有選項
+        if (rawData && rawData.length > 0) {
+          // 在這裡套用魔法，把 Sheets 裡面的雲端網址洗過一遍
+          QUIZ_DATA = rawData.map(item => ({
+             id: item.id,
+             // 呼叫魔法轉換函數
+             questionImg: getDirectImageUrl(item.questionImg),
+             answerImg: getDirectImageUrl(item.answerImg)
+          }));
+          
           ALL_OPTIONS = QUIZ_DATA.map(item => item.answerImg);
           
           isDataLoaded = true;
@@ -275,7 +295,6 @@
         document.getElementById(id).classList.add('hidden-stage');
       });
       document.getElementById('stage-' + stageId).classList.remove('hidden-stage');
-      // 切換畫面時自動回到最上方
       window.scrollTo(0, 0);
     }
 
@@ -286,17 +305,13 @@
         const ctx = new AudioContext();
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        
         osc.connect(gain);
         gain.connect(ctx.destination);
-        
         osc.type = 'sine';
         osc.frequency.setValueAtTime(300, ctx.currentTime);
         osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.5);
-        
         gain.gain.setValueAtTime(1, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-        
         osc.start(ctx.currentTime);
         osc.stop(ctx.currentTime + 0.6);
       } catch (e) {
@@ -306,7 +321,7 @@
 
     // --- 第一頁：開始按鈕 ---
     function startQuiz() {
-      if (!isDataLoaded) return; // 題庫還沒載入完畢，不允許開始
+      if (!isDataLoaded) return;
       playSurpriseSound();
       switchStage('password');
       document.getElementById('password-input').focus();
@@ -332,15 +347,11 @@
       userInfo.class = document.getElementById('info-class').value;
       userInfo.seat = document.getElementById('info-seat').value;
       userInfo.name = document.getElementById('info-name').value;
-      
       const errorMsg = document.getElementById('info-error');
 
       if (userInfo.class && userInfo.seat && userInfo.name) {
         errorMsg.classList.add('hidden-stage');
-        
-        // 設定測驗畫面的基本資料顯示
         document.getElementById('display-userinfo').innerText = `${userInfo.class}班 ${userInfo.seat}號 ${userInfo.name}`;
-        
         currentQuestionIdx = 0;
         userAnswers = [];
         renderQuestion();
@@ -352,39 +363,31 @@
 
     // --- 第四頁：渲染題目與選項 ---
     function renderQuestion() {
-      // 重置當前選擇與隱藏下一題按鈕
       currentSelectedOption = null;
       document.getElementById('next-btn-container').classList.add('hidden-stage');
-
-      // 1. 更新進度
       document.getElementById('display-progress').innerText = `第 ${currentQuestionIdx + 1} / ${QUIZ_DATA.length} 題`;
       
-      // 2. 更新題目圖片
       const currentQ = QUIZ_DATA[currentQuestionIdx];
       document.getElementById('question-img').src = currentQ.questionImg;
 
-      // 3. 洗牌並產生選項按鈕
       const shuffledOptions = shuffleArray(ALL_OPTIONS);
       const container = document.getElementById('options-container');
-      container.innerHTML = ''; // 清空舊選項
+      container.innerHTML = '';
 
       shuffledOptions.forEach((opt, idx) => {
-        // 建立卡片容器 (加入 ID 方便後續加上綠色光環)
         const card = document.createElement('div');
         card.id = `option-card-${idx}`;
         card.className = "option-card bg-white border-2 border-gray-200 rounded-xl overflow-hidden flex flex-col relative hover:shadow-lg transition-all duration-200";
         
-        // 放大鏡按鈕 (絕對定位在右上角)
         const enlargeBtn = document.createElement('button');
         enlargeBtn.className = "absolute top-2 right-2 z-10 bg-white/90 hover:bg-gray-200 text-gray-800 rounded-full w-8 h-8 flex items-center justify-center shadow-md text-sm";
         enlargeBtn.innerHTML = "🔍";
         enlargeBtn.title = "點擊放大圖片";
         enlargeBtn.onclick = (e) => {
-          e.stopPropagation(); // 阻止事件冒泡
+          e.stopPropagation();
           openModal(opt);
         };
 
-        // 圖片顯示區塊 (點擊也可放大)
         const imgArea = document.createElement('div');
         imgArea.className = "h-[100px] md:h-[130px] flex items-center justify-center p-2 cursor-zoom-in bg-white";
         imgArea.onclick = (e) => {
@@ -396,16 +399,14 @@
         img.src = opt;
         img.alt = `選項 ${idx + 1}`;
         img.className = "max-w-full max-h-full object-contain";
-        img.onerror = function() { this.onerror=null; this.src='https://via.placeholder.com/150?text=圖片缺失'; };
+        // 增加錯誤提示：如果破圖通常是雲端權限沒開
+        img.onerror = function() { this.onerror=null; this.src='https://via.placeholder.com/150?text=圖片載入失敗，請確認權限'; };
         
         imgArea.appendChild(img);
 
-        // 明確的「選擇此項」按鈕 (預設為中空方塊 ⬜)
         const selectBtn = document.createElement('button');
         selectBtn.className = "select-btn w-full bg-gray-50 hover:bg-gray-200 text-gray-500 font-bold py-2 md:py-3 transition-colors border-t border-gray-200 text-sm md:text-base";
         selectBtn.innerHTML = "⬜ 選擇這張";
-        
-        // 點擊事件：設定選取狀態
         selectBtn.onclick = () => selectOption(opt, selectBtn, card);
 
         card.appendChild(enlargeBtn);
@@ -415,11 +416,9 @@
       });
     }
 
-    // --- 處理選項點擊 (改變 UI，不直接換題) ---
+    // --- 處理選項點擊 ---
     function selectOption(selectedImg, btnElement, cardElement) {
       currentSelectedOption = selectedImg;
-
-      // 1. 恢復所有按鈕與卡片為「未選擇」的預設狀態
       const allBtns = document.querySelectorAll('.select-btn');
       const allCards = document.querySelectorAll('.option-card');
 
@@ -433,18 +432,13 @@
         c.classList.add('border-gray-200');
       });
 
-      // 2. 將當前點擊的按鈕設為「已選擇」(綠色打勾 ✅)
       btnElement.innerHTML = "✅ 選擇這張";
       btnElement.className = "select-btn w-full bg-green-100 text-green-700 font-bold py-2 md:py-3 transition-colors border-t border-green-200 text-sm md:text-base";
-
-      // 3. 突顯選中的卡片外框
       cardElement.classList.remove('border-gray-200');
       cardElement.classList.add('border-green-400', 'shadow-xl', 'ring-4', 'ring-green-200');
 
-      // 4. 顯示下方的「下一題」按鈕
       document.getElementById('next-btn-container').classList.remove('hidden-stage');
 
-      // 5. 判斷是否為最後一題，更改按鈕文字與顏色
       const nextBtn = document.getElementById('next-btn');
       if (currentQuestionIdx === QUIZ_DATA.length - 1) {
         nextBtn.innerHTML = "送出看成績 📝";
@@ -457,19 +451,15 @@
       }
     }
 
-    // --- 進入下一題 (由「下一題」按鈕觸發) ---
+    // --- 進入下一題 ---
     function goToNextQuestion() {
-      if (!currentSelectedOption) return; // 防呆：如果沒選東西不能按
-
-      userAnswers.push(currentSelectedOption); // 記錄答案
-
+      if (!currentSelectedOption) return;
+      userAnswers.push(currentSelectedOption);
       if (currentQuestionIdx < QUIZ_DATA.length - 1) {
         currentQuestionIdx++;
         renderQuestion();
-        // 換題時稍微往上滑動對齊題目
         document.getElementById('stage-quiz').scrollIntoView({ behavior: 'smooth' });
       } else {
-        // 測驗結束
         calculateAndSubmit();
       }
     }
@@ -478,23 +468,17 @@
     async function calculateAndSubmit() {
       switchStage('submitting');
       score = 0;
-      
-      // 動態批改 (根據題庫數量平均配分)
       const scorePerQuestion = 100 / QUIZ_DATA.length;
       userAnswers.forEach((ans, idx) => {
         if (ans === QUIZ_DATA[idx].answerImg) {
           score += scorePerQuestion;
         }
       });
-      score = Math.round(score); // 四捨五入取整數
+      score = Math.round(score);
 
-      // 如果尚未替換 URL，進入測試模式，不發送真實 fetch
       if (GOOGLE_SCRIPT_URL === "YOUR_GOOGLE_SCRIPT_URL_HERE" || !GOOGLE_SCRIPT_URL) {
         console.log("測試模式：不傳送資料至 Google Sheets");
-        setTimeout(() => {
-          renderResult();
-          switchStage('result');
-        }, 1500);
+        setTimeout(() => { renderResult(); switchStage('result'); }, 1500);
         return;
       }
 
@@ -510,18 +494,10 @@
         await fetch(GOOGLE_SCRIPT_URL, {
           method: 'POST',
           mode: 'no-cors',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-        
-        // 等待1.5秒顯示結果
-        setTimeout(() => {
-          renderResult();
-          switchStage('result');
-        }, 1500);
-
+        setTimeout(() => { renderResult(); switchStage('result'); }, 1500);
       } catch (error) {
         console.error('上傳失敗:', error);
         alert('成績上傳發生網路問題，但仍為您顯示結果。');
@@ -534,7 +510,6 @@
     function renderResult() {
       document.getElementById('result-userinfo').innerText = `${userInfo.class}班 ${userInfo.name} 同學`;
       document.getElementById('result-score').innerText = score;
-
       const detailsContainer = document.getElementById('result-details');
       detailsContainer.innerHTML = '';
 
@@ -545,26 +520,23 @@
           ? `<span class="text-4xl">✅ 對應</span>`
           : `<span class="text-4xl">❌ 錯誤<br><span class="text-sm text-gray-500 mt-2 block">你的選擇:</span></span>`;
 
-        // 錯誤時顯示學生的選項 (加入放大功能)
         const studentChoiceImgHTML = !isCorrect 
-          ? `<img src="${userAnswers[idx]}" alt="你的選擇" class="h-[60px] object-contain mt-2 border-2 border-red-300 cursor-zoom-in hover:opacity-80" onclick="openModal('${userAnswers[idx]}')">`
+          ? `<img src="${userAnswers[idx]}" alt="你的選擇" class="h-[60px] object-contain mt-2 border-2 border-red-300 cursor-zoom-in hover:opacity-80" onclick="openModal('${userAnswers[idx]}')" onerror="this.onerror=null; this.src='https://via.placeholder.com/60?text=破圖';">`
           : '';
 
         const cardHTML = `
           <div class="flex flex-col md:flex-row bg-white p-4 rounded-xl shadow border-2 ${borderColorClass}">
             <div class="flex-1 border-r-0 md:border-r-2 border-gray-100 p-2 flex flex-col items-center">
               <span class="bg-indigo-100 text-indigo-800 font-bold px-3 py-1 rounded-full mb-2">題目 ${idx + 1}</span>
-              <img src="${item.questionImg}" alt="題目" class="h-[150px] object-contain cursor-zoom-in hover:scale-105 transition-transform" onclick="openModal('${item.questionImg}')" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=缺失';">
+              <img src="${item.questionImg}" alt="題目" class="h-[150px] object-contain cursor-zoom-in hover:scale-105 transition-transform" onclick="openModal('${item.questionImg}')" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=請確認雲端權限';">
             </div>
-            
             <div class="flex-1 flex flex-col items-center justify-center p-4 text-center">
               ${middleContent}
               ${studentChoiceImgHTML}
             </div>
-            
             <div class="flex-1 p-2 flex flex-col items-center">
               <span class="bg-green-100 text-green-800 font-bold px-3 py-1 rounded-full mb-2">正確原圖</span>
-              <img src="${item.answerImg}" alt="正確解答" class="h-[150px] object-contain cursor-zoom-in hover:scale-105 transition-transform" onclick="openModal('${item.answerImg}')" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=缺失';">
+              <img src="${item.answerImg}" alt="正確解答" class="h-[150px] object-contain cursor-zoom-in hover:scale-105 transition-transform" onclick="openModal('${item.answerImg}')" onerror="this.onerror=null; this.src='https://via.placeholder.com/150?text=請確認雲端權限';">
             </div>
           </div>
         `;
@@ -578,7 +550,6 @@
       document.getElementById('info-class').value = '';
       document.getElementById('info-seat').value = '';
       document.getElementById('info-name').value = '';
-      
       switchStage('home');
     }
   </script>
