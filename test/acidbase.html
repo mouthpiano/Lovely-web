@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>酸鹼鹽大搜查：個人積分賽 (雲端計分版)</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Microsoft JhengHei, sans-serif;
+            background-color: #f0fdf4; /* 微淺綠背景符合化學感 */
+        }
+        .pop-in {
+            animation: popIn 0.3s ease-out forwards;
+        }
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.9); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        .tag-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.5rem;
+        }
+        .spinner {
+            border: 4px solid rgba(22, 163, 74, 0.2);
+            border-radius: 50%;
+            border-top: 4px solid #16a34a;
+            width: 48px;
+            height: 48px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        /* 固定浮水印樣式 */
+        .watermark {
+            position: fixed;
+            right: 8px;
+            font-size: 10px;
+            color: #9ca3af; /* 灰色 */
+            z-index: 9999;
+            pointer-events: none; /* 不影響點擊 */
+            text-align: right;
+            line-height: 1.2;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // ==========================================
+        // 老師請在此處貼上您的 Google Apps Script 網址 (重要！)
+        // ==========================================
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwVL4_6Lw3fuZ3NrzC-t-rhGF6dFskdpW5WJXmWTzSSpOlK1nHBY7pz4xcmf116_zJMjg/exec"; 
+        
+        // ----------------------
+        // 資料庫 (酸鹼鹽特性 2024版更新)
+        // ----------------------
+        const TAGS = {
+            // A長條
+            A01: { id: 'A01', text: '此物質在工業上使用時其成分含有雜質，呈淡黃色', category: '特性描述(A長條)' },
+            A02: { id: 'A02', text: '此物質在實驗室使用的濃度通常為37%', category: '特性描述(A長條)' },
+            A03: { id: 'A03', text: '可使蔗糖等碳水化合物形成黑色的碳', category: '特性描述(A長條)' },
+            A04: { id: 'A04', text: '易吸收空氣中的水氣和二氧化碳而變質', category: '特性描述(A長條)' },
+            A05: { id: 'A05', text: '遇熱會分解成二氧化碳、碳酸鈉和水', category: '特性描述(A長條)' },
+            A06: { id: 'A06', text: '溶於水形成鹼性的氫氧化鈣（Ca(OH)₂）水溶液', category: '特性描述(A長條)' },
+            A07: { id: 'A07', text: '可以和CO₂反應產生CaCO₃沉澱', category: '特性描述(A長條)' },
+            A08: { id: 'A08', text: '可以和二氧化碳反應產生白色沉澱', category: '特性描述(A長條)' },
+            A09: { id: 'A09', text: '是鹽酸與氫氧化鈉水溶液反應後所得的產物', category: '特性描述(A長條)' },
+            A10: { id: 'A10', text: '工業上製造金屬鈉、氯氣及氫氧化鈉的原料。', category: '特性描述(A長條)' },
+            A11: { id: 'A11', text: '傳統製作豆腐與豆花添加的凝固劑', category: '特性描述(A長條)' },
+            A12: { id: 'A12', text: '大量吸入時，會傷害人體器官及黏膜用時應避免吸入或直接碰觸。', category: '特性描述(A長條)' },
+            A13: { id: 'A13', text: '可用於製造醫藥、染料、衣料、造紙以及鉛蓄電池等，為常見的工業原料。', category: '特性描述(A長條)' },
+            A14: { id: 'A14', text: '煆燒後加水調成糊狀倒進模子裡，接著會變硬，可用來做模型及骨折時固定用的石膏模', category: '特性描述(A長條)' },
+            A15: { id: 'A15', text: '將盛裝高濃度此物質的瓶蓋打開時，其溶質分子會逸散至空氣中，與空氣中的水蒸氣形成顆粒細小的酸霧', category: '特性描述(A長條)' },
+
+            // B長條
+            B01: { id: 'B01', text: '和Na₂CO₃反應產生CO₂', category: '特性描述(B長條)' },
+            B02: { id: 'B02', text: '和CaCO₃反應產生CO₂', category: '特性描述(B長條)' },
+            B03: { id: 'B03', text: '和NaHCO₃反應產生CO₂', category: '特性描述(B長條)' },
+            B04: { id: 'B04', text: '和活性比H大的金屬反應產生H₂', category: '特性描述(B長條)' },
+            B05: { id: 'B05', text: '溶解在水中會放出大量的熱', category: '特性描述(B長條)' },
+            B06: { id: 'B06', text: '容易吸收空氣中的水蒸氣', category: '特性描述(B長條)' },
+            B07: { id: 'B07', text: '稀釋時會放出大量的熱', category: '特性描述(B長條)' },
+            B08: { id: 'B08', text: '溶於水可解離出氫離子(H⁺)', category: '特性描述(B長條)' },
+            B09: { id: 'B09', text: '溶於水可解離出氫氧根離子(OH⁻)', category: '特性描述(B長條)' },
+            B10: { id: 'B10', text: '和碳酸鹽類反應產生CO₂', category: '特性描述(B長條)' },
+            B11: { id: 'B11', text: '和碳酸鈣反應產生CO₂', category: '特性描述(B長條)' },
+            B12: { id: 'B12', text: '和大理石反應產生CO₂', category: '特性描述(B長條)' },
+            B13: { id: 'B13', text: '和碳酸氫鈉反應產生CO₂', category: '特性描述(B長條)' },
+            B14: { id: 'B14', text: '和碳酸鈉反應產生CO₂', category: '特性描述(B長條)' },
+
+            // C長條
+            C01: { id: 'C01', text: '人體胃液的成分之一', category: '特性描述(C長條)' },
+            C02: { id: 'C02', text: '密度比水大', category: '特性描述(C長條)' },
+            C03: { id: 'C03', text: '稀釋時，酸加入水中', category: '特性描述(C長條)' },
+            C04: { id: 'C04', text: '不易溶於水', category: '特性描述(C長條)' },
+            C05: { id: 'C05', text: '極易溶於水', category: '特性描述(C長條)' },
+            C06: { id: 'C06', text: '通常用來清洗金屬表面', category: '特性描述(C長條)' },
+            C07: { id: 'C07', text: '檢驗二氧化碳的存在', category: '特性描述(C長條)' },
+            C08: { id: 'C08', text: '和鎂反應產生H₂', category: '特性描述(C長條)' },
+            C09: { id: 'C09', text: '中和土壤的酸性', category: '特性描述(C長條)' },
+            C10: { id: 'C10', text: '稀釋時，水加入酸中', category: '特性描述(C長條)' },
+            C11: { id: 'C11', text: '建築和雕塑材料', category: '特性描述(C長條)' },
+            C12: { id: 'C12', text: '沸點在300℃以上', category: '特性描述(C長條)' },
+            C13: { id: 'C13', text: '氯化氫水溶液', category: '特性描述(C長條)' },
+            C14: { id: 'C14', text: '大量清水沖洗', category: '特性描述(C長條)' },
+            C15: { id: 'C15', text: '加入酚酞指示劑呈現無色', category: '特性描述(C長條)' },
+            C16: { id: 'C16', text: '加入酚酞指示劑呈現紅色', category: '特性描述(C長條)' },
+
+            // 兩字
+            D01: { id: 'D01', text: '黃色', category: '兩字' },
+            D02: { id: 'D02', text: '液體', category: '兩字' },
+            D03: { id: 'D03', text: '氣體', category: '兩字' },
+            D04: { id: 'D04', text: '固體', category: '兩字' },
+            D05: { id: 'D05', text: '酸性', category: '兩字' },
+            D06: { id: 'D06', text: '鹼性', category: '兩字' },
+            D07: { id: 'D07', text: '中性', category: '兩字' },
+            D08: { id: 'D08', text: '燒鹼', category: '兩字' },
+            D09: { id: 'D09', text: '石灰', category: '兩字' },
+            D10: { id: 'D10', text: '鹽滷', category: '兩字' },
+            D11: { id: 'D11', text: '潮解', category: '兩字' },
+            D12: { id: 'D12', text: '蛋殼', category: '兩字' },
+            D13: { id: 'D13', text: '貝殼', category: '兩字' },
+            D14: { id: 'D14', text: '胃藥', category: '兩字' },
+            D15: { id: 'D15', text: '便宜', category: '兩字' },
+            D16: { id: 'D16', text: '調味', category: '兩字' },
+            D17: { id: 'D17', text: '胃酸', category: '兩字' },
+            D18: { id: 'D18', text: '酸霧', category: '兩字' },
+            D19: { id: 'D19', text: '0.37', category: '兩字' },
+            D20: { id: 'D20', text: '無色', category: '兩字' },
+            D21: { id: 'D21', text: '白色', category: '兩字' },
+            D22: { id: 'D22', text: '石筍', category: '兩字' },
+            D23: { id: 'D23', text: '灰石', category: '兩字' },
+            D24: { id: 'D24', text: '珍珠', category: '兩字' },
+            D25: { id: 'D25', text: '蘇打', category: '兩字' },
+            D26: { id: 'D26', text: '肥皂', category: '兩字' },
+            D27: { id: 'D27', text: '椪糖', category: '兩字' },
+            D28: { id: 'D28', text: '氨水', category: '兩字' },
+            D29: { id: 'D29', text: '塑膠', category: '兩字' },
+            D30: { id: 'D30', text: '玻璃', category: '兩字' },
+
+            // 三字
+            E01: { id: 'E01', text: '刺鼻味', category: '三字' },
+            E02: { id: 'E02', text: '脫水性', category: '三字' },
+            E03: { id: 'E03', text: '滑膩感', category: '三字' },
+            E04: { id: 'E04', text: '生石膏', category: '三字' },
+            E05: { id: 'E05', text: '石膏像', category: '三字' },
+            E06: { id: 'E06', text: '苛性鈉', category: '三字' },
+            E07: { id: 'E07', text: '大理石', category: '三字' },
+            E08: { id: 'E08', text: '生石灰', category: '三字' },
+            E09: { id: 'E09', text: '乾燥劑', category: '三字' },
+            E10: { id: 'E10', text: '石灰水', category: '三字' },
+            E11: { id: 'E11', text: '熟石灰', category: '三字' },
+            E12: { id: 'E12', text: '石灰岩', category: '三字' },
+            E13: { id: 'E13', text: '草木灰', category: '三字' },
+            E14: { id: 'E14', text: '鐘乳石', category: '三字' },
+            E15: { id: 'E15', text: '強酸性', category: '三字' },
+            E16: { id: 'E16', text: '弱酸性', category: '三字' },
+            E17: { id: 'E17', text: '強鹼性', category: '三字' },
+            E18: { id: 'E18', text: '弱鹼性', category: '三字' },
+            E19: { id: 'E19', text: '食用醋', category: '三字' },
+            E20: { id: 'E20', text: '電中性', category: '三字' },
+            E21: { id: 'E21', text: '清潔劑', category: '三字' },
+            E22: { id: 'E22', text: '洗滌鹼', category: '三字' },
+            E23: { id: 'E23', text: '焙用鹼', category: '三字' },
+            E24: { id: 'E24', text: '人造絲', category: '三字' },
+            E25: { id: 'E25', text: '小蘇打', category: '三字' },
+
+            // 四字
+            F01: { id: 'F01', text: '保存食物', category: '四字' },
+            F02: { id: 'F02', text: '易溶於水', category: '四字' },
+            F03: { id: 'F03', text: '具腐蝕性', category: '四字' },
+            F04: { id: 'F04', text: '具刺激性', category: '四字' },
+            F05: { id: 'F05', text: '溶解油脂', category: '四字' },
+            F06: { id: 'F06', text: '強電解質', category: '四字' },
+            F07: { id: 'F07', text: '弱電解質', category: '四字' },
+            F08: { id: 'F08', text: '非電解質', category: '四字' },
+            F09: { id: 'F09', text: '密封保存', category: '四字' },
+            F10: { id: 'F10', text: '阿摩尼亞', category: '四字' }
+        };
+
+        const ELEMENTS_DB = [
+            { 
+                name: "氧化鈣 (CaO)", 
+                tags: [TAGS.A06, TAGS.B05, TAGS.B06, TAGS.C04, TAGS.D04, TAGS.D06, TAGS.D21, TAGS.E08, TAGS.E09, TAGS.E17, TAGS.F06] 
+            },
+            { 
+                name: "氧化鎂 (MgO)", 
+                tags: [TAGS.C04, TAGS.D04, TAGS.D14, TAGS.D21, TAGS.E18] 
+            },
+            { 
+                name: "氨 (NH₃)", 
+                tags: [TAGS.B09, TAGS.C05, TAGS.D03, TAGS.D06, TAGS.D20, TAGS.D28, TAGS.E01, TAGS.E18, TAGS.F04, TAGS.F07, TAGS.F10] 
+            },
+            { 
+                name: "氫氧化鈉 (NaOH)", 
+                tags: [TAGS.A04, TAGS.B05, TAGS.B09, TAGS.C05, TAGS.D04, TAGS.D06, TAGS.D08, TAGS.D11, TAGS.D21, TAGS.D26, TAGS.E03, TAGS.E06, TAGS.E17, TAGS.E21, TAGS.E24, TAGS.F03, TAGS.F05, TAGS.F06, TAGS.F09] 
+            },
+            { 
+                name: "氫氧化鈣 (Ca(OH)₂)", 
+                tags: [TAGS.A07, TAGS.A08, TAGS.B09, TAGS.C04, TAGS.C07, TAGS.C09, TAGS.D04, TAGS.D06, TAGS.D21, TAGS.E10, TAGS.E11, TAGS.E17, TAGS.F06] 
+            },
+            { 
+                name: "硫酸 (H₂SO₄)", 
+                tags: [TAGS.A03, TAGS.A13, TAGS.B07, TAGS.B08, TAGS.C02, TAGS.C03, TAGS.C12, TAGS.D02, TAGS.D05, TAGS.D20, TAGS.E02, TAGS.E15, TAGS.F03, TAGS.F06] 
+            },
+            { 
+                name: "硫酸鈣 (CaSO₄)", 
+                tags: [TAGS.A11, TAGS.A14, TAGS.C04, TAGS.D04, TAGS.D07, TAGS.D21, TAGS.E04, TAGS.E05] 
+            },
+            { 
+                name: "氯化鈉 (NaCl)", 
+                tags: [TAGS.A09, TAGS.A10, TAGS.C05, TAGS.D04, TAGS.D07, TAGS.D10, TAGS.D15, TAGS.D16, TAGS.D21, TAGS.E20, TAGS.F01, TAGS.F06] 
+            },
+            { 
+                name: "碳酸氫鈉 (NaHCO₃)", 
+                tags: [TAGS.A05, TAGS.C05, TAGS.D04, TAGS.D14, TAGS.D21, TAGS.D27, TAGS.E18, TAGS.E23, TAGS.E25] 
+            },
+            { 
+                name: "碳酸鈉 (Na₂CO₃)", 
+                tags: [TAGS.C05, TAGS.D04, TAGS.D06, TAGS.D21, TAGS.D25, TAGS.D30, TAGS.E18, TAGS.E21, TAGS.E22, TAGS.F06] 
+            },
+            { 
+                name: "碳酸鈣 (CaCO₃)", 
+                tags: [TAGS.C04, TAGS.C11, TAGS.D04, TAGS.D07, TAGS.D12, TAGS.D13, TAGS.D21, TAGS.D22, TAGS.D23, TAGS.D24, TAGS.E07, TAGS.E12, TAGS.E14, TAGS.F08] 
+            },
+            { 
+                name: "碳酸鉀 (K₂CO₃)", 
+                tags: [TAGS.C05, TAGS.D04, TAGS.D06, TAGS.D21, TAGS.E13, TAGS.E18, TAGS.F06] 
+            },
+            { 
+                name: "酸 (通性)", 
+                tags: [TAGS.B01, TAGS.B02, TAGS.B03, TAGS.B04, TAGS.B08, TAGS.B10, TAGS.B11, TAGS.B12, TAGS.B13, TAGS.B14, TAGS.C08, TAGS.D05] 
+            },
+            { 
+                name: "醋酸 (CH₃COOH)", 
+                tags: [TAGS.B08, TAGS.C05, TAGS.D02, TAGS.D05, TAGS.D16, TAGS.D20, TAGS.E01, TAGS.E16, TAGS.E19, TAGS.F07] 
+            },
+            { 
+                name: "鹼 (通性)", 
+                tags: [TAGS.B09, TAGS.C14, TAGS.D06, TAGS.E03, TAGS.F05] 
+            },
+            { 
+                name: "鹽酸 (HCl)", 
+                tags: [TAGS.A01, TAGS.A02, TAGS.A15, TAGS.B08, TAGS.C01, TAGS.C06, TAGS.C13, TAGS.D02, TAGS.D05, TAGS.D17, TAGS.D18, TAGS.D19, TAGS.E01, TAGS.E15, TAGS.F06] 
+            },
+            {
+                name: "硝酸 (HNO₃)",
+                tags: [TAGS.B08, TAGS.C03, TAGS.D02, TAGS.D05, TAGS.D20, TAGS.E15, TAGS.F06]
+            }
+        ];
+
+        function App() {
+            const [page, setPage] = useState('home');
+            const [teamInfo, setTeamInfo] = useState({ class: '', group: '', members: '', version: 'kangxuan' });
+            const [gameData, setGameData] = useState(null); // { questions, totalScore, history }
+
+            const handleStartGame = (info) => {
+                setTeamInfo(info);
+                setPage('game');
+            };
+
+            const handleGameEnd = (finalData) => {
+                setGameData(finalData);
+                setPage('result');
+            };
+
+            return (
+                <div className="min-h-screen pb-10 relative">
+                    {/* 浮水印 - 右上角 */}
+                    <div className="watermark" style={{ top: '8px' }}>
+                        Designed by 黃鈺心<br/>Gemini Canvas輔助生成
+                    </div>
+                    {/* 浮水印 - 右下角 */}
+                    <div className="watermark" style={{ bottom: '8px' }}>
+                        Designed by 黃鈺心<br/>Gemini Canvas輔助生成
+                    </div>
+
+                    <header className="bg-green-700 text-white p-4 shadow-md sticky top-0 z-50">
+                        <div className="container mx-auto flex justify-between items-center relative">
+                            <h1 className="text-2xl font-bold tracking-wider">🧪 酸鹼鹽大搜查</h1>
+                            {page !== 'home' && (
+                                <div className="text-sm bg-green-800 px-3 py-1 rounded border border-green-600 mr-24">
+                                    {teamInfo.class}班 第{teamInfo.group}號
+                                </div>
+                            )}
+                        </div>
+                    </header>
+
+                    <main className="container mx-auto p-4">
+                        {page === 'home' && <HomePage onStart={handleStartGame} />}
+                        {page === 'game' && <GamePage onEnd={handleGameEnd} teamInfo={teamInfo} />}
+                        {page === 'result' && <ResultPage gameData={gameData} teamInfo={teamInfo} onRestart={() => setPage('home')} />}
+                    </main>
+                </div>
+            );
+        }
+
+        function HomePage({ onStart }) {
+            const [info, setInfo] = useState({ class: '', group: '', members: '', version: 'kangxuan' });
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                if (!info.class || !info.group || !info.members) {
+                    alert('請填寫完整班級、座號與姓名資訊！');
+                    return;
+                }
+                onStart(info);
+            };
+
+            return (
+                <div className="max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 mt-10 pop-in border-t-4 border-green-600">
+                    <h2 className="text-2xl font-bold text-center mb-6 text-gray-800">🏆 化學偵探就是我</h2>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">班級</label>
+                            <input type="text" placeholder="例如：801" className="w-full border p-3 rounded-lg focus:outline-none focus:border-green-500" value={info.class} onChange={e => setInfo({...info, class: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">座號</label>
+                            <input type="number" placeholder="例如：3" className="w-full border p-3 rounded-lg focus:outline-none focus:border-green-500" value={info.group} onChange={e => setInfo({...info, group: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="block text-gray-700 font-bold mb-2">姓名</label>
+                            <input type="text" placeholder="例如：伊百芬" className="w-full border p-3 rounded-lg focus:outline-none focus:border-green-500" value={info.members} onChange={e => setInfo({...info, members: e.target.value})} />
+                        </div>
+                        
+                        <div className="pt-2">
+                            <label className="block text-gray-700 font-bold mb-2">題庫版本選擇</label>
+                            <div className="flex flex-col gap-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="version" value="kangxuan" checked={info.version === 'kangxuan'} onChange={e => setInfo({...info, version: e.target.value})} className="mr-3 w-5 h-5 text-green-600 focus:ring-green-500" />
+                                    <span className="text-gray-800 font-bold">康軒版 <span className="text-sm font-normal text-gray-500 ml-1">(不含碳酸鉀、硝酸)</span></span>
+                                </label>
+                                <label className="flex items-center cursor-pointer">
+                                    <input type="radio" name="version" value="full" checked={info.version === 'full'} onChange={e => setInfo({...info, version: e.target.value})} className="mr-3 w-5 h-5 text-green-600 focus:ring-green-500" />
+                                    <span className="text-gray-800 font-bold">完整版 <span className="text-sm font-normal text-gray-500 ml-1">(全範圍挑戰)</span></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg text-lg shadow mt-4 transition transform active:scale-95">開始挑戰 (10題)</button>
+                    </form>
+                    <div className="mt-6 p-4 bg-yellow-50 rounded-lg text-sm text-yellow-800">
+                        <p className="font-bold mb-1">⚠️ 測驗規則：</p>
+                        <ul className="list-disc pl-5">
+                            <li>過程中不會顯示對錯，請謹慎作答！</li>
+                            <li>完全正確選出：<span className="font-bold text-green-600">+2 分</span></li>
+                            <li>該選而未選：<span className="font-bold text-red-500">-1 分</span></li>
+                            <li>選錯特性：<span className="font-bold text-red-600">-2 分</span></li>
+                            <li><span className="font-bold text-blue-600">成績必須成功上傳至雲端，才能解鎖最終解答！</span></li>
+                        </ul>
+                    </div>
+                </div>
+            );
+        }
+
+        function GamePage({ onEnd, teamInfo }) {
+            const [questions, setQuestions] = useState([]);
+            const [currentQIndex, setCurrentQIndex] = useState(0);
+            const [selectedTags, setSelectedTags] = useState(new Set());
+            const [totalScore, setTotalScore] = useState(0);
+            const [gameHistory, setGameHistory] = useState([]);
+
+            useEffect(() => {
+                let dbToUse = ELEMENTS_DB;
+                if (teamInfo.version === 'kangxuan') {
+                    dbToUse = dbToUse.filter(e => !e.name.includes('碳酸鉀') && !e.name.includes('硝酸'));
+                }
+                const shuffled = [...dbToUse].sort(() => 0.5 - Math.random());
+                setQuestions(shuffled.slice(0, 10)); // 隨機抽 10 題
+            }, []);
+
+            const currentElement = questions[currentQIndex];
+
+            const toggleTag = (tagId) => {
+                const newSet = new Set(selectedTags);
+                newSet.has(tagId) ? newSet.delete(tagId) : newSet.add(tagId);
+                setSelectedTags(newSet);
+            };
+
+            const handleSubmitAndNext = () => {
+                const correctTagIds = new Set(currentElement.tags.map(t => t.id));
+                const userTagIds = selectedTags;
+
+                let roundPoints = 0;
+                let details = { correct: [], missed: [], wrong: [] };
+
+                userTagIds.forEach(id => {
+                    if (correctTagIds.has(id)) {
+                        roundPoints += 2;
+                        details.correct.push(id);
+                    } else {
+                        roundPoints -= 2;
+                        details.wrong.push(id);
+                    }
+                });
+
+                correctTagIds.forEach(id => {
+                    if (!userTagIds.has(id)) {
+                        roundPoints -= 1;
+                        details.missed.push(id);
+                    }
+                });
+
+                const newTotal = totalScore + roundPoints;
+                setTotalScore(newTotal);
+                
+                const newHistory = [...gameHistory, { 
+                    element: currentElement.name, 
+                    score: roundPoints,
+                    details: details,
+                    correctTags: currentElement.tags
+                }];
+                setGameHistory(newHistory);
+
+                if (currentQIndex < questions.length - 1) {
+                    setCurrentQIndex(prev => prev + 1);
+                    setSelectedTags(new Set());
+                } else {
+                    onEnd({ questions, totalScore: newTotal, history: newHistory });
+                }
+            };
+
+            if (!currentElement) return <div className="text-center mt-20 font-bold text-xl text-gray-500">準備題庫中...</div>;
+
+            const categories = {};
+            const categoryOrder = ['特性描述(A長條)', '特性描述(B長條)', '特性描述(C長條)', '兩字', '三字', '四字'];
+            
+            Object.values(TAGS).forEach(tag => {
+                if (!categories[tag.category]) categories[tag.category] = [];
+                categories[tag.category].push(tag);
+            });
+
+            return (
+                <div className="flex flex-col lg:flex-row gap-6">
+                    <div className="w-full lg:w-1/4">
+                        <div className="bg-white rounded-xl shadow-lg p-6 sticky top-24 border-t-8 border-green-500">
+                            <div className="flex justify-between items-center mb-4">
+                                <span className="text-xs font-bold bg-gray-200 px-2 py-1 rounded text-gray-600">第 {currentQIndex + 1} / {questions.length} 題</span>
+                                <span className="text-xs text-red-500 font-bold animate-pulse">作答中...</span>
+                            </div>
+                            
+                            <div className="text-center py-10 bg-green-50 rounded-lg mb-4 border border-green-200">
+                                <h3 className="text-3xl font-black text-gray-800 leading-tight">{currentElement.name}</h3>
+                                <p className="text-gray-500 mt-2 text-sm font-bold">請選出右側所有符合的描述</p>
+                            </div>
+
+                            <button onClick={handleSubmitAndNext} className="w-full bg-green-600 hover:bg-green-700 text-white text-xl font-bold py-4 rounded-lg shadow-md transition transform active:scale-95">
+                                {currentQIndex < questions.length - 1 ? '儲存並換下一題' : '交卷並結算成績'}
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="w-full lg:w-3/4">
+                        <div className="bg-white rounded-xl shadow-lg p-6">
+                            <div className="space-y-6">
+                                {categoryOrder.map(catName => {
+                                    if (!categories[catName]) return null;
+                                    return (
+                                        <div key={catName} className="border-b border-gray-100 pb-4 last:border-0">
+                                            <h4 className="font-bold text-slate-700 mb-3 flex items-center">
+                                                <span className="w-2 h-6 bg-green-500 mr-2 rounded-full"></span>
+                                                {catName}
+                                            </h4>
+                                            <div className="tag-grid">
+                                                {categories[catName].map(tag => {
+                                                    const isSelected = selectedTags.has(tag.id);
+                                                    let btnClass = "border text-sm p-2 rounded transition text-left relative ";
+                                                    
+                                                    if (isSelected) {
+                                                        btnClass += "bg-green-600 text-white border-green-700 shadow-md transform scale-105 z-10";
+                                                    } else {
+                                                        btnClass += "bg-white text-gray-700 hover:bg-green-50 hover:border-green-300";
+                                                    }
+
+                                                    return (
+                                                        <button key={tag.id} onClick={() => toggleTag(tag.id)} className={btnClass}>
+                                                            {tag.text}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function ResultPage({ gameData, teamInfo, onRestart }) {
+            const [uploadStatus, setUploadStatus] = useState('uploading'); // uploading, success, error
+
+            const handleUpload = async () => {
+                if (!GOOGLE_SCRIPT_URL) {
+                    // 若老師尚未設定 URL，三秒後模擬成功以便測試
+                    setTimeout(() => setUploadStatus('success'), 2000);
+                    return;
+                }
+
+                setUploadStatus('uploading');
+                try {
+                    const response = await fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8',
+                        },
+                        body: JSON.stringify({
+                            class: teamInfo.class,
+                            group: teamInfo.group,
+                            members: teamInfo.members,
+                            score: gameData.totalScore
+                        })
+                    });
+
+                    if (response.ok) {
+                        setUploadStatus('success');
+                    } else {
+                        setUploadStatus('error');
+                    }
+                } catch (error) {
+                    console.error("Upload error:", error);
+                    setUploadStatus('error');
+                }
+            };
+
+            useEffect(() => {
+                if (uploadStatus === 'uploading') {
+                    handleUpload();
+                }
+            }, []);
+
+            // 鎖定畫面：若還沒上傳成功，不顯示成績
+            if (uploadStatus === 'uploading') {
+                return (
+                    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-2xl p-16 mt-16 text-center pop-in border-t-8 border-green-500">
+                        <div className="spinner mx-auto mb-6"></div>
+                        <h2 className="text-3xl font-bold text-gray-800 mb-4">成績結算與雲端上傳中...</h2>
+                        <p className="text-gray-500 text-lg">必須等待成績寫入教師資料庫，才會解鎖解答喔！請稍候...</p>
+                        {!GOOGLE_SCRIPT_URL && <p className="text-red-500 text-sm mt-4">(尚未設定 Google Apps Script URL，目前為測試模式，2秒後自動解鎖)</p>}
+                    </div>
+                );
+            }
+
+            if (uploadStatus === 'error') {
+                return (
+                    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-2xl p-16 mt-16 text-center pop-in border-t-8 border-red-500">
+                        <div className="text-6xl mb-4">📶</div>
+                        <h2 className="text-3xl font-bold text-gray-800 mb-4">上傳失敗！網路連線異常</h2>
+                        <p className="text-gray-500 text-lg mb-8">請檢查網路後重新嘗試，成績上傳成功才能看解答！</p>
+                        <button onClick={handleUpload} className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-lg shadow-lg transition">
+                            🔄 重新上傳成績
+                        </button>
+                    </div>
+                );
+            }
+
+            // 成功畫面
+            return (
+                <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl p-8 mt-6 pop-in">
+                    <div className="text-center mb-8 border-b pb-6">
+                        <div className="inline-block bg-green-100 text-green-700 px-4 py-1 rounded-full text-sm font-bold mb-4">
+                            ✅ 雲端成績登錄成功
+                        </div>
+                        <h2 className="text-3xl font-bold text-gray-800 mb-2">{teamInfo.class}班 第{teamInfo.group}號</h2>
+                        <p className="text-gray-500 text-lg mb-6">{teamInfo.members}</p>
+
+                        <div className="p-6 bg-slate-50 rounded-xl inline-block min-w-[300px] border border-slate-200">
+                            <p className="text-gray-600 font-bold">本次測驗總得分</p>
+                            <p className={`text-7xl font-black my-2 ${gameData.totalScore >= 60 ? 'text-green-600' : (gameData.totalScore >= 30 ? 'text-yellow-600' : 'text-red-600')}`}>
+                                {gameData.totalScore}
+                            </p>
+                        </div>
+                    </div>
+
+                    <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                        <span className="bg-blue-500 w-2 h-6 rounded-full mr-2"></span>
+                        詳細解答分析
+                    </h3>
+                    
+                    <div className="space-y-4 mb-8">
+                        {gameData.history.map((h, idx) => (
+                            <div key={idx} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                                <div className="flex justify-between items-center mb-3">
+                                    <h4 className="font-bold text-lg text-gray-800">Q{idx + 1}. {h.element}</h4>
+                                    <span className={`font-bold text-lg ${h.score >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        得分: {h.score > 0 ? '+' : ''}{h.score}
+                                    </span>
+                                </div>
+                                <div className="text-sm">
+                                    <p className="text-gray-600 mb-1"><span className="font-bold text-blue-600">正確特性應包含：</span></p>
+                                    <div className="flex flex-wrap gap-1 mb-2">
+                                        {h.correctTags.map(t => (
+                                            <span key={t.id} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">{t.text}</span>
+                                        ))}
+                                    </div>
+                                    
+                                    {(h.details.missed.length > 0 || h.details.wrong.length > 0) && (
+                                        <div className="mt-3 pt-3 border-t border-gray-200">
+                                            {h.details.missed.length > 0 && (
+                                                <p className="text-red-500 mb-1 text-xs"><span className="font-bold">漏選 (-1分/個)：</span> 
+                                                    {h.details.missed.map(id => Object.values(TAGS).find(t=>t.id===id).text).join('、')}
+                                                </p>
+                                            )}
+                                            {h.details.wrong.length > 0 && (
+                                                <p className="text-red-700 text-xs"><span className="font-bold">選錯 (-2分/個)：</span> 
+                                                    {h.details.wrong.map(id => Object.values(TAGS).find(t=>t.id===id).text).join('、')}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="text-center">
+                        <button onClick={onRestart} className="bg-slate-700 hover:bg-slate-800 text-white font-bold py-3 px-10 rounded-full text-lg shadow-lg transition transform hover:scale-105">
+                            回到首頁 / 換人挑戰
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
