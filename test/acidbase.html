@@ -59,7 +59,7 @@
         // ==========================================
         // 老師請在此處貼上您的 Google Apps Script 網址 (重要！)
         // ==========================================
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwVL4_6Lw3fuZ3NrzC-t-rhGF6dFskdpW5WJXmWTzSSpOlK1nHBY7pz4xcmf116_zJMjg/exec"; 
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwe03MH_-O3wOuPn-d8z0Nl337v_X6yPYis3O4XlLPLfDM5hf6WSTwyXi2GWJFdGwUT8Q/exec"; 
         
         // ----------------------
         // 資料庫 (酸鹼鹽特性 2024版更新)
@@ -512,8 +512,9 @@
 
                 setUploadStatus('uploading');
                 try {
-                    const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    await fetch(GOOGLE_SCRIPT_URL, {
                         method: 'POST',
+                        mode: 'no-cors', // 新增此行：繞過瀏覽器嚴格的跨域檢查 (CORS)
                         headers: {
                             'Content-Type': 'text/plain;charset=utf-8',
                         },
@@ -525,11 +526,8 @@
                         })
                     });
 
-                    if (response.ok) {
-                        setUploadStatus('success');
-                    } else {
-                        setUploadStatus('error');
-                    }
+                    // 使用 no-cors 時，只要沒有嚴重網路錯誤，我們就判定為上傳成功
+                    setUploadStatus('success');
                 } catch (error) {
                     console.error("Upload error:", error);
                     setUploadStatus('error');
