@@ -91,8 +91,8 @@
             對話內容：${pasteText}
           `;
 
-          // 移除了容易報錯的 JSON 強制屬性，改用最穩定的方式呼叫
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+          // 👉 關鍵修正：換成最普及、支援度最廣的 gemini-pro 模型
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -110,7 +110,7 @@
           
           if (!resultText) throw new Error("AI 沒有回傳任何內容");
 
-          // 強效 JSON 濾網
+          // 強效 JSON 濾網 (專治各種 AI 亂加標籤的問題)
           const match = resultText.match(/\{[\s\S]*\}/);
           if (!match) throw new Error('AI 回傳的格式不是 JSON: ' + resultText.substring(0, 30) + '...');
           
@@ -131,7 +131,6 @@
           setPasteText('');
         } catch (error) {
           console.error(error);
-          // 這裡會把真實的錯誤原因顯示在畫面上！
           setParseError(`解析失敗 (${error.message})`);
         } finally {
           setIsParsing(false);
