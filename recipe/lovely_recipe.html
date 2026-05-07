@@ -49,7 +49,7 @@
 
     const MY_IP_IMAGE_URL = "https://mouthpiano.github.io/Lovely-web/cook.png"; 
     
-    // 👇👇👇 請把剛才申請的「全新鑰匙」貼在兩個引號中間 👇👇👇
+    // 👇👇👇 已經幫你替換成最新、熱騰騰的金鑰了 👇👇👇
     const GEMINI_API_KEY = "AIzaSyDyIdfWAsLxoTseas2z9mj2NhRK2g-hCsA"; 
 
     function App() {
@@ -93,7 +93,6 @@
             對話內容：${pasteText}
           `;
 
-          // 使用最新的 gemini-1.5-flash 模型，配合新金鑰絕對沒問題
           const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
