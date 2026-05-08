@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>女王的考驗 - 互動實驗室</title>
+  
+  <!-- 【加速秘訣】預先載入本地端的圖片，讓畫面秒開！ -->
+  <link rel="preload" href="./queen_index.png" as="image">
+  <link rel="preload" href="./queen.png" as="image">
+
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入 React 與 ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- 載入 Babel 以便在瀏覽器中編譯 JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    /* 隱藏捲軸但保留滾動功能，讓畫面更乾淨 */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.5); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(168, 85, 247, 0.8); }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 overflow-hidden">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function App() {
+      // --- Game State ---
+      const [gameState, setGameState] = useState('intro'); // intro, playing, result
+      const [timeLeft, setTimeLeft] = useState(40 * 60); // 40 minutes in seconds
+      const [budget, setBudget] = useState(1000);
+      const [inventory, setInventory] = useState([]);
+      const [selectedChem, setSelectedChem] = useState(null);
+      const [mixTarget, setMixTarget] = useState(''); 
+      const [logs, setLogs] = useState([]);
+      const [answers, setAnswers] = useState({});
+      const [score, setScore] = useState(0);
+      const [dissolvedChems, setDissolvedChems] = useState({}); // 記錄哪些粉末已經被加水溶解
+
+      // --- Data Definitions ---
+      const chemicals = {
+        // White Powders
+        A: { id: 'A', type: 'powder', real: 'NaOH', name: '氫氧化鈉', desc: '白色固體粉末/顆粒', soluble: '易溶，且水溶液溫度明顯上升' },
+        B: { id: 'B', type: 'powder', real: 'CaCO3', name: '碳酸鈣', desc: '白色粉末', soluble: '難溶於水，沉澱在底部' },
+        C: { id: 'C', type: 'powder', real: 'NaCl', name: '氯化鈉', desc: '白色結晶粉末', soluble: '易溶於水' },
+        D: { id: 'D', type: 'powder', real: 'C6H12O6', name: '葡萄糖', desc: '白色粉末', soluble: '易溶於水' },
+        E: { id: 'E', type: 'powder', real: 'CaSO4', name: '硫酸鈣', desc: '白色粉末', soluble: '微溶於水，底部仍有固體' },
+        F: { id: 'F', type: 'powder', real: 'NaHCO3', name: '碳酸氫鈉', desc: '白色粉末', soluble: '可溶於水' },
+        // Solutions
+        G: { id: 'G', type: 'liquid', real: 'HCl', name: '鹽酸', desc: '無色透明溶液', smell: '無色，微酸味' },
+        H: { id: 'H', type: 'liquid', real: 'CH3COOH', name: '醋酸', desc: '無色透明溶液', smell: '明顯酸嗆味' },
+        I: { id: 'I', type: 'liquid', real: 'Ca(OH)2', name: '氫氧化鈣(石灰水)', desc: '無色透明溶液', smell: '無味' },
+        J: { id: 'J', type: 'liquid', real: 'NH3', name: '氨水', desc: '無色透明溶液', smell: '強烈刺鼻臭味！(女王提醒：請用手煽聞！)' },
+        K: { id: 'K', type: 'liquid', real: 'Na2S2O3', name: '硫代硫酸鈉', desc: '無色透明溶液', smell: '無味' }
+      };
+
+      const allRealNames = Object.values(chemicals).map(c => c.name);
+
+      // 用於轉換化學式中的數字為下標
+      const formatFormula = (formula) => {
+        if (!formula) return '';
+        const subscripts = { '0': '₀', '1': '₁', '2': '₂', '3': '₃', '4': '₄', '5': '₅', '6': '₆', '7': '₇', '8': '₈', '9': '₉' };
+        return formula.replace(/\d/g, m => subscripts[m]);
+      };
+
+      const shopItems = [
+        { id: 'litmus_red', name: '紅色石蕊試紙', price: 250, icon: '📜', action: 'test_litmus_red' },
+        { id: 'litmus_blue', name: '藍色石蕊試紙', price: 250, icon: '📜', action: 'test_litmus_blue' },
+        { id: 'phenolphthalein', name: '酚酞溶液', price: 250, icon: '🧪', action: 'test_phenolphthalein' },
+        { id: 'mg_ribbon', name: '鎂帶', price: 150, icon: '🎗️', action: 'test_mg' },
+        { id: 'circuit', name: '導電測試模組', price: 300, icon: '⚡', action: 'test_circuit' },
+        { id: 'straw', name: '吸管', price: 400, icon: '🧃', action: 'test_straw' },
+        { id: 'universal', name: '廣用試劑', price: 500, icon: '🌈', action: 'test_universal' },
+        { id: 'heater', name: '加熱裝置', price: 400, icon: '🔥', action: 'test_heat' },
+      ];
+
+      // --- Timer Logic ---
+      useEffect(() => {
+        let timer;
+        if (gameState === 'playing' && timeLeft > 0) {
+          timer = setInterval(() => {
+            setTimeLeft(prev => prev - 1);
+          }, 1000);
+        } else if (timeLeft <= 0 && gameState === 'playing') {
+          endGame();
+        }
+        return () => clearInterval(timer);
+      }, [gameState, timeLeft]);
+
+      const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      };
+
+      const addLog = (message) => {
+        setLogs(prev => [`[${formatTime(timeLeft)}] ${message}`, ...prev]);
+      };
+
+      const buyItem = (item) => {
+        if (budget >= item.price) {
+          if (inventory.some(i => i.id === item.id)) {
+            addLog(`你已經擁有 ${item.name} 了！`);
+            return;
+          }
+          setBudget(prev => prev - item.price);
+          setInventory(prev => [...prev, item]);
+          addLog(`購買了 ${item.name} (花費 $${item.price})`);
+        } else {
+          addLog(`籌碼不足，無法購買 ${item.name}！`);
+        }
+      };
+
+      // --- Chemistry Mix Logic ---
+      const handleMix = () => {
+        if (!mixTarget || !selectedChem) return;
+        
+        const chem1 = chemicals[selectedChem];
+        const chem2 = chemicals[mixTarget];
+        
+        const real1 = chem1.real;
+        const real2 = chem2.real;
+
+        // 檢查是否都是未加水的粉末
+        const isPowder1 = chem1.type === 'powder' && !dissolvedChems[selectedChem];
+        const isPowder2 = chem2.type === 'powder' && !dissolvedChems[mixTarget];
+
+        if (isPowder1 && isPowder2) {
+           addLog(`將 ${selectedChem} 粉末與 ${mixTarget} 粉末混合：【無明顯反應】。(女王提示：固體之間難以反應，請先加水溶解喔！)`);
+           setMixTarget('');
+           return;
+        }
+
+        const pair = [real1, real2];
+        const hasAcid = pair.includes('HCl') || pair.includes('CH3COOH');
+        const hasCarbonate = pair.includes('CaCO3') || pair.includes('NaHCO3');
+        const hasBase = pair.includes('NaOH') || pair.includes('Ca(OH)2') || pair.includes('NH3');
+        const hasThio = pair.includes('Na2S2O3');
+        
+        let resultStr = `將 ${selectedChem} 與 ${mixTarget} 混合：`;
+
+        if (hasAcid && hasCarbonate) {
+           resultStr += `產生【大量氣泡】！(推測為酸與碳酸鹽反應產生二氧化碳)`;
+        } else if (hasAcid && hasThio) {
+           resultStr += `溶液逐漸產生【黃色混濁沉澱】，並伴隨【刺鼻臭味】！(經典反應速率實驗：硫代硫酸鈉遇酸)`;
+        } else if (hasAcid && hasBase) {
+           resultStr += `外觀無明顯變化，但燒杯摸起來【微熱】。(酸鹼中和放熱)`;
+        } else if (pair.includes('Ca(OH)2') && pair.includes('NaHCO3')) {
+           resultStr += `產生【白色沉澱】！(推測產生碳酸鈣)`;
+        } else if (pair.includes('CaCO3') || pair.includes('CaSO4')) {
+           resultStr += `溶液中含有難溶固體，呈現【混濁狀態】。`;
+        } else {
+           resultStr += `混合後，【無明顯外觀變化】。`;
+        }
+
+        addLog(resultStr);
+        setMixTarget(''); 
+      };
+
+      // --- Tool Action Logic ---
+      const executeAction = (chemId, action) => {
+        const chem = chemicals[chemId];
+        let result = '';
+
+        if (action === 'observe') {
+          result = `觀察 ${chemId}: ${chem.desc}。`;
+        } else if (action === 'smell') {
+          if (chem.type === 'liquid') {
+            result = `煽聞 ${chemId}: 氣味是「${chem.smell}」。`;
+          } else {
+            result = `煽聞 ${chemId}: 粉末無明顯氣味，請小心不要吸入粉塵！`;
+          }
+        } else if (action === 'add_water') {
+          if (chem.type === 'powder') {
+            setDissolvedChems(prev => ({ ...prev, [chemId]: true }));
+            result = `將水加入 ${chemId}：${chem.soluble}。`;
+          } else {
+            result = `將水加入 ${chemId}：溶液被稀釋了，外觀無明顯變化。`;
+          }
+        } 
+        else if (action === 'test_litmus_red') {
+          if (chem.type === 'powder' && !dissolvedChems[chemId]) {
+            result = `直接測試 ${chemId} 粉末，紅色石蕊試紙【不變色】。(女王提示：乾燥粉末無法解離出離子，請先加水喔！)`;
+          } else {
+            const bases = ['NaOH', 'NaHCO3', 'Ca(OH)2', 'NH3'];
+            if (bases.includes(chem.real)) result = `${chemId} 讓紅色石蕊試紙變為【藍色】！`;
+            else result = `${chemId} 測試後，紅色石蕊試紙【不變色】。`;
+          }
+        } else if (action === 'test_litmus_blue') {
+          if (chem.type === 'powder' && !dissolvedChems[chemId]) {
+            result = `直接測試 ${chemId} 粉末，藍色石蕊試紙【不變色】。(女王提示：乾燥粉末無法解離出離子，請先加水喔！)`;
+          } else {
+            const acids = ['HCl', 'CH3COOH'];
+            if (acids.includes(chem.real)) result = `${chemId} 讓藍色石蕊試紙變為【紅色】！`;
+            else result = `${chemId} 測試後，藍色石蕊試紙【不變色】。`;
+          }
+        } else if (action === 'test_phenolphthalein') {
+          if (chem.type === 'powder' && !dissolvedChems[chemId]) {
+            result = `滴入酚酞至 ${chemId} 粉末上，呈現【無色】。(女王提示：乾燥粉末無法表現酸鹼性，請先加水喔！)`;
+          } else {
+            const bases = ['NaOH', 'NaHCO3', 'Ca(OH)2', 'NH3'];
+            if (bases.includes(chem.real)) result = `滴入酚酞，${chemId} 呈現【粉紅色/紅色】！`;
+            else result = `滴入酚酞，${chemId} 呈現【無色】。`;
+          }
+        } else if (action === 'test_mg') {
+          if (chem.type === 'powder' && !dissolvedChems[chemId]) {
+            result = `投入鎂帶至 ${chemId} 粉末，【無明顯反應】。(女王提示：請先加水溶解成水溶液！)`;
+          } else {
+            const acids = ['HCl', 'CH3COOH'];
+            if (acids.includes(chem.real)) result = `投入鎂帶，${chemId} 【產生大量氣泡】！(推測為氫氣)`;
+            else result = `投入鎂帶，${chemId} 【無明顯反應】。`;
+          }
+        } else if (action === 'test_circuit') {
+          if (chem.type === 'powder' && !dissolvedChems[chemId]) {
+            result = `插入電極至固體粉末，燈泡【不亮】。(女王提示：固體晶體無法導電，請先加水解離！)`;
+          } else {
+            const nonelectrolytes = ['C6H12O6'];
+            const weak = ['CH3COOH', 'NH3'];
+            const slightlySoluble = ['CaCO3', 'CaSO4']; 
+            
+            if (nonelectrolytes.includes(chem.real)) result = `插入電極，燈泡【不亮】。(非電解質)`;
+            else if (weak.includes(chem.real) || (chem.type === 'powder' && slightlySoluble.includes(chem.real))) result = `插入電極，燈泡【微亮/不亮】。(弱電解質或難溶鹽)`;
+            else result = `插入電極，燈泡【明亮】！(強電解質)`;
+          }
+        } else if (action === 'test_straw') {
+          if (chem.type === 'powder' && !dissolvedChems[chemId]) {
+            result = `用吸管對著 ${chemId} 粉末吹氣，粉末飛散！(女王提示：請先加水溶解，並小心不要吹起粉塵！)`;
+          } else if (chem.real === 'Ca(OH)2') {
+            result = `用吸管吹氣入 ${chemId} 中，溶液產生【白色混濁】！(推測為檢驗二氧化碳的石灰水)`;
+          } else {
+            result = `用吸管吹氣入 ${chemId} 中，產生氣泡後破裂，溶液【無明顯變化】。`;
+          }
+        } else if (action === 'test_universal') {
+          if (chem.type === 'powder' && !dissolvedChems[chemId]) {
+            result = `滴入廣用試劑至 ${chemId} 粉末上，呈現試劑原本的【綠色】。(女王提示：乾燥粉末無法解離，請先加水喔！)`;
+          } else {
+            const real = chem.real;
+            if (real === 'HCl') result = `滴入廣用試劑，${chemId} 呈現【紅色】！(強酸性)`;
+            else if (real === 'CH3COOH') result = `滴入廣用試劑，${chemId} 呈現【橙黃色】！(弱酸性)`;
+            else if (['NaOH', 'Ca(OH)2'].includes(real)) result = `滴入廣用試劑，${chemId} 呈現【藍紫色/紫色】！(強鹼性)`;
+            else if (['NaHCO3', 'NH3'].includes(real)) result = `滴入廣用試劑，${chemId} 呈現【藍色/藍綠色】！(弱鹼性)`;
+            else result = `滴入廣用試劑，${chemId} 呈現【綠色】。(中性)`;
+          }
+        } else if (action === 'test_heat') {
+          if (chem.type === 'powder' && !dissolvedChems[chemId]) {
+            if (chem.real === 'C6H12O6') {
+              result = `架設加熱裝置(含酒精燈與陶瓷纖維網)加熱 ${chemId} 粉末：粉末逐漸熔化、變為深褐色，並產生【焦糖味】！(有機物特性)`;
+            } else if (chem.real === 'NaHCO3') {
+              result = `架設加熱裝置(含酒精燈與陶瓷纖維網)加熱 ${chemId} 粉末：粉末本身無明顯變化，但杯壁上方觀察到【水滴凝結】。(受熱分解)`;
+            } else {
+              result = `架設加熱裝置持續加熱 ${chemId} 粉末：【無明顯外觀變化】。(高熔點無機物)`;
+            }
+          } else {
+            const volatile = ['HCl', 'CH3COOH', 'NH3'];
+            if (volatile.includes(chem.real)) {
+              result = `架設加熱裝置加熱 ${chemId}：溶液沸騰，並揮發出【強烈刺鼻/酸嗆氣味】！(女王警告：危險！請移至通風櫥操作！)`;
+            } else if (chem.real === 'Ca(OH)2') {
+              result = `架設加熱裝置加熱 ${chemId}：溶液沸騰，且因溫度升高導致溶解度下降，溶液漸漸變為【白色混濁】！`;
+            } else {
+              result = `架設加熱裝置加熱 ${chemId}：溶液沸騰，水分逐漸蒸發，最後杯底【析出固體結晶/殘留物】。`;
+            }
+          }
+        }
+
+        addLog(result);
+      };
+
+      const handleAnswerChange = (chemId, value) => {
+        setAnswers(prev => ({ ...prev, [chemId]: value }));
+      };
+
+      const endGame = () => {
+        let finalScore = 0;
+        const scoreMap = { A:50, B:30, C:40, D:60, E:40, F:50, G:10, H:30, I:40, J:10, K:60 };
+        
+        Object.keys(chemicals).forEach(id => {
+          if (answers[id] === chemicals[id].name) {
+            finalScore += scoreMap[id] || 30;
+          }
+        });
+
+        setScore(finalScore);
+        setGameState('result');
+      };
+
+      // --- Components ---
+      if (gameState === 'intro') {
+        return (
+          <div 
+            className="min-h-screen bg-cover bg-center text-white p-8 relative flex flex-col items-center justify-center font-sans"
+            /* 改用相對路徑載入本地背景圖，確保高速與穩定 */
+            style={{ backgroundImage: 'url("./queen_index.png")' }}
+          >
+            <div className="absolute inset-0 bg-black/40 pointer-events-none z-0"></div>
+
+            <div className="absolute top-4 right-4 text-purple-200/80 text-lg pointer-events-none select-none z-50 text-right drop-shadow-md font-bold">
+              &lt;Designed by 黃鈺心,<br/>Gemini Canvas輔助生成&gt;
+            </div>
+
+            <div className="w-full max-w-5xl bg-black/70 p-10 rounded-2xl border-2 border-purple-500 shadow-[0_0_40px_rgba(168,85,247,0.6)] text-center relative overflow-hidden z-10 backdrop-blur-sm">
+              <div className="flex justify-center mb-4">
+                {/* 改用相對路徑載入本地女王頭像 */}
+                <img src="./queen.png" alt="女王 IP" className="w-48 h-48 object-contain drop-shadow-[0_0_25px_rgba(236,72,153,0.6)] hover:scale-105 transition-transform" />
+              </div>
+              <h1 className="text-6xl font-extrabold mb-6 text-purple-300 drop-shadow-lg tracking-wider">👑 女王的考驗 👑</h1>
+              <p className="text-2xl mb-8 text-gray-200 font-bold">親愛的同學們，歡迎進入女王的實驗室！</p>
+              
+              <div className="text-left bg-purple-900/50 p-8 rounded-xl mb-8 border border-purple-400/60 shadow-inner w-full">
+                <h3 className="font-bold text-3xl mb-4 text-purple-200 border-b border-purple-400/30 pb-2">※ 規則說明 ※</h3>
+                <ul className="list-disc pl-8 space-y-4 text-xl text-gray-100 font-medium">
+                  <li>限時 40 分鐘。</li>
+                  <li>每組擁有籌碼共 1000 元，請謹慎購買法寶。</li>
+                  <li>桌上有 11 種藥品 (A~K)，其中 A~F 為白色粉末，G~K 為無色透明溶液。</li>
+                  <li>請利用觀察、嗅聞及法寶，找出這 11 種藥品的分身！</li>
+                  <li><span className="text-red-400 font-bold">警告：</span>遵守實驗安全！部分為強酸強鹼，請小心操作。</li>
+                </ul>
+              </div>
+
+              {/* 確保 z-index 在最上層，絕對不會被擋住的按鈕 */}
+              <button 
+                onClick={() => setGameState('playing')}
+                className="relative z-50 cursor-pointer bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 px-12 rounded-full text-3xl transition-all hover:scale-105 shadow-xl shadow-purple-500/40 border border-purple-400"
+              >
+                接受考驗，進入實驗室！
+              </button>
+            </div>
+
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-purple-200/80 text-lg pointer-events-none select-none z-50 drop-shadow-md font-bold">
+              &lt;Designed by 黃鈺心, Gemini Canvas輔助生成&gt;
+            </div>
+          </div>
+        );
+      }
+
+      if (gameState === 'result') {
+        return (
+          <div className="min-h-screen bg-slate-900 text-white p-8 relative flex flex-col items-center justify-center font-sans">
+            <div className="absolute top-4 right-4 text-purple-300/60 text-sm pointer-events-none select-none z-50 text-right">
+              &lt;Designed by 黃鈺心,<br/>Gemini Canvas輔助生成&gt;
+            </div>
+
+            <div className="max-w-4xl w-full bg-slate-800 p-8 rounded-2xl border-2 border-green-500 shadow-xl text-center z-10">
+              <div className="flex justify-center mb-4">
+                <img src="./queen.png" alt="女王 IP" className="w-28 h-28 object-contain drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
+              </div>
+              <h1 className="text-4xl font-bold mb-6 text-green-400">考驗結束！</h1>
+              
+              <div className="bg-slate-900 p-6 rounded-xl border border-slate-600 mb-8 mx-auto inline-block text-left shadow-inner">
+                <h2 className="text-2xl font-bold text-slate-300 mb-4 border-b border-slate-700 pb-2">🎯 成績計算</h2>
+                <div className="space-y-2 text-lg">
+                  <p className="flex justify-between w-72"><span>藥品鑑定得分：</span> <span className="font-mono text-blue-400">{score} 分</span></p>
+                  <p className="flex justify-between w-72"><span>小組剩餘籌碼：</span> <span className="font-mono text-yellow-400">${budget}</span></p>
+                </div>
+                <div className="mt-4 pt-4 border-t border-slate-700">
+                  <p className="text-sm text-gray-400 mb-1">計算公式：(鑑定得分 × 98%) + (剩餘籌碼 × 2%)</p>
+                  <p className="text-xl text-gray-300 font-mono bg-black/40 p-2 rounded">
+                    ({score} × 0.98) + ({budget} × 0.02)
+                  </p>
+                </div>
+                <div className="mt-6 text-center">
+                  <p className="text-2xl mt-2 text-gray-200">個人最後總分</p>
+                  <p className="text-6xl font-extrabold text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]">
+                    {((score * 0.98) + (budget * 0.02)).toFixed(1)} <span className="text-2xl">分</span>
+                  </p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 text-left">
+                <div className="bg-slate-700 p-4 rounded-lg">
+                  <h3 className="font-bold text-lg mb-2 border-b border-slate-500 pb-2">你們的答案</h3>
+                  {Object.keys(chemicals).map(id => (
+                    <div key={`ans-${id}`} className="flex justify-between text-sm my-1">
+                      <span>藥品 {id}:</span>
+                      <span className={answers[id] === chemicals[id].name ? "text-green-400" : "text-red-400"}>
+                        {answers[id] || '未作答'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-slate-700 p-4 rounded-lg">
+                  <h3 className="font-bold text-lg mb-2 border-b border-slate-500 pb-2">正確解答</h3>
+                  {Object.keys(chemicals).map(id => (
+                    <div key={`cor-${id}`} className="flex justify-between text-sm my-1">
+                      <span>藥品 {id}:</span>
+                      <span className="text-blue-300">{chemicals[id].name} ({formatFormula(chemicals[id].real)})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <button 
+                onClick={() => window.location.reload()}
+                className="mt-8 bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 px-8 rounded-full transition-all text-lg shadow-lg"
+              >
+                重新挑戰
+              </button>
+            </div>
+
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-purple-300/60 text-sm pointer-events-none select-none z-50">
+              &lt;Designed by 黃鈺心, Gemini Canvas輔助生成&gt;
+            </div>
+          </div>
+        );
+      }
+
+      // --- Playing Screen ---
+      return (
+        <div className="h-screen w-screen bg-slate-900 text-slate-100 flex flex-col relative font-sans overflow-hidden">
+          <div className="absolute top-4 right-4 text-purple-400/50 text-sm pointer-events-none select-none z-50 text-right">
+            &lt;Designed by 黃鈺心,<br/>Gemini Canvas輔助生成&gt;
+          </div>
+
+          {/* Top Bar */}
+          <div className="bg-purple-950 p-4 flex justify-between items-center border-b border-purple-700 shadow-lg shrink-0">
+            <h1 className="text-2xl font-bold text-purple-300 flex items-center gap-3">
+              <img src="./queen.png" alt="女王 IP" className="w-10 h-10 object-contain drop-shadow-md" />
+              女王的實驗室
+            </h1>
+            <div className="flex gap-6">
+              <div className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-lg border border-slate-600">
+                <span className={timeLeft < 300 ? "text-red-500 animate-pulse" : "text-blue-400"}>⏳</span>
+                <span className={`font-mono text-xl ${timeLeft < 300 ? "text-red-500" : "text-white"}`}>
+                  {formatTime(timeLeft)}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-lg border border-slate-600">
+                <span className="text-yellow-400">💰</span>
+                <span className="font-mono text-xl text-yellow-400">${budget}</span>
+              </div>
+              <button 
+                onClick={endGame}
+                className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"
+              >
+                <span>✔️</span> 提交答案
+              </button>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex flex-1 overflow-hidden">
+            
+            {/* Left Panel: Lab Desk */}
+            <div className="flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
+              
+              {/* Powders */}
+              <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700">
+                <h2 className="text-xl font-bold mb-4 text-slate-300 border-b border-slate-600 pb-2">白色粉末區 (A~F)</h2>
+                <div className="flex flex-wrap gap-4">
+                  {['A', 'B', 'C', 'D', 'E', 'F'].map(id => (
+                    <button
+                      key={id}
+                      onClick={() => { setSelectedChem(id); setMixTarget(''); }}
+                      className={`relative w-24 h-24 rounded-lg flex flex-col items-center justify-center transition-all ${selectedChem === id ? 'bg-purple-600 border-2 border-purple-300 scale-105 shadow-lg shadow-purple-500/50' : 'bg-slate-700 hover:bg-slate-600 border border-slate-600'}`}
+                    >
+                      <div className="text-4xl mb-1">🧂</div>
+                      <div className="font-bold">{id}</div>
+                      {answers[id] && <div className="absolute -bottom-2 bg-green-600 text-xs px-2 py-1 rounded truncate w-full">{answers[id]}</div>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Liquids */}
+              <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700">
+                <h2 className="text-xl font-bold mb-4 text-slate-300 border-b border-slate-600 pb-2">無色透明溶液區 (G~K)</h2>
+                <div className="flex flex-wrap gap-4">
+                  {['G', 'H', 'I', 'J', 'K'].map(id => (
+                    <button
+                      key={id}
+                      onClick={() => { setSelectedChem(id); setMixTarget(''); }}
+                      className={`relative w-24 h-24 rounded-lg flex flex-col items-center justify-center transition-all ${selectedChem === id ? 'bg-blue-600 border-2 border-blue-300 scale-105 shadow-lg shadow-blue-500/50' : 'bg-slate-700 hover:bg-slate-600 border border-slate-600'}`}
+                    >
+                      <span className="mb-1 text-3xl">🧪</span>
+                      <div className="font-bold">{id}</div>
+                      {answers[id] && <div className="absolute -bottom-2 bg-green-600 text-xs px-2 py-1 rounded truncate w-full">{answers[id]}</div>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Interaction Area for Selected Chemical */}
+              {selectedChem && (
+                <div className="bg-purple-900/30 p-6 rounded-xl border border-purple-600/50 shadow-inner">
+                  <div className="flex justify-between items-start mb-4">
+                    <h2 className="text-2xl font-bold text-purple-300">操作台 - 藥品 {selectedChem}</h2>
+                    
+                    {/* Answer Dropdown */}
+                    <select 
+                      className="bg-slate-800 border border-purple-500 text-white rounded p-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      value={answers[selectedChem] || ''}
+                      onChange={(e) => handleAnswerChange(selectedChem, e.target.value)}
+                    >
+                      <option value="">-- 推測的化學物質 --</option>
+                      {Object.values(chemicals).map(c => (
+                        <option key={c.name} value={c.name}>{c.name} ({formatFormula(c.real)})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    {/* Basic Actions */}
+                    <button onClick={() => executeAction(selectedChem, 'observe')} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded flex items-center gap-2 border border-slate-600">
+                      <span>👁️</span> 觀察外觀 (免費)
+                    </button>
+                    <button onClick={() => executeAction(selectedChem, 'smell')} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded flex items-center gap-2 border border-slate-600">
+                      <span>💨</span> 煽聞氣味 (免費)
+                    </button>
+                    <button onClick={() => executeAction(selectedChem, 'add_water')} className="bg-blue-900 hover:bg-blue-800 px-4 py-2 rounded flex items-center gap-2 border border-blue-600 shadow-md">
+                      <span>💧</span> 加水溶解 (免費)
+                    </button>
+                  </div>
+
+                  {/* 新增：互相混合區塊 */}
+                  <div className="mb-6 p-4 bg-purple-800/40 border border-purple-400/50 rounded-lg flex items-center gap-3">
+                    <span className="font-bold text-purple-200">🧪 藥品混合測試：</span>
+                    <span className="text-slate-300">將 {selectedChem} 混合</span>
+                    <select 
+                      className="bg-slate-800 border border-purple-400 text-white rounded p-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                      value={mixTarget}
+                      onChange={(e) => setMixTarget(e.target.value)}
+                    >
+                      <option value="">--選擇其他藥品--</option>
+                      {Object.keys(chemicals)
+                        .filter(id => id !== selectedChem)
+                        .map(id => (
+                          <option key={id} value={id}>藥品 {id}</option>
+                        ))}
+                    </select>
+                    <button 
+                      onClick={handleMix}
+                      disabled={!mixTarget}
+                      className="bg-purple-600 hover:bg-purple-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold py-2 px-6 rounded shadow-md border border-purple-400 transition-colors"
+                    >
+                      混合
+                    </button>
+                  </div>
+
+                  <div className="border-t border-purple-800/50 pt-4">
+                    <h3 className="text-sm text-purple-400 mb-3 uppercase tracking-wider font-bold">使用法寶測試</h3>
+                    {inventory.length === 0 ? (
+                      <p className="text-gray-500 italic text-sm">請先在右側商店購買法寶...</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-3">
+                        {inventory.map(item => (
+                          <button 
+                            key={item.id}
+                            onClick={() => executeAction(selectedChem, item.action)}
+                            className="bg-indigo-900 hover:bg-indigo-800 border border-indigo-500 px-4 py-2 rounded flex items-center gap-2 shadow-sm"
+                          >
+                            <span>{item.icon}</span> 使用 {item.name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right Panel: Shop & Logs */}
+            <div className="w-80 bg-slate-950 border-l border-slate-700 flex flex-col shrink-0">
+              
+              {/* Shop */}
+              <div className="p-4 border-b border-slate-800">
+                <h2 className="text-lg font-bold text-yellow-400 flex items-center gap-2 mb-3">
+                  <span>🛒</span> 女王法寶商店
+                </h2>
+                <div className="space-y-2">
+                  {shopItems.map(item => (
+                    <div key={item.id} className="flex justify-between items-center bg-slate-900 p-2 rounded border border-slate-800 text-sm">
+                      <span className="flex items-center gap-2">{item.icon} {item.name}</span>
+                      <button 
+                        onClick={() => buyItem(item)}
+                        disabled={inventory.some(i => i.id === item.id) || budget < item.price}
+                        className="bg-yellow-600 hover:bg-yellow-500 disabled:bg-slate-700 disabled:text-slate-500 text-white px-2 py-1 rounded text-xs font-bold transition-colors"
+                      >
+                        ${item.price}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Logs */}
+              <div className="flex-1 p-4 flex flex-col overflow-hidden">
+                <h2 className="text-lg font-bold text-green-400 mb-3 flex items-center gap-2">
+                  <span>📋</span> 實驗記錄本
+                </h2>
+                <div className="flex-1 overflow-y-auto bg-black/50 rounded border border-slate-800 p-3 font-mono text-sm flex flex-col gap-2 shadow-inner">
+                  {logs.length === 0 ? (
+                    <div className="text-slate-600 italic">尚無實驗記錄...</div>
+                  ) : (
+                    logs.map((log, idx) => (
+                      <div key={idx} className="text-green-300 border-b border-green-900/30 pb-2 break-words leading-relaxed">
+                        {log}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 text-purple-400/50 text-sm pointer-events-none select-none z-50">
+            &lt;Designed by 黃鈺心, Gemini Canvas輔助生成&gt;
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
