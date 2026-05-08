@@ -43,6 +43,9 @@
       const [answers, setAnswers] = useState({});
       const [score, setScore] = useState(0);
       const [dissolvedChems, setDissolvedChems] = useState({}); // 記錄哪些粉末已經被加水溶解
+      
+      // 新增：用於儲存隨機打亂順序後的選項
+      const [shuffledOptions, setShuffledOptions] = useState([]);
 
       // --- Data Definitions ---
       const chemicals = {
@@ -61,7 +64,16 @@
         K: { id: 'K', type: 'liquid', real: 'Na2S2O3', name: '硫代硫酸鈉', desc: '無色透明溶液', smell: '無味' }
       };
 
-      const allRealNames = Object.values(chemicals).map(c => c.name);
+      // 遊戲初始化時，將選項順序隨機打亂
+      useEffect(() => {
+        const options = Object.values(chemicals).map(c => ({ name: c.name, real: c.real }));
+        // Fisher-Yates 隨機洗牌演算法
+        for (let i = options.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [options[i], options[j]] = [options[j], options[i]];
+        }
+        setShuffledOptions(options);
+      }, []);
 
       // 用於轉換化學式中的數字為下標
       const formatFormula = (formula) => {
@@ -147,13 +159,13 @@
         let resultStr = `將 ${selectedChem} 與 ${mixTarget} 混合：`;
 
         if (hasAcid && hasCarbonate) {
-           resultStr += `產生【大量氣泡】！(推測為酸與碳酸鹽反應產生二氧化碳)`;
+           resultStr += `產生【大量氣泡】！`;
         } else if (hasAcid && hasThio) {
-           resultStr += `溶液逐漸產生【黃色混濁沉澱】，並伴隨【刺鼻臭味】！(經典反應速率實驗：硫代硫酸鈉遇酸)`;
+           resultStr += `溶液逐漸產生【黃色混濁沉澱】，並伴隨【刺鼻臭味】！`;
         } else if (hasAcid && hasBase) {
-           resultStr += `外觀無明顯變化，但燒杯摸起來【微熱】。(酸鹼中和放熱)`;
+           resultStr += `外觀無明顯變化，但燒杯摸起來【微熱】。`;
         } else if (pair.includes('Ca(OH)2') && pair.includes('NaHCO3')) {
-           resultStr += `產生【白色沉澱】！(推測產生碳酸鈣)`;
+           resultStr += `產生【白色沉澱】！`;
         } else if (pair.includes('CaCO3') || pair.includes('CaSO4')) {
            resultStr += `溶液中含有難溶固體，呈現【混濁狀態】。`;
         } else {
@@ -214,26 +226,26 @@
             result = `投入鎂帶至 ${chemId} 粉末，【無明顯反應】。(女王提示：請先加水溶解成水溶液！)`;
           } else {
             const acids = ['HCl', 'CH3COOH'];
-            if (acids.includes(chem.real)) result = `投入鎂帶，${chemId} 【產生大量氣泡】！(推測為氫氣)`;
+            if (acids.includes(chem.real)) result = `投入鎂帶，${chemId} 【產生大量氣泡】！`;
             else result = `投入鎂帶，${chemId} 【無明顯反應】。`;
           }
         } else if (action === 'test_circuit') {
           if (chem.type === 'powder' && !dissolvedChems[chemId]) {
-            result = `插入電極至固體粉末，燈泡【不亮】。(女王提示：固體晶體無法導電，請先加水解解離！)`;
+            result = `插入電極至固體粉末，燈泡【不亮】。(女王提示：固體晶體無法導電，請先加水解離！)`;
           } else {
             const nonelectrolytes = ['C6H12O6'];
             const weak = ['CH3COOH', 'NH3'];
             const slightlySoluble = ['CaCO3', 'CaSO4']; 
             
-            if (nonelectrolytes.includes(chem.real)) result = `插入電極，燈泡【不亮】。(非電解質)`;
-            else if (weak.includes(chem.real) || (chem.type === 'powder' && slightlySoluble.includes(chem.real))) result = `插入電極，燈泡【微亮/不亮】。(弱電解質或難溶鹽)`;
-            else result = `插入電極，燈泡【明亮】！(強電解質)`;
+            if (nonelectrolytes.includes(chem.real)) result = `插入電極，燈泡【不亮】。`;
+            else if (weak.includes(chem.real) || (chem.type === 'powder' && slightlySoluble.includes(chem.real))) result = `插入電極，燈泡【微亮/不亮】。`;
+            else result = `插入電極，燈泡【明亮】！`;
           }
         } else if (action === 'test_straw') {
           if (chem.type === 'powder' && !dissolvedChems[chemId]) {
             result = `用吸管對著 ${chemId} 粉末吹氣，粉末飛散！(女王提示：請先加水溶解，並小心不要吹起粉塵！)`;
           } else if (chem.real === 'Ca(OH)2') {
-            result = `用吸管吹氣入 ${chemId} 中，溶液產生【白色混濁】！(推測為檢驗二氧化碳的石灰水)`;
+            result = `用吸管吹氣入 ${chemId} 中，溶液產生【白色混濁】！`;
           } else {
             result = `用吸管吹氣入 ${chemId} 中，產生氣泡後破裂，溶液【無明顯變化】。`;
           }
@@ -242,27 +254,27 @@
             result = `滴入廣用試劑至 ${chemId} 粉末上，呈現試劑原本的【綠色】。(女王提示：乾燥粉末無法解離，請先加水喔！)`;
           } else {
             const real = chem.real;
-            if (real === 'HCl') result = `滴入廣用試劑，${chemId} 呈現【紅色】！(強酸性)`;
-            else if (real === 'CH3COOH') result = `滴入廣用試劑，${chemId} 呈現【橙黃色】！(弱酸性)`;
-            else if (['NaOH', 'Ca(OH)2'].includes(real)) result = `滴入廣用試劑，${chemId} 呈現【藍紫色/紫色】！(強鹼性)`;
-            else if (['NaHCO3', 'NH3'].includes(real)) result = `滴入廣用試劑，${chemId} 呈現【藍色/藍綠色】！(弱鹼性)`;
-            else result = `滴入廣用試劑，${chemId} 呈現【綠色】。(中性)`;
+            if (real === 'HCl') result = `滴入廣用試劑，${chemId} 呈現【紅色】！`;
+            else if (real === 'CH3COOH') result = `滴入廣用試劑，${chemId} 呈現【橙黃色】！`;
+            else if (['NaOH', 'Ca(OH)2'].includes(real)) result = `滴入廣用試劑，${chemId} 呈現【藍紫色/紫色】！`;
+            else if (['NaHCO3', 'NH3'].includes(real)) result = `滴入廣用試劑，${chemId} 呈現【藍色/藍綠色】！`;
+            else result = `滴入廣用試劑，${chemId} 呈現【綠色】。`;
           }
         } else if (action === 'test_heat') {
           if (chem.type === 'powder' && !dissolvedChems[chemId]) {
             if (chem.real === 'C6H12O6') {
-              result = `架設加熱裝置(含酒精燈與陶瓷纖維網)加熱 ${chemId} 粉末：粉末逐漸熔化、變為深褐色，並產生【焦糖味】！(有機物特性)`;
+              result = `架設加熱裝置(含酒精燈與陶瓷纖維網)加熱 ${chemId} 粉末：粉末逐漸熔化、變為深褐色，並產生【焦糖味】！`;
             } else if (chem.real === 'NaHCO3') {
-              result = `架設加熱裝置(含酒精燈與陶瓷纖維網)加熱 ${chemId} 粉末：粉末本身無明顯變化，但杯壁上方觀察到【水滴凝結】。(受熱分解)`;
+              result = `架設加熱裝置(含酒精燈與陶瓷纖維網)加熱 ${chemId} 粉末：粉末本身無明顯變化，但杯壁上方觀察到【水滴凝結】。`;
             } else {
-              result = `架設加熱裝置持續加熱 ${chemId} 粉末：【無明顯外觀變化】。(高熔點無機物)`;
+              result = `架設加熱裝置持續加熱 ${chemId} 粉末：【無明顯外觀變化】。`;
             }
           } else {
             const volatile = ['HCl', 'CH3COOH', 'NH3'];
             if (volatile.includes(chem.real)) {
               result = `架設加熱裝置加熱 ${chemId}：溶液沸騰，並揮發出【強烈刺鼻/酸嗆氣味】！(女王警告：危險！請移至通風櫥操作！)`;
             } else if (chem.real === 'Ca(OH)2') {
-              result = `架設加熱裝置加熱 ${chemId}：溶液沸騰，且因溫度升高導致溶解度下降，溶液漸漸變為【白色混濁】！`;
+              result = `架設加熱裝置加熱 ${chemId}：溶液沸騰，溶液漸漸變為【白色混濁】！`;
             } else {
               result = `架設加熱裝置加熱 ${chemId}：溶液沸騰，水分逐漸蒸發，最後杯底【析出固體結晶/殘留物】。`;
             }
@@ -338,69 +350,78 @@
 
       if (gameState === 'result') {
         return (
-          <div className="min-h-screen bg-slate-900 text-white p-8 relative flex flex-col items-center justify-center font-sans">
-            <div className="absolute top-4 right-4 text-purple-300/60 text-sm pointer-events-none select-none z-50 text-right">
+          // 【優化 1】：將 min-h-screen 改為 h-screen overflow-y-auto 允許滾動
+          <div className="h-screen w-screen overflow-y-auto bg-slate-900 text-white p-6 relative flex flex-col items-center font-sans">
+            <div className="fixed top-4 right-4 text-purple-300/60 text-sm pointer-events-none select-none z-50 text-right">
               &lt;Designed by 黃鈺心,<br/>Gemini Canvas輔助生成&gt;
             </div>
 
-            <div className="max-w-4xl w-full bg-slate-800 p-8 rounded-2xl border-2 border-green-500 shadow-xl text-center z-10">
+            {/* 【優化 2】：加寬最大寬度，並加入 my-auto shrink-0 以確保內容不會被切斷 */}
+            <div className="max-w-6xl w-full bg-slate-800 p-8 rounded-2xl border-2 border-green-500 shadow-xl text-center z-10 my-auto shrink-0 mt-8 mb-8">
               <div className="flex justify-center mb-4">
                 <img src="./queen.png" alt="女王 IP" className="w-28 h-28 object-contain drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
               </div>
-              <h1 className="text-4xl font-bold mb-6 text-green-400">考驗結束！</h1>
+              <h1 className="text-4xl font-bold mb-8 text-green-400">考驗結束！</h1>
               
-              <div className="bg-slate-900 p-6 rounded-xl border border-slate-600 mb-8 mx-auto inline-block text-left shadow-inner">
-                <h2 className="text-2xl font-bold text-slate-300 mb-4 border-b border-slate-700 pb-2">🎯 成績計算</h2>
-                <div className="space-y-2 text-lg">
-                  <p className="flex justify-between w-72"><span>藥品鑑定得分：</span> <span className="font-mono text-blue-400">{score} 分</span></p>
-                  <p className="flex justify-between w-72"><span>小組剩餘籌碼：</span> <span className="font-mono text-yellow-400">${budget}</span></p>
+              {/* 【優化 3】：改為左右兩欄排版 (md:flex-row) */}
+              <div className="flex flex-col md:flex-row gap-8 w-full items-start">
+                
+                {/* 左側：你們的答案 與 正確解答 */}
+                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left order-2 md:order-1">
+                  <div className="bg-slate-700 p-5 rounded-lg shadow-inner h-fit">
+                    <h3 className="font-bold text-xl mb-4 border-b border-slate-500 pb-2 text-slate-200">📝 你們的答案</h3>
+                    {Object.keys(chemicals).map(id => (
+                      <div key={`ans-${id}`} className="flex justify-between text-base my-2">
+                        <span>藥品 {id}:</span>
+                        <span className={answers[id] === chemicals[id].name ? "text-green-400 font-bold" : "text-red-400 font-bold"}>
+                          {answers[id] || '未作答'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bg-slate-700 p-5 rounded-lg shadow-inner h-fit">
+                    <h3 className="font-bold text-xl mb-4 border-b border-slate-500 pb-2 text-slate-200">✅ 正確解答</h3>
+                    {Object.keys(chemicals).map(id => (
+                      <div key={`cor-${id}`} className="flex justify-between text-base my-2">
+                        <span>藥品 {id}:</span>
+                        <span className="text-blue-300 font-bold">{chemicals[id].name} ({formatFormula(chemicals[id].real)})</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="mt-4 pt-4 border-t border-slate-700">
-                  <p className="text-sm text-gray-400 mb-1">計算公式：(鑑定得分 × 98%) + (剩餘籌碼 × 2%)</p>
-                  <p className="text-xl text-gray-300 font-mono bg-black/40 p-2 rounded">
-                    ({score} × 0.98) + ({budget} × 0.02)
-                  </p>
+
+                {/* 右側：成績計算區塊 */}
+                <div className="w-full md:w-[400px] shrink-0 bg-slate-900 p-6 rounded-xl border border-slate-600 text-left shadow-inner order-1 md:order-2 h-fit">
+                  <h2 className="text-2xl font-bold text-slate-300 mb-4 border-b border-slate-700 pb-2">🎯 成績計算</h2>
+                  <div className="space-y-3 text-lg">
+                    <p className="flex justify-between w-full"><span>藥品鑑定得分：</span> <span className="font-mono text-blue-400">{score} 分</span></p>
+                    <p className="flex justify-between w-full"><span>小組剩餘籌碼：</span> <span className="font-mono text-yellow-400">${budget}</span></p>
+                  </div>
+                  <div className="mt-6 pt-6 border-t border-slate-700">
+                    <p className="text-sm text-gray-400 mb-2">計算公式：(鑑定得分 × 98%) + (剩餘籌碼 × 2%)</p>
+                    <p className="text-xl text-gray-300 font-mono bg-black/40 p-3 rounded text-center">
+                      ({score} × 0.98) + ({budget} × 0.02)
+                    </p>
+                  </div>
+                  <div className="mt-8 text-center bg-green-900/20 p-4 rounded-xl border border-green-800/50">
+                    <p className="text-2xl mb-2 text-green-200 font-bold">👑 個人最後總分</p>
+                    <p className="text-6xl font-extrabold text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]">
+                      {((score * 0.98) + (budget * 0.02)).toFixed(1)} <span className="text-3xl">分</span>
+                    </p>
+                  </div>
                 </div>
-                <div className="mt-6 text-center">
-                  <p className="text-2xl mt-2 text-gray-200">個人最後總分</p>
-                  <p className="text-6xl font-extrabold text-green-400 drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]">
-                    {((score * 0.98) + (budget * 0.02)).toFixed(1)} <span className="text-2xl">分</span>
-                  </p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4 text-left">
-                <div className="bg-slate-700 p-4 rounded-lg">
-                  <h3 className="font-bold text-lg mb-2 border-b border-slate-500 pb-2">你們的答案</h3>
-                  {Object.keys(chemicals).map(id => (
-                    <div key={`ans-${id}`} className="flex justify-between text-sm my-1">
-                      <span>藥品 {id}:</span>
-                      <span className={answers[id] === chemicals[id].name ? "text-green-400" : "text-red-400"}>
-                        {answers[id] || '未作答'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="bg-slate-700 p-4 rounded-lg">
-                  <h3 className="font-bold text-lg mb-2 border-b border-slate-500 pb-2">正確解答</h3>
-                  {Object.keys(chemicals).map(id => (
-                    <div key={`cor-${id}`} className="flex justify-between text-sm my-1">
-                      <span>藥品 {id}:</span>
-                      <span className="text-blue-300">{chemicals[id].name} ({formatFormula(chemicals[id].real)})</span>
-                    </div>
-                  ))}
-                </div>
+
               </div>
               
               <button 
                 onClick={() => window.location.reload()}
-                className="mt-8 bg-slate-600 hover:bg-slate-500 text-white font-bold py-3 px-8 rounded-full transition-all text-lg shadow-lg"
+                className="mt-10 bg-slate-600 hover:bg-slate-500 text-white font-bold py-4 px-12 rounded-full transition-all text-xl shadow-lg border border-slate-500"
               >
                 重新挑戰
               </button>
             </div>
 
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-purple-300/60 text-sm pointer-events-none select-none z-50">
+            <div className="relative mt-4 mb-4 text-purple-300/60 text-sm pointer-events-none select-none z-50">
               &lt;Designed by 黃鈺心, Gemini Canvas輔助生成&gt;
             </div>
           </div>
@@ -488,14 +509,14 @@
                   <div className="flex justify-between items-start mb-4">
                     <h2 className="text-2xl font-bold text-purple-300">操作台 - 藥品 {selectedChem}</h2>
                     
-                    {/* Answer Dropdown */}
+                    {/* 【優化 4】：答案選單套用隨機洗牌後的選項 */}
                     <select 
                       className="bg-slate-800 border border-purple-500 text-white rounded p-2 focus:outline-none focus:ring-2 focus:ring-purple-400"
                       value={answers[selectedChem] || ''}
                       onChange={(e) => handleAnswerChange(selectedChem, e.target.value)}
                     >
                       <option value="">-- 推測的化學物質 --</option>
-                      {Object.values(chemicals).map(c => (
+                      {shuffledOptions.map(c => (
                         <option key={c.name} value={c.name}>{c.name} ({formatFormula(c.real)})</option>
                       ))}
                     </select>
@@ -514,7 +535,7 @@
                     </button>
                   </div>
 
-                  {/* 新增：互相混合區塊 */}
+                  {/* 互相混合區塊 */}
                   <div className="mb-6 p-4 bg-purple-800/40 border border-purple-400/50 rounded-lg flex items-center gap-3">
                     <span className="font-bold text-purple-200">🧪 藥品混合測試：</span>
                     <span className="text-slate-300">將 {selectedChem} 混合</span>
@@ -565,13 +586,10 @@
             <div className="w-[360px] bg-slate-950 border-l border-slate-700 flex flex-col shrink-0 z-10 shadow-[-5px_0_15px_rgba(0,0,0,0.3)] h-full">
               
               {/* Shop */}
-              {/* 【修改重點 1】：將 p-4 改為 p-3 減少外框間距，並加上 shrink-0 避免被擠壓 */}
               <div className="p-3 border-b border-slate-800 shrink-0">
-                {/* 【修改重點 2】：將標題的 mb-4 改為 mb-2 */}
                 <h2 className="text-xl font-bold text-yellow-400 flex items-center gap-3 mb-2">
                   <span className="text-2xl">🛒</span> 女王法寶商店
                 </h2>
-                {/* 【修改重點 3】：將 space-y-3 縮短為 space-y-1.5，內部選項的 p-3 改為 py-1.5 px-3 */}
                 <div className="space-y-1.5">
                   {shopItems.map(item => (
                     <div key={item.id} className="flex justify-between items-center bg-slate-900 py-1.5 px-3 rounded-lg border border-slate-800 text-base font-medium">
@@ -592,7 +610,6 @@
               </div>
 
               {/* Logs */}
-              {/* 【修改重點 4】：外框 p-4 改為 p-3，並加入最重要的 min-h-0！確保 Flexbox 不會讓這個區塊消失 */}
               <div className="flex-1 p-3 flex flex-col min-h-0">
                 <h2 className="text-xl font-bold text-green-400 mb-2 flex items-center gap-3">
                   <span className="text-2xl">📋</span> 實驗記錄本
