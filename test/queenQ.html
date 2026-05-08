@@ -29,11 +29,10 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useMemo } = React;
 
     function App() {
       // --- Game State ---
-      // 新增密碼與登入狀態: 'password', 'login', 'intro', 'playing', 'result'
       const [gameState, setGameState] = useState('password'); 
       const [timeLeft, setTimeLeft] = useState(40 * 60); 
       const [budget, setBudget] = useState(1000);
@@ -46,6 +45,9 @@
       const [dissolvedChems, setDissolvedChems] = useState({}); 
       const [shuffledOptions, setShuffledOptions] = useState([]);
 
+      // 新增：隨機分配的藥品對應表
+      const [randomizedChemicals, setRandomizedChemicals] = useState({});
+
       // --- Student Info & Auth ---
       const CORRECT_PASSWORD = "LovelyQ"; // ★ 老師可以自訂考驗密碼
       const [inputPassword, setInputPassword] = useState('');
@@ -57,32 +59,64 @@
       const [uploadSuccess, setUploadSuccess] = useState(false);
 
       // ★★★ 請將您部署好的 GAS 網址貼在這裡 ★★★
-      const GAS_URL = "https://script.google.com/macros/s/AKfycbwvXPqxFHIEvS_gX7OpulmzueSKcanbnodGUsdK70qw-0R9lgEo4vYAePgfxbT3Wo8O/exec"; 
+      const GAS_URL = "請將您的_GOOGLE_APPS_SCRIPT_網址_貼在這裡"; 
 
-      // --- Data Definitions ---
-      const chemicals = {
-        // White Powders
-        A: { id: 'A', type: 'powder', real: 'NaOH', name: '氫氧化鈉', desc: '白色固體粉末/顆粒', soluble: '易溶，且水溶液溫度明顯上升', reactionType: '強鹼' },
-        B: { id: 'B', type: 'powder', real: 'CaCO3', name: '碳酸鈣', desc: '白色粉末', soluble: '難溶於水，沉澱在底部', reactionType: '碳酸鹽' },
-        C: { id: 'C', type: 'powder', real: 'NaCl', name: '氯化鈉', desc: '白色結晶粉末', soluble: '易溶於水', reactionType: '中性鹽' },
-        D: { id: 'D', type: 'powder', real: 'C6H12O6', name: '葡萄糖', desc: '白色粉末', soluble: '易溶於水', reactionType: '有機物(非電解質)' },
-        E: { id: 'E', type: 'powder', real: 'CaSO4', name: '硫酸鈣', desc: '白色粉末', soluble: '微溶於水，底部仍有固體', reactionType: '微溶鹽' },
-        F: { id: 'F', type: 'powder', real: 'NaHCO3', name: '碳酸氫鈉', desc: '白色粉末', soluble: '可溶於水', reactionType: '弱鹼性碳酸氫鹽' },
-        // Solutions
-        G: { id: 'G', type: 'liquid', real: 'HCl', name: '鹽酸', desc: '無色透明溶液', smell: '無色，微酸味', reactionType: '強酸' },
-        H: { id: 'H', type: 'liquid', real: 'CH3COOH', name: '醋酸', desc: '無色透明溶液', smell: '明顯酸嗆味', reactionType: '弱酸' },
-        I: { id: 'I', type: 'liquid', real: 'Ca(OH)2', name: '氫氧化鈣(石灰水)', desc: '無色透明溶液', smell: '無味', reactionType: '強鹼(溶解度隨溫度下降)' },
-        J: { id: 'J', type: 'liquid', real: 'NH3', name: '氨水', desc: '無色透明溶液', smell: '強烈刺鼻臭味！(女王提醒：請用手煽聞！)', reactionType: '弱鹼(高揮發)' },
-        K: { id: 'K', type: 'liquid', real: 'Na2S2O3', name: '硫代硫酸鈉', desc: '無色透明溶液', smell: '無味', reactionType: '遇酸產生硫沉澱' }
+      // --- Base Data Definitions ---
+      // 這裡存放的是所有藥品的「真實屬性」，不再綁定特定的代號
+      const baseChemicalsData = {
+        powders: [
+          { real: 'NaOH', name: '氫氧化鈉', desc: '白色固體粉末/顆粒', soluble: '易溶，且水溶液溫度明顯上升', reactionType: '強鹼', type: 'powder' },
+          { real: 'CaCO3', name: '碳酸鈣', desc: '白色粉末', soluble: '難溶於水，沉澱在底部', reactionType: '碳酸鹽', type: 'powder' },
+          { real: 'NaCl', name: '氯化鈉', desc: '白色結晶粉末', soluble: '易溶於水', reactionType: '中性鹽', type: 'powder' },
+          { real: 'C6H12O6', name: '葡萄糖', desc: '白色粉末', soluble: '易溶於水', reactionType: '有機物(非電解質)', type: 'powder' },
+          { real: 'CaSO4', name: '硫酸鈣', desc: '白色粉末', soluble: '微溶於水，底部仍有固體', reactionType: '微溶鹽', type: 'powder' },
+          { real: 'NaHCO3', name: '碳酸氫鈉', desc: '白色粉末', soluble: '可溶於水', reactionType: '弱鹼性碳酸氫鹽', type: 'powder' }
+        ],
+        liquids: [
+          { real: 'HCl', name: '鹽酸', desc: '無色透明溶液', smell: '無色，微酸味', reactionType: '強酸', type: 'liquid' },
+          { real: 'CH3COOH', name: '醋酸', desc: '無色透明溶液', smell: '明顯酸嗆味', reactionType: '弱酸', type: 'liquid' },
+          { real: 'Ca(OH)2', name: '氫氧化鈣(石灰水)', desc: '無色透明溶液', smell: '無味', reactionType: '強鹼(溶解度隨溫度下降)', type: 'liquid' },
+          { real: 'NH3', name: '氨水', desc: '無色透明溶液', smell: '強烈刺鼻臭味！(女王提醒：請用手煽聞！)', reactionType: '弱鹼(高揮發)', type: 'liquid' },
+          { real: 'Na2S2O3', name: '硫代硫酸鈉', desc: '無色透明溶液', smell: '無味', reactionType: '遇酸產生硫沉澱', type: 'liquid' }
+        ]
       };
 
+      // --- Initialization (Shuffle) ---
       useEffect(() => {
-        const options = Object.values(chemicals).map(c => ({ name: c.name, real: c.real }));
-        for (let i = options.length - 1; i > 0; i--) {
-          const j = Math.floor(Math.random() * (i + 1));
-          [options[i], options[j]] = [options[j], options[i]];
-        }
-        setShuffledOptions(options);
+        // 1. 打亂藥品分配 (將打亂的藥品賦予 A~K 的代號)
+        const shuffleArray = (array) => {
+          const newArray = [...array];
+          for (let i = newArray.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+          }
+          return newArray;
+        };
+
+        const shuffledPowders = shuffleArray(baseChemicalsData.powders);
+        const shuffledLiquids = shuffleArray(baseChemicalsData.liquids);
+
+        const newChemicalsMap = {};
+        const powderIds = ['A', 'B', 'C', 'D', 'E', 'F'];
+        const liquidIds = ['G', 'H', 'I', 'J', 'K'];
+
+        shuffledPowders.forEach((chem, index) => {
+          newChemicalsMap[powderIds[index]] = { ...chem, id: powderIds[index] };
+        });
+
+        shuffledLiquids.forEach((chem, index) => {
+          newChemicalsMap[liquidIds[index]] = { ...chem, id: liquidIds[index] };
+        });
+
+        setRandomizedChemicals(newChemicalsMap);
+
+        // 2. 打亂下拉選單的選項
+        const allOptions = [
+            ...baseChemicalsData.powders.map(c => ({ name: c.name, real: c.real })),
+            ...baseChemicalsData.liquids.map(c => ({ name: c.name, real: c.real }))
+        ];
+        setShuffledOptions(shuffleArray(allOptions));
+
       }, []);
 
       const formatFormula = (formula) => {
@@ -162,9 +196,11 @@
       const handleMix = () => {
         if (!mixTarget || !selectedChem) return;
         
-        const chem1 = chemicals[selectedChem];
-        const chem2 = chemicals[mixTarget];
+        const chem1 = randomizedChemicals[selectedChem];
+        const chem2 = randomizedChemicals[mixTarget];
         
+        if (!chem1 || !chem2) return;
+
         const real1 = chem1.real;
         const real2 = chem2.real;
 
@@ -204,7 +240,9 @@
       };
 
       const executeAction = (chemId, action) => {
-        const chem = chemicals[chemId];
+        const chem = randomizedChemicals[chemId];
+        if (!chem) return;
+
         let result = '';
 
         if (action === 'observe') {
@@ -322,11 +360,17 @@
       const uploadScore = async () => {
         setIsUploading(true);
         let finalScore = 0;
-        const scoreMap = { A:50, B:30, C:40, D:60, E:40, F:50, G:10, H:30, I:40, J:10, K:60 };
         
-        Object.keys(chemicals).forEach(id => {
-          if (answers[id] === chemicals[id].name) {
-            finalScore += scoreMap[id] || 30;
+        // 分數不再是寫死的，而是要比對隨機分配後的真實物質
+        const scoreMap = { 
+            'NaOH': 50, 'CaCO3': 30, 'NaCl': 40, 'C6H12O6': 60, 'CaSO4': 40, 'NaHCO3': 50,
+            'HCl': 10, 'CH3COOH': 30, 'Ca(OH)2': 40, 'NH3': 10, 'Na2S2O3': 60
+        };
+        
+        Object.keys(randomizedChemicals).forEach(id => {
+          const chem = randomizedChemicals[id];
+          if (answers[id] === chem.name) {
+            finalScore += scoreMap[chem.real] || 30;
           }
         });
         
@@ -508,10 +552,10 @@
                   <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-4 text-left order-2 md:order-1">
                     <div className="bg-slate-700 p-5 rounded-lg shadow-inner h-fit">
                       <h3 className="font-bold text-xl mb-4 border-b border-slate-500 pb-2 text-slate-200">📝 你們的答案</h3>
-                      {Object.keys(chemicals).map(id => (
+                      {Object.keys(randomizedChemicals).map(id => (
                         <div key={`ans-${id}`} className="flex justify-between text-base my-2 border-b border-slate-600 pb-1">
                           <span className="w-16">藥品 {id}:</span>
-                          <span className={answers[id] === chemicals[id].name ? "text-green-400 font-bold" : "text-red-400 font-bold"}>
+                          <span className={answers[id] === randomizedChemicals[id].name ? "text-green-400 font-bold" : "text-red-400 font-bold"}>
                             {answers[id] || '未作答'}
                           </span>
                         </div>
@@ -519,13 +563,13 @@
                     </div>
                     <div className="bg-slate-700 p-5 rounded-lg shadow-inner h-fit">
                       <h3 className="font-bold text-xl mb-4 border-b border-slate-500 pb-2 text-slate-200">✅ 正確解答與反應特性</h3>
-                      {Object.keys(chemicals).map(id => (
+                      {Object.keys(randomizedChemicals).map(id => (
                         <div key={`cor-${id}`} className="flex flex-col text-sm my-2 border-b border-slate-600 pb-1">
                           <div className="flex justify-between">
                             <span className="w-16">藥品 {id}:</span>
-                            <span className="text-blue-300 font-bold text-base">{chemicals[id].name} ({formatFormula(chemicals[id].real)})</span>
+                            <span className="text-blue-300 font-bold text-base">{randomizedChemicals[id].name} ({formatFormula(randomizedChemicals[id].real)})</span>
                           </div>
-                          <div className="text-yellow-200/80 text-right text-xs mt-1">💡 {chemicals[id].reactionType}</div>
+                          <div className="text-yellow-200/80 text-right text-xs mt-1">💡 {randomizedChemicals[id].reactionType}</div>
                         </div>
                       ))}
                     </div>
@@ -562,6 +606,9 @@
           </div>
         );
       }
+
+      // 遊戲初始化前防呆
+      if (Object.keys(randomizedChemicals).length === 0) return null;
 
       // --- Playing Screen ---
       return (
@@ -679,7 +726,7 @@
                       onChange={(e) => setMixTarget(e.target.value)}
                     >
                       <option value="">--選擇其他藥品--</option>
-                      {Object.keys(chemicals)
+                      {Object.keys(randomizedChemicals)
                         .filter(id => id !== selectedChem)
                         .map(id => (
                           <option key={id} value={id}>藥品 {id}</option>
