@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>肥皂去污原理教學動畫</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #e0f2fe; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #canvas-container { position: relative; width: 100vw; height: 100vh; }
+        canvas { display: block; width: 100%; height: 100%; }
+        
+        /* 封面系統 */
+        #cover-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* 讀取同一資料夾下的圖片 */
+            background-image: url('Chemist_Lovely.png');
+            background-size: cover;
+            background-position: center;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            cursor: pointer;
+            transition: opacity 0.6s ease;
+        }
+
+        .start-hint {
+            margin-bottom: 8vh;
+            padding: 15px 40px;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 30px;
+            font-size: 24px;
+            font-weight: bold;
+            color: #3b82f6;
+            animation: pulse 1.5s infinite;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            border: 2px solid white;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 說明文字面板 */
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            max-width: 380px;
+            z-index: 10;
+            border-left: 6px solid #3b82f6;
+        }
+
+        /* 控制按鈕區 */
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s, filter 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+        button:active { transform: scale(0.95); }
+        button:hover { filter: brightness(1.1); }
+        #btn-next { background-color: #2563eb; }
+        #btn-play { background-color: #16a34a; }
+        #btn-reset { background-color: #dc2626; }
+
+        /* 浮水印 (不會擋住內容) */
+        .watermark {
+            position: absolute;
+            font-size: 12px;
+            color: #64748b;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 4px 8px;
+            border-radius: 4px;
+            pointer-events: none; /* 讓滑鼠可以穿透 */
+            z-index: 50;
+            backdrop-filter: blur(2px);
+        }
+        .watermark-top { top: 10px; right: 10px; text-align: right; }
+        .watermark-bottom { bottom: 10px; right: 10px; text-align: right; }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container">
+    <!-- 封面系統 -->
+    <div id="cover-screen">
+        <div class="start-hint">點擊畫面任意處開始探索</div>
+    </div>
+
+    <!-- 浮水印 -->
+    <div class="watermark watermark-top">＜Designed by 黃鈺心<br>Gemini Canvas輔助生成＞</div>
+    <div class="watermark watermark-bottom">＜Designed by 黃鈺心, Gemini Canvas輔助生成＞</div>
+
+    <!-- 教學解說面板 -->
+    <div id="info-panel">
+        <h2 id="step-title" class="text-xl font-bold text-blue-800 mb-2">準備開始</h2>
+        <p id="step-desc" class="text-gray-700 leading-relaxed">動畫載入中...</p>
+    </div>
+
+    <!-- 控制區 -->
+    <div id="controls">
+        <button id="btn-reset">重置</button>
+        <button id="btn-next">下一步 (分段)</button>
+        <button id="btn-play">一次看完 (自動)</button>
+    </div>
+
+    <canvas id="simulationCanvas"></canvas>
+</div>
+
+<script>
+    // 封面點擊事件處理
+    document.getElementById('cover-screen').addEventListener('click', function() {
+        this.style.opacity = '0'; // 淡出效果
+        setTimeout(() => {
+            this.style.display = 'none'; // 動畫結束後隱藏
+        }, 600);
+    });
+
+    const canvas = document.getElementById('simulationCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let width, height;
+    function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        canvas.width = width;
+        canvas.height = height;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // 動畫狀態 (擴充至 8 個步驟)
+    let state = 0;
+    let autoPlay = false;
+    let autoPlayTimer = null;
+
+    // 視角轉換變數
+    let zoomProgress = 0; // 0: 巨觀, 1: 微觀
+    let waterLevel = height;
+    let shirtHasStain = true;
+
+    // 解說文本
+    const stepTexts = [
+        { title: "步驟一：衣服沾染油汙", desc: "這是一件沾到頑固油汙的衣服。因為油水不互溶，如果只用清水洗，油汙會緊緊黏在衣服上。" },
+        { title: "步驟二：浸泡肥皂水", desc: "我們將衣服浸入含有肥皂的水中。準備從巨觀進入微觀，看看會發生什麼神奇的化學反應！" },
+        { title: "步驟三：放大微觀視角", desc: "拉近一看！底下網格狀的是衣服纖維，上面正緊緊附著一大塊頑固的油汙。" },
+        { title: "步驟四：肥皂分子靠近", desc: "肥皂分子就像大頭針，圓頭是「親水端」（喜歡水），尾巴是「親油端」（喜歡油）。它們正游向油汙。" },
+        { title: "步驟五：親油端插入", desc: "看！肥皂分子的「親油端」因為喜歡油，紛紛像針一樣插入油汙內部；而「親水端」則留在外層與水接觸。" },
+        { title: "步驟六：乳化作用", desc: "肥皂分子將大油汙從纖維上「拔」起，並切割成許多被親水端包覆的小油滴（膠束），使油汙懸浮在水中。" },
+        { title: "步驟七：清水沖洗", desc: "沖水囉！水流牽引著最外層的親水端，輕易地把這些油滴帶離了衣服的表面。" },
+        { title: "步驟八：洗淨完成", desc: "回到巨觀視角，衣服上的油汙已經徹底被肥皂和水帶走，恢復潔白乾淨了！" }
+    ];
+
+    const titleEl = document.getElementById('step-title');
+    const descEl = document.getElementById('step-desc');
+
+    function updateText() {
+        titleEl.innerText = stepTexts[state].title;
+        descEl.innerText = stepTexts[state].desc;
+    }
+
+    // 物件定義
+    let mainOil;
+    let smallOils = [];
+    let soaps = [];
+    let waterParticles = [];
+    let dynamicBubbles = []; // 新增動態泡泡陣列
+
+    // 初始化場景
+    function initScene() {
+        state = 0;
+        autoPlay = false;
+        if(autoPlayTimer) clearTimeout(autoPlayTimer);
+        updateText();
+
+        zoomProgress = 0;
+        waterLevel = height;
+        shirtHasStain = true;
+
+        // 微觀世界的基準線 (衣服纖維)
+        let fiberY = height/2 + 96;
+        mainOil = { x: width/2, y: fiberY - 60, r: 80, active: true }; 
+        smallOils = [];
+        soaps = [];
+        waterParticles = [];
+        dynamicBubbles = []; // 初始化動態泡泡
+
+        // 產生由下往上浮動的泡泡
+        for(let i=0; i<25; i++) {
+            dynamicBubbles.push({
+                x: width/2 - 400 + Math.random() * 800,
+                y: height + Math.random() * 500, // 從畫面下方開始
+                r: 8 + Math.random() * 15,
+                vy: -1 - Math.random() * 2.5, // 往上浮動的速度
+                wobble: Math.random() * Math.PI * 2, // 左右搖擺基數
+                wobbleSpeed: 0.02 + Math.random() * 0.05
+            });
+        }
+
+        // 產生肥皂分子 (先藏在畫面上方，從水中靠近)
+        for(let i=0; i<40; i++) {
+            let angle = Math.PI + Math.random() * Math.PI; // 180 ~ 360 度 (上半圓)
+            let dist = 300 + Math.random() * 200;
+            soaps.push({
+                x: width/2 + Math.cos(angle) * dist,
+                y: fiberY - 50 + Math.sin(angle) * dist,
+                targetX: width/2 + Math.cos(angle) * dist, 
+                targetY: fiberY - 50 + Math.sin(angle) * dist,
+                angle: angle, 
+                attached: false,
+                oilIndex: -1 
+            });
+        }
+    }
+
+    // 推進動畫狀態
+    function nextStep() {
+        if (state < 7) {
+            state++;
+            updateText();
+            
+            if (state === 3) {
+                // 步驟四：肥皂分子游向大油汙周圍
+                // 精確計算沒有接觸到衣服纖維的「外露圓弧」角度，避免變成半圓假髮！
+                let intersectAngle = Math.asin(60 / 80); // 60 是油汙中心到纖維的距離，80 是半徑
+                let startAngle = Math.PI - intersectAngle + 0.15; // 左側交界處 (加一點邊距防穿模)
+                let endAngle = Math.PI * 2 + intersectAngle - 0.15; // 右側交界處
+                let angleRange = endAngle - startAngle;
+
+                soaps.forEach((soap, index) => {
+                    let a = startAngle + (index / (soaps.length - 1)) * angleRange; // 均勻分布在外露表面
+                    soap.targetX = mainOil.x + Math.cos(a) * (mainOil.r + 20);
+                    soap.targetY = mainOil.y + Math.sin(a) * (mainOil.r + 20);
+                });
+            } 
+            else if (state === 4) {
+                // 步驟五：肥皂分子親油端插入油汙內
+                let intersectAngle = Math.asin(60 / 80);
+                let startAngle = Math.PI - intersectAngle + 0.15;
+                let endAngle = Math.PI * 2 + intersectAngle - 0.15;
+                let angleRange = endAngle - startAngle;
+
+                soaps.forEach((soap, index) => {
+                    let a = startAngle + (index / (soaps.length - 1)) * angleRange;
+                    soap.targetX = mainOil.x + Math.cos(a) * (mainOil.r - 10);
+                    soap.targetY = mainOil.y + Math.sin(a) * (mainOil.r - 10);
+                });
+            }
+            else if (state === 5) {
+                // 步驟六：乳化作用 (油汙被拔起並分解成小膠束)
+                mainOil.active = false;
+                let numSmall = 6;
+                let fiberY = height/2 + 96;
+                for(let i=0; i<numSmall; i++) {
+                    let a = Math.PI + (i / (numSmall - 1)) * Math.PI; // 呈弧形散開
+                    smallOils.push({
+                        x: mainOil.x + Math.cos(a) * 30,
+                        y: mainOil.y + Math.sin(a) * 30,
+                        targetX: width/2 + Math.cos(a) * 150, 
+                        targetY: fiberY - 150 + Math.sin(a) * 80, // 從纖維上被拔起來
+                        r: 25,
+                        vx: 0, vy: 0
+                    });
+                }
+                
+                // 將肥皂分子平均分配給小油滴
+                let soapsPerOil = new Array(numSmall).fill(0);
+                soaps.forEach((soap, index) => {
+                    soap.oilIndex = index % numSmall;
+                    soapsPerOil[soap.oilIndex]++;
+                });
+                
+                let currentAssigned = new Array(numSmall).fill(0);
+                soaps.forEach((soap) => {
+                    let oIndex = soap.oilIndex;
+                    let totalForThisOil = soapsPerOil[oIndex];
+                    soap.localAngle = (currentAssigned[oIndex] / totalForThisOil) * Math.PI * 2;
+                    currentAssigned[oIndex]++;
+                });
+            }
+            else if (state === 6) {
+                // 步驟七：沖水排掉 (產生水流粒子)
+                for(let i=0; i<150; i++) {
+                    waterParticles.push({
+                        x: Math.random() * width - width,
+                        y: Math.random() * height,
+                        vx: 15 + Math.random() * 10,
+                        l: 20 + Math.random() * 40
+                    });
+                }
+            }
+            else if (state === 7) {
+                // 步驟八：洗淨完成 (油汙消除，準備拉回巨觀)
+                shirtHasStain = false; 
+            }
+
+            // 自動播放的節奏控制
+            if(autoPlay && state < 7) {
+                let delay = 2500;
+                if (state === 2) delay = 3500; // 給予時間欣賞 Zoom-in 放大
+                if (state === 5) delay = 3500; // 乳化作用停留久一點
+                if (state === 6) delay = 3500; // 沖水畫面多看一會兒
+                autoPlayTimer = setTimeout(nextStep, delay);
+            }
+        }
+    }
+
+    // 按鈕事件
+    document.getElementById('btn-next').addEventListener('click', () => {
+        autoPlay = false;
+        if(autoPlayTimer) clearTimeout(autoPlayTimer);
+        nextStep();
+    });
+
+    document.getElementById('btn-play').addEventListener('click', () => {
+        if(state === 7) initScene();
+        autoPlay = true;
+        nextStep();
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', initScene);
+
+    // 繪製衣服函數 (僅負責形狀繪製)
+    function drawTShirt(hasStain) {
+        ctx.beginPath();
+        // 衣服主體與袖子
+        ctx.moveTo(-35, -45); 
+        ctx.lineTo(-20, -35); 
+        ctx.quadraticCurveTo(0, -25, 20, -35); 
+        ctx.lineTo(35, -45); 
+        ctx.lineTo(65, -15); 
+        ctx.lineTo(45, 5); 
+        ctx.lineTo(35, -5); 
+        ctx.lineTo(35, 55); 
+        ctx.lineTo(-35, 55); 
+        ctx.lineTo(-35, -5); 
+        ctx.lineTo(-45, 5); 
+        ctx.lineTo(-65, -15); 
+        ctx.closePath();
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.stroke();
+
+        // 領口細節
+        ctx.beginPath();
+        ctx.moveTo(-20, -35);
+        ctx.quadraticCurveTo(0, -15, 20, -35);
+        ctx.stroke();
+
+        // 畫出大油汙
+        if (hasStain) {
+            ctx.fillStyle = '#fbbf24'; 
+            ctx.globalAlpha = 0.85;
+            ctx.beginPath();
+            ctx.arc(0, 10, 12, 0, Math.PI*2);
+            ctx.arc(-8, 5, 8, 0, Math.PI*2);
+            ctx.arc(8, 15, 10, 0, Math.PI*2);
+            ctx.arc(-5, 18, 9, 0, Math.PI*2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // 主繪製循環
+    function draw() {
+        // 清除畫布，帶有肥皂水感覺的淡藍色背景
+        ctx.fillStyle = '#e0f2fe';
+        ctx.fillRect(0, 0, width, height);
+
+        // 運算鏡頭縮放進度 (Zoom-in / Zoom-out)
+        if (state === 2) {
+            zoomProgress += 0.015;
+            if (zoomProgress > 1) zoomProgress = 1;
+        } else if (state === 7) {
+            zoomProgress -= 0.015;
+            if (zoomProgress < 0) zoomProgress = 0;
+        }
+
+        // ==========================================
+        // 1. 繪製巨觀視角 (衣服)
+        // ==========================================
+        let macroAlpha = 1 - Math.pow(zoomProgress, 2);
+        if (macroAlpha < 0) macroAlpha = 0;
+
+        if (macroAlpha > 0) {
+            // 計算縮放比例，最高放大至 43 倍
+            let currentScale = 3 + Math.pow(zoomProgress, 3) * 40;
+            ctx.save();
+            ctx.globalAlpha = macroAlpha;
+            ctx.translate(width/2, height/2);
+            // 動態調整 Y 軸，確保畫面精準縮放鎖定在油汙 (Y=12) 上
+            ctx.translate(0, -12 * (currentScale - 3)); 
+            ctx.scale(currentScale, currentScale);
+            drawTShirt(shirtHasStain);
+            ctx.restore();
+        }
+
+        // ==========================================
+        // 2. 繪製微觀視角 (纖維、油汙、肥皂分子)
+        // ==========================================
+        let microAlpha = Math.pow(zoomProgress, 2);
+        if (microAlpha > 1) microAlpha = 1;
+        if (microAlpha < 0) microAlpha = 0;
+
+        if (microAlpha > 0) {
+            ctx.save();
+            ctx.globalAlpha = microAlpha;
+            
+            let fiberY = height/2 + 96;
+            
+            // 畫衣服纖維網格
+            ctx.fillStyle = '#f8fafc';
+            ctx.fillRect(0, fiberY, width, height - fiberY);
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 6;
+            for(let x = -width; x < width*2; x += 30) {
+                ctx.beginPath(); ctx.moveTo(x, fiberY); ctx.lineTo(x + height, fiberY + height); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(x + height, fiberY); ctx.lineTo(x, fiberY + height); ctx.stroke();
+            }
+            ctx.beginPath(); ctx.moveTo(0, fiberY); ctx.lineTo(width, fiberY);
+            ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 4; ctx.stroke();
+
+            // 畫水流 (State 6)
+            if (state === 6) {
+                ctx.strokeStyle = 'rgba(100, 150, 255, 0.4)';
+                ctx.lineWidth = 3;
+                waterParticles.forEach(p => {
+                    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + p.l, p.y); ctx.stroke();
+                    p.x += p.vx;
+                    if(p.x > width) p.x = -p.l;
+                });
+            }
+
+            // 畫大油汙
+            if (mainOil.active) {
+                ctx.fillStyle = '#fbbf24';
+                ctx.beginPath();
+                ctx.arc(mainOil.x, mainOil.y, mainOil.r, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.lineWidth = 4; ctx.strokeStyle = '#d97706'; ctx.stroke();
+            }
+
+            // 畫小油滴 (乳化後)
+            if (state >= 5) {
+                smallOils.forEach(oil => {
+                    if (state === 5) { // 散開並拔起
+                        oil.x += (oil.targetX - oil.x) * 0.05;
+                        oil.y += (oil.targetY - oil.y) * 0.05;
+                    } else if (state === 6) { // 沖走
+                        oil.vx += 0.3; 
+                        oil.x += oil.vx;
+                    }
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.beginPath(); ctx.arc(oil.x, oil.y, oil.r, 0, Math.PI * 2); ctx.fill();
+                    ctx.lineWidth = 2; ctx.strokeStyle = '#d97706'; ctx.stroke();
+                });
+            }
+
+            // 畫肥皂分子 (大頭針)
+            soaps.forEach(soap => {
+                if (state === 3 || state === 4) {
+                    soap.x += (soap.targetX - soap.x) * 0.05;
+                    soap.y += (soap.targetY - soap.y) * 0.05;
+                    soap.angle = Math.atan2(mainOil.y - soap.y, mainOil.x - soap.x);
+                } 
+                else if (state >= 5 && soap.oilIndex !== -1) {
+                    let targetOil = smallOils[soap.oilIndex];
+                    let attachDist = targetOil.r - 5; 
+                    soap.x = targetOil.x + Math.cos(soap.localAngle) * attachDist;
+                    soap.y = targetOil.y + Math.sin(soap.localAngle) * attachDist;
+                    soap.angle = Math.atan2(targetOil.y - soap.y, targetOil.x - soap.x);
+                }
+
+                ctx.save();
+                ctx.translate(soap.x, soap.y);
+                ctx.rotate(soap.angle);
+                
+                // 親油端 (尾巴)
+                ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(25, 0); 
+                ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.stroke();
+                // 親水端 (頭部)
+                ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2);
+                ctx.fillStyle = '#3b82f6'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#1e3a8a'; ctx.stroke();
+                ctx.restore();
+            });
+
+            ctx.restore();
+        }
+
+        // ==========================================
+        // 3. 巨觀視角的水面動畫覆蓋
+        // ==========================================
+        if (macroAlpha > 0) {
+            // 控制水面上升與下降
+            if (state >= 1 && state < 7) {
+                waterLevel += (-100 - waterLevel) * 0.05; // 淹過整件衣服
+            } else if (state === 7) {
+                waterLevel += (height + 100 - waterLevel) * 0.05; // 把水排掉
+            }
+            
+            ctx.save();
+            ctx.globalAlpha = macroAlpha;
+            ctx.fillStyle = 'rgba(59, 130, 246, 0.4)'; // 半透明水藍色
+            ctx.fillRect(0, waterLevel, width, height - waterLevel);
+            
+            // 加入動態上浮泡泡特效
+            if (state >= 1) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+                dynamicBubbles.forEach(b => {
+                    // 只要水還在，泡泡就會往上浮
+                    if (state < 7) {
+                        b.y += b.vy;
+                        b.wobble += b.wobbleSpeed;
+                        
+                        // 泡泡浮出水面或畫面時，從最下方重新生成
+                        if (b.y < waterLevel - 20) {
+                            b.y = height + 50;
+                            b.x = width/2 - 400 + Math.random() * 800;
+                        }
+                    } else {
+                        // 沖水時泡泡跟著往下排掉
+                        b.y += 10; 
+                    }
+                    
+                    let currentX = b.x + Math.sin(b.wobble) * 15; // 左右搖擺特效
+                    ctx.beginPath();
+                    ctx.arc(currentX, b.y, b.r, 0, Math.PI*2);
+                    ctx.fill();
+                });
+            }
+            ctx.restore();
+        }
+
+        requestAnimationFrame(draw);
+    }
+
+    // 啟動
+    initScene();
+    draw();
+</script>
+</body>
+</html>
