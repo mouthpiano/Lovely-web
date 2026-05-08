@@ -219,7 +219,7 @@
           }
         } else if (action === 'test_circuit') {
           if (chem.type === 'powder' && !dissolvedChems[chemId]) {
-            result = `插入電極至固體粉末，燈泡【不亮】。(女王提示：固體晶體無法導電，請先加水解離！)`;
+            result = `插入電極至固體粉末，燈泡【不亮】。(女王提示：固體晶體無法導電，請先加水解解離！)`;
           } else {
             const nonelectrolytes = ['C6H12O6'];
             const weak = ['CH3COOH', 'NH3'];
@@ -562,19 +562,19 @@
             </div>
 
             {/* Right Panel: Shop & Logs */}
-            {/* 【修改重點 1】：將 w-80 (320px) 加寬為 w-[360px]，並加入左側陰影 */}
-            <div className="w-[360px] bg-slate-950 border-l border-slate-700 flex flex-col shrink-0 z-10 shadow-[-5px_0_15px_rgba(0,0,0,0.3)]">
+            <div className="w-[360px] bg-slate-950 border-l border-slate-700 flex flex-col shrink-0 z-10 shadow-[-5px_0_15px_rgba(0,0,0,0.3)] h-full">
               
               {/* Shop */}
-              <div className="p-4 border-b border-slate-800">
-                {/* 【修改重點 2】：放大商店標題字體 */}
-                <h2 className="text-xl font-bold text-yellow-400 flex items-center gap-3 mb-4">
+              {/* 【修改重點 1】：將 p-4 改為 p-3 減少外框間距，並加上 shrink-0 避免被擠壓 */}
+              <div className="p-3 border-b border-slate-800 shrink-0">
+                {/* 【修改重點 2】：將標題的 mb-4 改為 mb-2 */}
+                <h2 className="text-xl font-bold text-yellow-400 flex items-center gap-3 mb-2">
                   <span className="text-2xl">🛒</span> 女王法寶商店
                 </h2>
-                {/* 【修改重點 3】：加寬行距與放大內部文字、圖示及按鈕 */}
-                <div className="space-y-3">
+                {/* 【修改重點 3】：將 space-y-3 縮短為 space-y-1.5，內部選項的 p-3 改為 py-1.5 px-3 */}
+                <div className="space-y-1.5">
                   {shopItems.map(item => (
-                    <div key={item.id} className="flex justify-between items-center bg-slate-900 p-3 rounded-lg border border-slate-800 text-base font-medium">
+                    <div key={item.id} className="flex justify-between items-center bg-slate-900 py-1.5 px-3 rounded-lg border border-slate-800 text-base font-medium">
                       <span className="flex items-center gap-3">
                         <span className="text-xl">{item.icon}</span> 
                         {item.name}
@@ -592,12 +592,12 @@
               </div>
 
               {/* Logs */}
-              <div className="flex-1 p-4 flex flex-col overflow-hidden">
-                {/* 【修改重點 4】：同步放大記錄本標題與內文 */}
-                <h2 className="text-xl font-bold text-green-400 mb-3 flex items-center gap-3">
+              {/* 【修改重點 4】：外框 p-4 改為 p-3，並加入最重要的 min-h-0！確保 Flexbox 不會讓這個區塊消失 */}
+              <div className="flex-1 p-3 flex flex-col min-h-0">
+                <h2 className="text-xl font-bold text-green-400 mb-2 flex items-center gap-3">
                   <span className="text-2xl">📋</span> 實驗記錄本
                 </h2>
-                <div className="flex-1 overflow-y-auto bg-black/50 rounded-lg border border-slate-800 p-4 font-mono text-base flex flex-col gap-3 shadow-inner">
+                <div className="flex-1 overflow-y-auto bg-black/50 rounded-lg border border-slate-800 p-3 font-mono text-base flex flex-col gap-2 shadow-inner">
                   {logs.length === 0 ? (
                     <div className="text-slate-500 italic">尚無實驗記錄...</div>
                   ) : (
