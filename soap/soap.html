@@ -19,8 +19,10 @@
             height: 100%;
             /* 讀取同一資料夾下的圖片 */
             background-image: url('Chemist_Lovely.png.png');
-            background-size: cover;
+            background-size: contain; /* 修改為 contain，確保圖片完整顯示不被裁切 */
             background-position: center;
+            background-repeat: no-repeat; /* 避免圖片在過大螢幕時重複 */
+            background-color: #f4f1ea; /* 加上與圖片邊框相近的溫暖底色，讓視覺更融合 */
             z-index: 100;
             display: flex;
             justify-content: center;
@@ -30,11 +32,11 @@
         }
 
         .start-hint {
-            margin-bottom: 8vh;
-            padding: 15px 40px;
-            background: rgba(255, 255, 255, 0.85);
+            margin-bottom: 4vh; /* 稍微往下移，避免擋到主角 */
+            padding: 12px 35px;
+            background: rgba(255, 255, 255, 0.9);
             border-radius: 30px;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             color: #3b82f6;
             animation: pulse 1.5s infinite;
