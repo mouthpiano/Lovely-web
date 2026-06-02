@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>力的合成與情境物理模擬 - 互動實驗室</title>
+    
+    <!-- 引入 Google Fonts 確保字體在 GitHub 上與預覽完全相同 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Noto Sans TC', sans-serif; overflow: hidden; background-color: #f3f4f6; }
@@ -12,7 +18,12 @@
         .watermark-top-right { position: absolute; top: 15px; right: 20px; text-align: right; font-size: 0.875rem; color: rgba(107, 114, 128, 0.8); pointer-events: none; z-index: 50; line-height: 1.2; font-weight: 600; }
         .watermark-bottom { position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center; font-size: 0.875rem; color: rgba(107, 114, 128, 0.8); pointer-events: none; z-index: 50; font-weight: 600; }
 
-        input[type=range] { accent-color: #3b82f6; }
+        /* 滑桿樣式優化，確保在 GitHub 上也有好的視覺效果 */
+        input[type=range] { 
+            accent-color: #3b82f6; 
+            height: 6px; 
+            cursor: pointer;
+        }
         
         /* 隱藏卷軸但保留滑動功能 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -64,8 +75,8 @@
             <!-- 全域控制區 (極致壓縮：啟動、重設、速度、單位在同一區塊) -->
             <div class="flex flex-wrap items-center justify-between gap-1 mb-2 pb-2 border-b-2 border-gray-200">
                 <div class="flex gap-1">
-                    <button id="start-btn-free" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-bold py-1 px-2 rounded shadow">▶啟動</button>
-                    <button id="reset-btn-free" class="bg-gray-500 hover:bg-gray-600 text-white text-[13px] font-bold py-1 px-2 rounded shadow">↺重設</button>
+                    <button id="start-btn-free" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-bold py-1 px-2 rounded shadow transition-colors">▶啟動</button>
+                    <button id="reset-btn-free" class="bg-gray-500 hover:bg-gray-600 text-white text-[13px] font-bold py-1 px-2 rounded shadow transition-colors">↺重設</button>
                 </div>
                 
                 <div class="flex items-center gap-1 text-[11px] font-bold text-gray-700">
@@ -74,7 +85,7 @@
                     <span id="speed-val" class="w-7 text-right">1.0x</span>
                 </div>
                 
-                <select id="unit-select" class="border-gray-300 rounded shadow-sm text-[12px] font-bold p-1 bg-white border focus:border-blue-500">
+                <select id="unit-select" class="border-gray-300 rounded shadow-sm text-[12px] font-bold p-1 bg-white border focus:border-blue-500 cursor-pointer">
                     <option value="kgw">kgw</option>
                     <option value="N">N</option>
                     <option value="gw">gw</option>
@@ -84,19 +95,19 @@
             <!-- 顯示控制區 (合力、分力、數值橫向排列) -->
             <div class="flex justify-around items-center mb-2 bg-gray-50 py-1.5 px-1 rounded border border-gray-200 text-sm font-bold text-gray-700 shadow-sm">
                 <label class="flex items-center cursor-pointer hover:text-blue-600">
-                    <input type="checkbox" id="toggle-components" checked class="mr-1 w-4 h-4 text-blue-600 rounded"> 分力
+                    <input type="checkbox" id="toggle-components" checked class="mr-1 w-4 h-4 text-blue-600 rounded cursor-pointer"> 分力
                 </label>
                 <label class="flex items-center cursor-pointer hover:text-red-600">
-                    <input type="checkbox" id="toggle-netforce" class="mr-1 w-4 h-4 text-red-600 rounded"> 合力
+                    <input type="checkbox" id="toggle-netforce" class="mr-1 w-4 h-4 text-red-600 rounded cursor-pointer"> 合力
                 </label>
                 <label class="flex items-center cursor-pointer hover:text-green-600">
-                    <input type="checkbox" id="toggle-values" checked class="mr-1 w-4 h-4 text-green-600 rounded"> 數值
+                    <input type="checkbox" id="toggle-values" checked class="mr-1 w-4 h-4 text-green-600 rounded cursor-pointer"> 數值
                 </label>
             </div>
 
             <div class="flex justify-between items-center mb-2 mt-1">
                 <h2 class="font-bold text-gray-800 text-sm">分力列表</h2>
-                <button id="add-force-btn" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-2 rounded text-xs shadow-sm">+ 新增分力</button>
+                <button id="add-force-btn" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-2 rounded text-xs shadow-sm transition-colors">+ 新增分力</button>
             </div>
             
             <!-- 動態分力列表容器 (現在有巨大空間了) -->
@@ -120,7 +131,7 @@
             
             <div class="mb-4">
                 <label class="block text-sm font-bold text-gray-700 mb-2">1. 選擇環境情境：</label>
-                <select id="env-select" class="w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-50 border focus:border-green-500 focus:ring-green-500">
+                <select id="env-select" class="w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-50 border focus:border-green-500 focus:ring-green-500 cursor-pointer">
                     <option value="none">-- 請選擇 --</option>
                     <option value="air">☁️ 天空 (自由落體)</option>
                     <option value="pool">💧 水池 (浮力測試)</option>
@@ -130,7 +141,7 @@
 
             <div class="mb-4">
                 <label class="block text-sm font-bold text-gray-700 mb-2">2. 選擇測試物品：</label>
-                <select id="obj-select" class="w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-50 border focus:border-green-500 focus:ring-green-500">
+                <select id="obj-select" class="w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-50 border focus:border-green-500 focus:ring-green-500 cursor-pointer">
                     <option value="none">-- 請選擇 --</option>
                     <option value="baseball">⚾ 棒球</option>
                     <option value="plastic-ball">🎈 塑膠球 (輕)</option>
@@ -146,8 +157,8 @@
                 </div>
                 
                 <div class="flex gap-2 mt-4">
-                    <button id="start-btn-scene" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-2 rounded shadow text-lg">▶ 啟動模擬</button>
-                    <button id="reset-btn-scene" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-2 rounded shadow">↺ 復原</button>
+                    <button id="start-btn-scene" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-2 rounded shadow text-lg transition-colors">▶ 啟動模擬</button>
+                    <button id="reset-btn-scene" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-2 rounded shadow transition-colors">↺ 復原</button>
                 </div>
             </div>
             
@@ -164,7 +175,7 @@
                 <p class="text-xl font-bold text-gray-800">你把「重力」關掉了！</p>
                 <p class="text-lg text-gray-600 mt-2">現實生活中，不管在水裡還是哪裡，<br>沒有重力的話，物體真的會往上飛走嗎？</p>
                 <p class="text-sm text-blue-600 mt-4">（提示：想一想浮力的來源是什麼？）</p>
-                <button onclick="document.getElementById('easter-egg').style.display='none'" class="mt-4 bg-red-500 text-white px-4 py-2 rounded font-bold hover:bg-red-600">我明白了，關閉視窗</button>
+                <button onclick="document.getElementById('easter-egg').style.display='none'" class="mt-4 bg-red-500 text-white px-4 py-2 rounded font-bold hover:bg-red-600 transition-colors">我明白了，關閉視窗</button>
             </div>
         </div>
     </div>
@@ -193,7 +204,7 @@
         let showComponents = true;
         let showNetForce = false;
         let showValues = true;
-        let currentUnit = 'kgw'; // 預設配合截圖改為 kgw
+        let currentUnit = 'kgw'; 
 
         // 自由模式：動態分力陣列
         let freeForces = [];
@@ -206,11 +217,24 @@
         let sceneForces = [];
         let sceneEasterEggTriggered = false;
 
+        /* =================畫布效能優化 (節流閥) ================= */
+        // 這個機制能確保快速拖曳滑桿時，畫面更新率維持在螢幕極限，不再卡頓！
+        let drawPending = false;
+        function requestDraw() {
+            if (!isAnimating && !drawPending) {
+                drawPending = true;
+                requestAnimationFrame(() => {
+                    draw();
+                    drawPending = false;
+                });
+            }
+        }
+
         /* =================畫布與基礎函數================= */
         function resizeCanvas() {
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
-            draw();
+            requestDraw();
         }
         window.addEventListener('resize', resizeCanvas);
         
@@ -244,7 +268,7 @@
                 ctx.save();
                 ctx.scale(1, -1); 
                 ctx.fillStyle = color;
-                ctx.font = "bold 14px sans-serif";
+                ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
                 
                 // 讓文字稍微浮動，避免擋住線條
                 const textOffsetX = 5 * Math.cos(angle);
@@ -256,14 +280,14 @@
 
         /* =================自由模式邏輯================= */
         // 綁定顯示開關事件
-        document.getElementById('toggle-components').addEventListener('change', (e) => { showComponents = e.target.checked; if(!isAnimating) draw(); });
-        document.getElementById('toggle-netforce').addEventListener('change', (e) => { showNetForce = e.target.checked; if(!isAnimating) draw(); });
-        document.getElementById('toggle-values').addEventListener('change', (e) => { showValues = e.target.checked; if(!isAnimating) draw(); });
+        document.getElementById('toggle-components').addEventListener('change', (e) => { showComponents = e.target.checked; requestDraw(); });
+        document.getElementById('toggle-netforce').addEventListener('change', (e) => { showNetForce = e.target.checked; requestDraw(); });
+        document.getElementById('toggle-values').addEventListener('change', (e) => { showValues = e.target.checked; requestDraw(); });
         document.getElementById('unit-select').addEventListener('change', (e) => {
             currentUnit = e.target.value;
             document.getElementById('free-res-unit').textContent = currentUnit;
             if (currentMode === 'scenario-mode') renderScenarioForcesUI();
-            if(!isAnimating) draw();
+            requestDraw();
         });
 
         function addFreeForce(mag = 50, ang = 0) {
@@ -314,7 +338,7 @@
             list.innerHTML = '';
             freeForces.forEach((f, index) => {
                 const div = document.createElement('div');
-                div.className = "bg-gray-50 rounded-lg p-2 mb-2 border border-gray-200 shadow-sm relative";
+                div.className = "bg-gray-50 rounded-lg p-2 mb-2 border border-gray-200 shadow-sm relative transition-all";
                 div.innerHTML = `
                     <div class="flex justify-between items-center mb-1">
                         <h3 class="font-bold text-[13px] flex items-center" style="color: ${f.color}">
@@ -327,18 +351,18 @@
                     <!-- 大小控制 (新增 -10 與 +10 快捷鍵，同時支援小數點拖曳) -->
                     <div class="flex gap-1 text-[12px] items-center mb-1 w-full">
                         <span class="shrink-0 font-bold text-gray-600 w-8">大小:</span>
-                        <button onclick="changeForceMag('${f.id}', -10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-1.5 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">-10</button>
-                        <input type="range" id="mag-input-${f.id}" min="0" max="200" step="0.1" value="${f.mag}" class="flex-1 min-w-0" oninput="updateFreeForce('${f.id}', 'mag', this.value)">
-                        <button onclick="changeForceMag('${f.id}', 10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-1.5 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">+10</button>
+                        <button onclick="changeForceMag('${f.id}', -10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95 transition-transform">-10</button>
+                        <input type="range" id="mag-input-${f.id}" min="0" max="200" step="0.1" value="${f.mag}" class="flex-1 min-w-0 mx-1" oninput="updateFreeForce('${f.id}', 'mag', this.value)">
+                        <button onclick="changeForceMag('${f.id}', 10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95 transition-transform">+10</button>
                         <span id="mag-val-${f.id}" class="w-10 text-right font-black shrink-0 text-gray-800">${Number(f.mag).toFixed(1)}</span>
                     </div>
                     
                     <!-- 角度控制 (新增 -15 與 +15 快捷鍵) -->
                     <div class="flex gap-1 text-[12px] items-center w-full">
                         <span class="shrink-0 font-bold text-gray-600 w-8">角度:</span>
-                        <button onclick="changeForceAng('${f.id}', -15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-1.5 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">-15</button>
-                        <input type="range" id="ang-input-${f.id}" min="0" max="360" step="1" value="${f.ang}" class="flex-1 min-w-0" oninput="updateFreeForce('${f.id}', 'ang', this.value)">
-                        <button onclick="changeForceAng('${f.id}', 15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-1.5 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">+15</button>
+                        <button onclick="changeForceAng('${f.id}', -15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95 transition-transform">-15</button>
+                        <input type="range" id="ang-input-${f.id}" min="0" max="360" step="1" value="${f.ang}" class="flex-1 min-w-0 mx-1" oninput="updateFreeForce('${f.id}', 'ang', this.value)">
+                        <button onclick="changeForceAng('${f.id}', 15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95 transition-transform">+15</button>
                         <span id="ang-val-${f.id}" class="w-10 text-right font-black shrink-0 text-gray-800">${f.ang}°</span>
                     </div>
                 `;
@@ -444,11 +468,11 @@
             list.innerHTML = '';
             sceneForces.forEach(f => {
                 const div = document.createElement('div');
-                div.className = `p-2 mb-2 rounded border flex items-center justify-between ${f.active ? 'bg-white border-gray-300' : 'bg-gray-100 border-gray-200 opacity-60'}`;
+                div.className = `p-2 mb-2 rounded border flex items-center justify-between ${f.active ? 'bg-white border-gray-300' : 'bg-gray-100 border-gray-200 opacity-60'} transition-colors`;
                 div.innerHTML = `
                     <label class="flex items-center cursor-pointer flex-1">
                         <input type="checkbox" ${f.active ? 'checked' : ''} ${!f.removable ? 'disabled' : ''} 
-                            onchange="toggleSceneForce('${f.id}', this.checked)" class="mr-2 w-4 h-4 text-green-600 rounded">
+                            onchange="toggleSceneForce('${f.id}', this.checked)" class="mr-2 w-4 h-4 text-green-600 rounded cursor-pointer">
                         <span class="font-bold" style="color: ${f.color}">${f.name}</span>
                         <span class="ml-auto text-sm text-gray-500">${f.mag} ${currentUnit}, ${f.ang}°</span>
                     </label>
@@ -465,8 +489,6 @@
         }
 
         /* =================繪圖與物理引擎================= */
-        let currentNetForce = { fx:0, fy:0, mag:0, ang:0 };
-
         function updatePhysics() {
             const forces = currentMode === 'free-mode' ? freeForces : sceneForces;
             currentNetForce = calcNetForce(forces);
@@ -476,7 +498,8 @@
                 document.getElementById('free-res-ang').textContent = currentNetForce.ang.toFixed(1);
             }
             
-            if(!isAnimating) draw();
+            // 使用 requestDraw 替代直接執行 draw()，徹底解決 GitHub 上拖曳延遲的問題
+            requestDraw();
         }
 
         function drawBackground() {
@@ -641,7 +664,7 @@
                 stopAnim();
             }
 
-            draw();
+            requestDraw(); // 動畫循環內部也統一使用節流渲染
             if(isAnimating) animationId = requestAnimationFrame(animate);
         }
 
@@ -678,7 +701,7 @@
             obj.x = 0; obj.vy = 0; obj.vx = 0;
             if(currentMode === 'scenario-mode') setupScenarioPhysics(); 
             else obj.y = 0;
-            draw();
+            requestDraw();
         }
 
         document.getElementById('start-btn-free').addEventListener('click', () => toggleAnim('start-btn-free', '▶啟動', 'bg-indigo-600', 'hover:bg-indigo-700'));
