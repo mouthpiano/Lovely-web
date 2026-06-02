@@ -289,7 +289,9 @@
                 if (newVal < 0) newVal = 0;
                 if (newVal > 200) newVal = 200;
                 force.mag = Math.round(newVal * 10) / 10; // 避免浮點數誤差
-                renderFreeForcesUI();
+                // 局部更新 DOM 而不重繪整個列表，保持操作順暢
+                document.getElementById(`mag-input-${id}`).value = force.mag;
+                document.getElementById(`mag-val-${id}`).textContent = force.mag.toFixed(1);
                 updatePhysics();
             }
         }
@@ -301,7 +303,8 @@
                 let newVal = force.ang + delta;
                 newVal = (newVal % 360 + 360) % 360; // 確保角度在 0~359 之間循環
                 force.ang = Math.round(newVal); 
-                renderFreeForcesUI();
+                document.getElementById(`ang-input-${id}`).value = force.ang;
+                document.getElementById(`ang-val-${id}`).textContent = force.ang + '°';
                 updatePhysics();
             }
         }
@@ -325,18 +328,18 @@
                     <div class="flex gap-1 text-[12px] items-center mb-1 w-full">
                         <span class="shrink-0 font-bold text-gray-600 w-8">大小:</span>
                         <button onclick="changeForceMag('${f.id}', -10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-1.5 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">-10</button>
-                        <input type="range" min="0" max="200" step="0.1" value="${f.mag}" class="flex-1 min-w-0" oninput="updateFreeForce('${f.id}', 'mag', this.value)">
+                        <input type="range" id="mag-input-${f.id}" min="0" max="200" step="0.1" value="${f.mag}" class="flex-1 min-w-0" oninput="updateFreeForce('${f.id}', 'mag', this.value)">
                         <button onclick="changeForceMag('${f.id}', 10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-1.5 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">+10</button>
-                        <span class="w-10 text-right font-black shrink-0 text-gray-800">${Number(f.mag).toFixed(1)}</span>
+                        <span id="mag-val-${f.id}" class="w-10 text-right font-black shrink-0 text-gray-800">${Number(f.mag).toFixed(1)}</span>
                     </div>
                     
                     <!-- 角度控制 (新增 -15 與 +15 快捷鍵) -->
                     <div class="flex gap-1 text-[12px] items-center w-full">
                         <span class="shrink-0 font-bold text-gray-600 w-8">角度:</span>
                         <button onclick="changeForceAng('${f.id}', -15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-1.5 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">-15</button>
-                        <input type="range" min="0" max="360" step="1" value="${f.ang}" class="flex-1 min-w-0" oninput="updateFreeForce('${f.id}', 'ang', this.value)">
+                        <input type="range" id="ang-input-${f.id}" min="0" max="360" step="1" value="${f.ang}" class="flex-1 min-w-0" oninput="updateFreeForce('${f.id}', 'ang', this.value)">
                         <button onclick="changeForceAng('${f.id}', 15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-1.5 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">+15</button>
-                        <span class="w-10 text-right font-black shrink-0 text-gray-800">${f.ang}°</span>
+                        <span id="ang-val-${f.id}" class="w-10 text-right font-black shrink-0 text-gray-800">${f.ang}°</span>
                     </div>
                 `;
                 list.appendChild(div);
@@ -347,7 +350,12 @@
             const force = freeForces.find(f => f.id === id);
             if(force) {
                 force[prop] = parseFloat(value);
-                renderFreeForcesUI(); 
+                // 局部更新 DOM，避免重建整個清單導致拖曳中斷
+                if (prop === 'mag') {
+                    document.getElementById(`mag-val-${id}`).textContent = force.mag.toFixed(1);
+                } else if (prop === 'ang') {
+                    document.getElementById(`ang-val-${id}`).textContent = force.ang + '°';
+                }
                 updatePhysics();
             }
         }
@@ -679,8 +687,15 @@
         document.getElementById('reset-btn-scene').addEventListener('click', resetSim);
         
         document.getElementById('add-force-btn').addEventListener('click', () => {
-            // 將新增分力的初始大小設定為 0 (原本為隨機大小)
-            if(freeForces.length < 10) addFreeForce(0, Math.floor(Math.random()*360));
+            if(freeForces.length < 10) {
+                let newAngle = 0;
+                let currentCount = freeForces.length;
+                if (currentCount === 2) newAngle = 180; // 第 3 個分力預設 180度
+                else if (currentCount === 3) newAngle = 270; // 第 4 個分力預設 270度
+                else newAngle = (Math.floor(Math.random() * 24) * 15); // 其餘預設為 15 的倍數 (0, 15, 30... 345)
+                
+                addFreeForce(0, newAngle);
+            }
             else alert("太多力了！畫面會爆炸啦！💥 (限制最多10個)");
         });
 
