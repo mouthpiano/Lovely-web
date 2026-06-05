@@ -231,7 +231,7 @@
         // 這個機制能確保快速拖曳滑桿時，畫面更新率維持在螢幕極限，不再卡頓
         let drawPending = false;
         function requestDraw() {
-            if (isAnimating) return; // 【修復關鍵】：如果動畫正在跑，就交給動畫引擎畫，不要在這裡擋住
+            if (isAnimating) return; // 如果動畫正在跑，就交給動畫引擎畫，不要在這裡擋住
             if (!drawPending) {
                 drawPending = true;
                 requestAnimationFrame(() => {
@@ -316,7 +316,8 @@
         });
 
         function addFreeForce(mag = 50, ang = 0) {
-            const id = Date.now().toString() + Math.floor(Math.random()*100);
+            // 加入更強的隨機參數避免同時間產生力時發生 id 衝突
+            const id = 'force_' + Date.now().toString() + '_' + Math.floor(Math.random()*10000);
             const color = colorPalette[colorIndex % colorPalette.length];
             colorIndex++;
             freeForces.push({ id, mag, ang, color });
@@ -687,7 +688,7 @@
                 stopAnim();
             }
 
-            draw(); // 【修復關鍵】：動畫迴圈中直接呼叫畫圖，不再透過防卡頓機制，這樣才會逐格顯示
+            draw(); // 動畫迴圈中直接呼叫畫圖，不再透過防卡頓機制，這樣才會逐格顯示
             if(isAnimating) animationId = requestAnimationFrame(animate);
         }
 
@@ -719,11 +720,37 @@
             btn.classList.replace('hover:bg-yellow-600', 'hover:bg-green-700');
         }
 
+        // 徹底初始化的重設功能
         function resetSim() {
             stopAnim();
             obj.x = 0; obj.vy = 0; obj.vx = 0;
-            if(currentMode === 'scenario-mode') setupScenarioPhysics(); 
-            else obj.y = 0;
+            
+            // 畫布縮放也一起歸零
+            zoomPercent = 100;
+            currentScale = BASE_SCALE;
+            document.getElementById('zoom-display').textContent = '100%';
+
+            if(currentMode === 'scenario-mode') {
+                // 清空情境模式選單
+                document.getElementById('env-select').value = 'none';
+                document.getElementById('obj-select').value = 'none';
+                checkScenarioSetup(); // 讓介面重新判斷隱藏狀態
+                
+                // 清空物理態
+                obj = { x: 0, y: 0, vx: 0, vy: 0, mass: 1, radius: 25 };
+                sceneForces = [];
+                sceneEasterEggTriggered = false;
+                document.getElementById('easter-egg').style.display = 'none';
+                updatePhysics();
+            } else {
+                // 清空自由探索模式
+                obj.y = 0;
+                freeForces = [];
+                colorIndex = 0;
+                // 強制加入兩個最乾淨的初始力，解決之前疊加的問題
+                addFreeForce(0, 0); 
+                addFreeForce(0, 90);
+            }
             requestDraw();
         }
 
@@ -745,16 +772,17 @@
             else alert("太多力了！畫面會爆炸啦！💥 (限制最多10個)");
         });
 
+        // 修復切換頁籤偶爾失靈的錯誤 (確保無論點擊文字或圖標，都能抓到正確的按鈕區塊)
         document.querySelectorAll('.tab-btn').forEach(tab => {
-            tab.addEventListener('click', (e) => {
+            tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(t => {
                     t.classList.remove('border-blue-500', 'text-white');
                     t.classList.add('border-transparent', 'text-gray-400');
                 });
-                e.target.classList.remove('border-transparent', 'text-gray-400');
-                e.target.classList.add('border-blue-500', 'text-white');
+                tab.classList.remove('border-transparent', 'text-gray-400');
+                tab.classList.add('border-blue-500', 'text-white');
 
-                const targetId = e.target.getAttribute('data-target');
+                const targetId = tab.getAttribute('data-target');
                 document.getElementById('free-mode-panel').classList.add('hidden');
                 document.getElementById('scenario-mode-panel').classList.add('hidden');
                 document.getElementById(targetId + '-panel').classList.remove('hidden');
@@ -765,7 +793,6 @@
         });
 
         // 初始化
-        // 將一開始打開網頁的兩個預設分力大小都設定為 0
         addFreeForce(0, 0); 
         addFreeForce(0, 90);
         resizeCanvas();
