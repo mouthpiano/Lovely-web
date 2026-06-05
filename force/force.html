@@ -167,6 +167,14 @@
 
         <!-- 右側畫布區 -->
         <div class="flex-1 relative bg-white" id="canvas-container">
+            <!-- 畫布縮放控制 -->
+            <div class="absolute top-4 left-4 flex gap-1 z-20 bg-white/90 p-1.5 rounded-lg shadow-md border border-gray-200 backdrop-blur-sm">
+                <span class="text-xs font-bold text-gray-600 self-center mx-1 flex items-center">🔍 縮放</span>
+                <button onclick="changeZoom(-25)" class="bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 w-7 h-7 rounded font-bold text-lg leading-none active:scale-95 transition-all">-</button>
+                <span id="zoom-display" class="text-xs font-bold text-gray-800 self-center w-10 text-center">100%</span>
+                <button onclick="changeZoom(25)" class="bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 w-7 h-7 rounded font-bold text-lg leading-none active:scale-95 transition-all">+</button>
+            </div>
+            
             <canvas id="simCanvas"></canvas>
             
             <!-- 彩蛋警告視窗 -->
@@ -193,8 +201,10 @@
         let isAnimating = false;
         let animationId;
         
-        // 關鍵設定：10 單位力 = 1 格。透過 scale 放縮 (例如 scale = 4，則 10 單位 = 40px)
-        const scale = 4; 
+        // 縮放設定
+        const BASE_SCALE = 4; // 基準：10 單位力 = 40px
+        let zoomPercent = 100;
+        let currentScale = BASE_SCALE; 
 
         // 物體與物理狀態
         let obj = { x: 0, y: 0, vx: 0, vy: 0, mass: 1, radius: 15 };
@@ -218,10 +228,11 @@
         let sceneEasterEggTriggered = false;
 
         /* =================畫布效能優化 (節流閥) ================= */
-        // 這個機制能確保快速拖曳滑桿時，畫面更新率維持在螢幕極限，不再卡頓！
+        // 這個機制能確保快速拖曳滑桿時，畫面更新率維持在螢幕極限，不再卡頓
         let drawPending = false;
         function requestDraw() {
-            if (!isAnimating && !drawPending) {
+            if (isAnimating) return; // 【修復關鍵】：如果動畫正在跑，就交給動畫引擎畫，不要在這裡擋住
+            if (!drawPending) {
                 drawPending = true;
                 requestAnimationFrame(() => {
                     draw();
@@ -234,16 +245,30 @@
         function resizeCanvas() {
             canvas.width = container.clientWidth;
             canvas.height = container.clientHeight;
-            requestDraw();
+            if (!isAnimating) requestDraw();
         }
         window.addEventListener('resize', resizeCanvas);
         
         const degToRad = (deg) => deg * (Math.PI / 180);
         const radToDeg = (rad) => { let d = rad * (180 / Math.PI); return d < 0 ? d + 360 : d; };
 
+        // 縮放功能邏輯
+        window.changeZoom = function(delta) {
+            zoomPercent += delta;
+            if (zoomPercent < 25) zoomPercent = 25; // 最小縮到 25%
+            if (zoomPercent > 300) zoomPercent = 300; // 最大放大到 300%
+            
+            document.getElementById('zoom-display').textContent = zoomPercent + '%';
+            currentScale = BASE_SCALE * (zoomPercent / 100);
+            
+            // 如果是在動畫進行中縮放，它會在下一次 animate() 迴圈自動畫出來
+            // 如果暫停中，就呼叫 requestDraw 更新畫面
+            requestDraw();
+        }
+
         // 畫向量箭頭
         function drawArrow(fromX, fromY, toX, toY, color, label, width = 3) {
-            const headlen = 12;
+            const headlen = 12 * (zoomPercent / 100 > 1 ? 1 : zoomPercent / 100); // 箭頭大小隨縮放微調，但不會無限變大
             const dx = toX - fromX;
             const dy = toY - fromY;
             const length = Math.sqrt(dx*dx + dy*dy);
@@ -498,8 +523,7 @@
                 document.getElementById('free-res-ang').textContent = currentNetForce.ang.toFixed(1);
             }
             
-            // 使用 requestDraw 替代直接執行 draw()，徹底解決 GitHub 上拖曳延遲的問題
-            requestDraw();
+            requestDraw(); // 當手動操作改變數值時，要求重繪畫面
         }
 
         function drawBackground() {
@@ -511,8 +535,7 @@
                 ctx.lineWidth = 1;
                 
                 // 網格設定：確保一格就是等於 10 單位力
-                // scale 放縮比例已定，10 單位對應的像素就是 10 * scale
-                const gridSize = 10 * scale; 
+                const gridSize = 10 * currentScale; 
 
                 // 從中央原點 (0,0) 向外繪製 X 方向的垂直線
                 for (let x = 0; x <= hw; x += gridSize) {
@@ -590,12 +613,12 @@
             if (currentMode === 'free-mode' && showComponents && showNetForce && activeForces.length === 2) {
                 const f1 = activeForces[0];
                 const f2 = activeForces[1];
-                const end1X = obj.x + f1.mag * scale * Math.cos(degToRad(f1.ang));
-                const end1Y = obj.y + f1.mag * scale * Math.sin(degToRad(f1.ang));
-                const end2X = obj.x + f2.mag * scale * Math.cos(degToRad(f2.ang));
-                const end2Y = obj.y + f2.mag * scale * Math.sin(degToRad(f2.ang));
-                const resX = obj.x + currentNetForce.mag * scale * Math.cos(degToRad(currentNetForce.ang));
-                const resY = obj.y + currentNetForce.mag * scale * Math.sin(degToRad(currentNetForce.ang));
+                const end1X = obj.x + f1.mag * currentScale * Math.cos(degToRad(f1.ang));
+                const end1Y = obj.y + f1.mag * currentScale * Math.sin(degToRad(f1.ang));
+                const end2X = obj.x + f2.mag * currentScale * Math.cos(degToRad(f2.ang));
+                const end2Y = obj.y + f2.mag * currentScale * Math.sin(degToRad(f2.ang));
+                const resX = obj.x + currentNetForce.mag * currentScale * Math.cos(degToRad(currentNetForce.ang));
+                const resY = obj.y + currentNetForce.mag * currentScale * Math.sin(degToRad(currentNetForce.ang));
 
                 ctx.beginPath();
                 ctx.setLineDash([5, 5]);
@@ -611,8 +634,8 @@
             // 畫分力
             if (currentMode === 'scenario-mode' || (currentMode === 'free-mode' && showComponents)) {
                 activeForces.forEach((f, index) => {
-                    const ex = obj.x + f.mag * scale * Math.cos(degToRad(f.ang));
-                    const ey = obj.y + f.mag * scale * Math.sin(degToRad(f.ang));
+                    const ex = obj.x + f.mag * currentScale * Math.cos(degToRad(f.ang));
+                    const ey = obj.y + f.mag * currentScale * Math.sin(degToRad(f.ang));
                     
                     let baseLabel = f.name || `F${index + 1}`;
                     let label = showValues ? `${baseLabel} (${f.mag} ${currentUnit})` : baseLabel;
@@ -623,8 +646,8 @@
             // 畫合力
             if (currentNetForce.mag > 0.1) {
                 if (currentMode === 'scenario-mode' || (currentMode === 'free-mode' && showNetForce)) {
-                    const resX = obj.x + currentNetForce.mag * scale * Math.cos(degToRad(currentNetForce.ang));
-                    const resY = obj.y + currentNetForce.mag * scale * Math.sin(degToRad(currentNetForce.ang));
+                    const resX = obj.x + currentNetForce.mag * currentScale * Math.cos(degToRad(currentNetForce.ang));
+                    const resY = obj.y + currentNetForce.mag * currentScale * Math.sin(degToRad(currentNetForce.ang));
                     
                     let label = showValues ? `合力 (${currentNetForce.mag.toFixed(1)} ${currentUnit})` : '合力Fnet';
                     drawArrow(obj.x, obj.y, resX, resY, '#000000', label, 4);
@@ -664,7 +687,7 @@
                 stopAnim();
             }
 
-            requestDraw(); // 動畫循環內部也統一使用節流渲染
+            draw(); // 【修復關鍵】：動畫迴圈中直接呼叫畫圖，不再透過防卡頓機制，這樣才會逐格顯示
             if(isAnimating) animationId = requestAnimationFrame(animate);
         }
 
