@@ -5,58 +5,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>力的合成與情境物理模擬 - 互動實驗室</title>
     
-    <!-- 引入 Google Fonts 確保字體在 GitHub 上與預覽完全相同 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap" rel="stylesheet">
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Noto Sans TC', sans-serif; overflow: hidden; background-color: #f3f4f6; }
-        
-        /* 浮水印 */
         .watermark-top-right { position: absolute; top: 15px; right: 20px; text-align: right; font-size: 0.875rem; color: rgba(107, 114, 128, 0.8); pointer-events: none; z-index: 50; line-height: 1.2; font-weight: 600; }
         .watermark-bottom { position: absolute; bottom: 10px; left: 0; width: 100%; text-align: center; font-size: 0.875rem; color: rgba(107, 114, 128, 0.8); pointer-events: none; z-index: 50; font-weight: 600; }
-
-        /* 滑桿樣式優化，確保在 GitHub 上也有好的視覺效果 */
-        input[type=range] { 
-            accent-color: #3b82f6; 
-            height: 6px; 
-            cursor: pointer;
-        }
-        
-        /* 隱藏卷軸但保留滑動功能 */
+        input[type=range] { accent-color: #3b82f6; height: 6px; cursor: pointer; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* 彩蛋大字報特效 */
-        .easter-egg-popup {
-            display: none;
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.95);
-            border: 4px dashed #ef4444;
-            padding: 2rem;
-            border-radius: 1rem;
-            text-align: center;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            z-index: 100;
-            animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-        @keyframes popIn {
-            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
-            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-        }
+        .easter-egg-popup { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255, 255, 255, 0.95); border: 4px dashed #ef4444; padding: 2rem; border-radius: 1rem; text-align: center; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); z-index: 100; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { 0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; } 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+        /* 放大鏡遮罩 */
+        #magnify-overlay { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 40; flex-direction: column; align-items: center; justify-content: center; color: white; }
     </style>
 </head>
 <body class="h-screen flex flex-col">
 
-    <!-- 浮水印：右上角 -->
     <div class="watermark-top-right">Designed by 黃鈺心,<br>Gemini Canvas輔助生成</div>
 
-    <!-- 頂部頁籤 (Tabs) -->
     <div class="bg-gray-800 text-white shadow-md z-20 flex px-4">
         <div class="py-3 px-6 cursor-pointer font-bold border-b-4 border-blue-500 tab-btn" data-target="free-mode">
             ⚙️ 自由探索模式 (多力合成)
@@ -66,43 +35,32 @@
         </div>
     </div>
 
-    <!-- 主要內容區 -->
     <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         
-        <!-- 左側控制面板 (自由模式) - 寬度微調以容納新版面 -->
+        <!-- 左側面板 (自由模式) -->
         <div id="free-mode-panel" class="w-full md:w-[360px] bg-white shadow-xl p-3 flex flex-col z-10 overflow-y-auto no-scrollbar transition-all duration-300">
-            
-            <!-- 全域控制區 (極致壓縮：啟動、重設、速度、單位在同一區塊) -->
             <div class="flex flex-wrap items-center justify-between gap-1 mb-2 pb-2 border-b-2 border-gray-200">
                 <div class="flex gap-1">
                     <button id="start-btn-free" class="bg-indigo-600 hover:bg-indigo-700 text-white text-[13px] font-bold py-1 px-2 rounded shadow transition-colors">▶啟動</button>
                     <button id="reset-btn-free" class="bg-gray-500 hover:bg-gray-600 text-white text-[13px] font-bold py-1 px-2 rounded shadow transition-colors">↺重設</button>
                 </div>
-                
                 <div class="flex items-center gap-1 text-[11px] font-bold text-gray-700">
                     <span title="動畫速度">⏱</span>
                     <input type="range" id="sim-speed" min="1" max="20" value="10" class="w-14">
                     <span id="speed-val" class="w-7 text-right">1.0x</span>
                 </div>
-                
                 <select id="unit-select" class="border-gray-300 rounded shadow-sm text-[12px] font-bold p-1 bg-white border focus:border-blue-500 cursor-pointer">
                     <option value="kgw">kgw</option>
-                    <option value="N">N</option>
                     <option value="gw">gw</option>
+                    <option value="N">N</option>
                 </select>
             </div>
 
-            <!-- 顯示控制區 (合力、分力、數值橫向排列) -->
+            <!-- 顯示控制區 -->
             <div class="flex justify-around items-center mb-2 bg-gray-50 py-1.5 px-1 rounded border border-gray-200 text-sm font-bold text-gray-700 shadow-sm">
-                <label class="flex items-center cursor-pointer hover:text-blue-600">
-                    <input type="checkbox" id="toggle-components" checked class="mr-1 w-4 h-4 text-blue-600 rounded cursor-pointer"> 分力
-                </label>
-                <label class="flex items-center cursor-pointer hover:text-red-600">
-                    <input type="checkbox" id="toggle-netforce" class="mr-1 w-4 h-4 text-red-600 rounded cursor-pointer"> 合力
-                </label>
-                <label class="flex items-center cursor-pointer hover:text-green-600">
-                    <input type="checkbox" id="toggle-values" checked class="mr-1 w-4 h-4 text-green-600 rounded cursor-pointer"> 數值
-                </label>
+                <label class="flex items-center cursor-pointer hover:text-blue-600"><input type="checkbox" id="toggle-components" checked class="mr-1 w-4 h-4 text-blue-600 rounded cursor-pointer"> 分力</label>
+                <label class="flex items-center cursor-pointer hover:text-red-600"><input type="checkbox" id="toggle-netforce" class="mr-1 w-4 h-4 text-red-600 rounded cursor-pointer"> 合力</label>
+                <label class="flex items-center cursor-pointer hover:text-green-600"><input type="checkbox" id="toggle-values" checked class="mr-1 w-4 h-4 text-green-600 rounded cursor-pointer"> 數值</label>
             </div>
 
             <div class="flex justify-between items-center mb-2 mt-1">
@@ -110,12 +68,8 @@
                 <button id="add-force-btn" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold py-1 px-2 rounded text-xs shadow-sm transition-colors">+ 新增分力</button>
             </div>
             
-            <!-- 動態分力列表容器 (現在有巨大空間了) -->
-            <div id="forces-list" class="flex-1 overflow-y-auto pr-1">
-                <!-- Javascript 將在此動態生成控制項 -->
-            </div>
+            <div id="forces-list" class="flex-1 overflow-y-auto pr-1"></div>
 
-            <!-- 合力結果 -->
             <div class="bg-red-50 rounded-lg p-2 mt-2 border border-red-100 shadow-inner shrink-0">
                 <h2 class="font-bold text-red-700 text-[13px] mb-1">總合力 (F_net) 數值</h2>
                 <div class="flex justify-between text-sm">
@@ -125,40 +79,55 @@
             </div>
         </div>
 
-        <!-- 左側控制面板 (情境模式) -->
-        <div id="scenario-mode-panel" class="w-full md:w-80 bg-white shadow-xl p-4 flex flex-col z-10 overflow-y-auto no-scrollbar hidden transition-all duration-300">
-            <h2 class="font-bold text-gray-800 text-xl mb-4 border-b-2 border-green-500 pb-2">選擇情境與物品</h2>
+        <!-- 左側面板 (情境模式) -->
+        <div id="scenario-mode-panel" class="w-full md:w-[360px] bg-white shadow-xl p-3 flex flex-col z-10 overflow-y-auto no-scrollbar hidden transition-all duration-300">
+            <h2 class="font-bold text-gray-800 text-lg mb-2 border-b-2 border-green-500 pb-1">選擇情境與物品</h2>
             
-            <div class="mb-4">
-                <label class="block text-sm font-bold text-gray-700 mb-2">1. 選擇環境情境：</label>
-                <select id="env-select" class="w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-50 border focus:border-green-500 focus:ring-green-500 cursor-pointer">
+            <!-- 情境專用顯示控制區 -->
+            <div class="flex justify-around items-center mb-3 bg-gray-50 py-1.5 px-1 rounded border border-gray-200 text-sm font-bold text-gray-700 shadow-sm">
+                <label class="flex items-center cursor-pointer hover:text-blue-600"><input type="checkbox" id="scen-toggle-components" checked class="mr-1 w-4 h-4 text-blue-600 rounded cursor-pointer"> 分力</label>
+                <label class="flex items-center cursor-pointer hover:text-red-600"><input type="checkbox" id="scen-toggle-netforce" checked class="mr-1 w-4 h-4 text-red-600 rounded cursor-pointer"> 合力</label>
+                <label class="flex items-center cursor-pointer hover:text-green-600"><input type="checkbox" id="scen-toggle-values" checked class="mr-1 w-4 h-4 text-green-600 rounded cursor-pointer"> 數值</label>
+            </div>
+
+            <div class="mb-3">
+                <label class="block text-sm font-bold text-gray-700 mb-1">1. 環境：</label>
+                <select id="env-select" class="w-full border-gray-300 rounded shadow-sm p-1.5 bg-gray-50 border focus:border-green-500 text-sm">
                     <option value="none">-- 請選擇 --</option>
                     <option value="air">☁️ 天空 (自由落體)</option>
-                    <option value="pool">💧 水池 (浮力測試)</option>
-                    <option value="road">🛣️ 馬路 (摩擦力與推力)</option>
+                    <option value="sea">🌊 海洋 (浮力探究)</option>
+                    <option value="pool">💧 水池 (一般浮力)</option>
+                    <option value="road">🛣️ 馬路 (摩擦力)</option>
                 </select>
             </div>
 
-            <div class="mb-4">
-                <label class="block text-sm font-bold text-gray-700 mb-2">2. 選擇測試物品：</label>
-                <select id="obj-select" class="w-full border-gray-300 rounded-md shadow-sm p-2 bg-gray-50 border focus:border-green-500 focus:ring-green-500 cursor-pointer">
+            <div class="mb-3">
+                <label class="block text-sm font-bold text-gray-700 mb-1">2. 物品：</label>
+                <select id="obj-select" class="w-full border-gray-300 rounded shadow-sm p-1.5 bg-gray-50 border focus:border-green-500 text-sm">
                     <option value="none">-- 請選擇 --</option>
-                    <option value="baseball">⚾ 棒球</option>
-                    <option value="plastic-ball">🎈 塑膠球 (輕)</option>
+                    <option value="wood">🟫 長方形木塊</option>
                     <option value="car">🚗 汽車</option>
+                    <option value="plastic-ball">🎈 塑膠球 (輕)</option>
+                    <option value="bowling-15">🎳 保齡球 (15磅)</option>
+                    <option value="bowling-8">🎳 保齡球 (8磅)</option>
+                    <option value="kickboard">🏏 浮板</option>
+                    <option value="ship">🛳️ 輪船</option>
+                    <option value="submarine">🚢 潛水艇</option>
+                    <option value="scuba">🤿 潛水教練</option>
+                    <option value="bubble">🫧 人吐泡泡</option>
                 </select>
             </div>
 
-            <!-- 情境受力分析區 -->
+            <!-- 動態操作控制區 (手壓、彈簧秤、貨物等) -->
+            <div id="dynamic-scenario-controls" class="mb-2 empty:hidden"></div>
+
             <div id="scenario-forces-area" class="flex-1 hidden flex-col">
-                <h3 class="font-bold text-gray-700 mb-2 mt-4 bg-gray-200 px-2 py-1 rounded">當前受力分析 (可勾選關閉)</h3>
-                <div id="scenario-forces-list" class="flex-1">
-                    <!-- 動態生成情境力 -->
-                </div>
+                <h3 class="font-bold text-gray-700 text-sm mb-1 mt-2 bg-gray-200 px-2 py-1 rounded">受力分析 (可勾選關閉)</h3>
+                <div id="scenario-forces-list" class="flex-1 overflow-y-auto"></div>
                 
-                <div class="flex gap-2 mt-4">
-                    <button id="start-btn-scene" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-2 rounded shadow text-lg transition-colors">▶ 啟動模擬</button>
-                    <button id="reset-btn-scene" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-2 rounded shadow transition-colors">↺ 復原</button>
+                <div class="flex gap-2 mt-2 shrink-0">
+                    <button id="start-btn-scene" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-2 rounded shadow transition-colors">▶ 啟動</button>
+                    <button id="reset-btn-scene" class="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-2 rounded shadow transition-colors">↺ 復原</button>
                 </div>
             </div>
             
@@ -167,28 +136,50 @@
 
         <!-- 右側畫布區 -->
         <div class="flex-1 relative bg-white" id="canvas-container">
-            <!-- 畫布縮放控制 -->
+            <!-- 縮放控制 -->
             <div class="absolute top-4 left-4 flex gap-1 z-20 bg-white/90 p-1.5 rounded-lg shadow-md border border-gray-200 backdrop-blur-sm">
                 <span class="text-xs font-bold text-gray-600 self-center mx-1 flex items-center">🔍 縮放</span>
-                <button onclick="changeZoom(-25)" class="bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 w-7 h-7 rounded font-bold text-lg leading-none active:scale-95 transition-all">-</button>
+                <button onclick="changeZoom(-25)" class="bg-gray-100 hover:bg-blue-100 text-gray-700 w-7 h-7 rounded font-bold text-lg leading-none active:scale-95">-</button>
                 <span id="zoom-display" class="text-xs font-bold text-gray-800 self-center w-10 text-center">100%</span>
-                <button onclick="changeZoom(25)" class="bg-gray-100 hover:bg-blue-100 text-gray-700 hover:text-blue-700 w-7 h-7 rounded font-bold text-lg leading-none active:scale-95 transition-all">+</button>
+                <button onclick="changeZoom(25)" class="bg-gray-100 hover:bg-blue-100 text-gray-700 w-7 h-7 rounded font-bold text-lg leading-none active:scale-95">+</button>
             </div>
             
             <canvas id="simCanvas"></canvas>
             
-            <!-- 彩蛋警告視窗 -->
+            <!-- 泡泡專屬放大鏡遮罩 -->
+            <div id="magnify-overlay">
+                <h2 class="text-3xl font-bold mb-4 text-yellow-300">🔍 氣泡真實受力與形狀分析</h2>
+                <div class="relative w-64 h-64 border-4 border-white rounded-full flex items-center justify-center bg-blue-900/50 backdrop-blur-md">
+                    <!-- 泡泡形狀 (上凸下凹) -->
+                    <div class="absolute w-40 h-32 border-4 border-blue-300 bg-blue-100/30" style="border-radius: 50% 50% 30% 30% / 60% 60% 20% 20%;"></div>
+                    <!-- 浮力箭頭 (巨大) -->
+                    <div class="absolute bottom-1/2 left-1/2 -translate-x-1/2 w-2 h-32 bg-green-400 origin-bottom flex justify-center">
+                        <div class="w-0 h-0 border-l-8 border-r-8 border-b-[16px] border-l-transparent border-r-transparent border-b-green-400 absolute -top-4"></div>
+                        <span class="absolute -top-10 font-bold text-green-300 text-xl whitespace-nowrap">浮力 (極大)</span>
+                    </div>
+                    <!-- 重力箭頭 (小) -->
+                    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 w-1 h-8 bg-blue-400 origin-top flex justify-center mt-4">
+                        <div class="w-0 h-0 border-l-4 border-r-4 border-t-[8px] border-l-transparent border-r-transparent border-t-blue-400 absolute -bottom-2"></div>
+                        <span class="absolute -bottom-8 font-bold text-blue-300 text-sm whitespace-nowrap">重力 (極小)</span>
+                    </div>
+                </div>
+                <p class="mt-6 text-lg max-w-lg text-center leading-relaxed">
+                    因為氣泡內部的氣體極輕（重力小），但排開了體積不小的水（浮力大），因此合力向上加速。<br>
+                    上升過程中，水壓變小，氣泡體積膨脹，底部受到水流阻力而呈現<span class="text-yellow-400 font-bold">上凸下凹</span>的形狀！
+                </p>
+                <button onclick="closeMagnify()" class="mt-8 bg-blue-600 hover:bg-blue-500 px-6 py-2 rounded-full font-bold shadow-lg transition-transform hover:scale-105">關閉放大鏡，繼續實驗</button>
+            </div>
+
+            <!-- 彩蛋警告 -->
             <div id="easter-egg" class="easter-egg-popup">
                 <h1 class="text-3xl font-black text-red-600 mb-4">🚨 物理法則異常！</h1>
                 <p class="text-xl font-bold text-gray-800">你把「重力」關掉了！</p>
-                <p class="text-lg text-gray-600 mt-2">現實生活中，不管在水裡還是哪裡，<br>沒有重力的話，物體真的會往上飛走嗎？</p>
-                <p class="text-sm text-blue-600 mt-4">（提示：想一想浮力的來源是什麼？）</p>
-                <button onclick="document.getElementById('easter-egg').style.display='none'" class="mt-4 bg-red-500 text-white px-4 py-2 rounded font-bold hover:bg-red-600 transition-colors">我明白了，關閉視窗</button>
+                <p class="text-lg text-gray-600 mt-2">物體真的會往上飛走嗎？想一想浮力的來源是什麼？</p>
+                <button onclick="document.getElementById('easter-egg').style.display='none'" class="mt-4 bg-red-500 text-white px-4 py-2 rounded font-bold hover:bg-red-600">我明白了，關閉視窗</button>
             </div>
         </div>
     </div>
 
-    <!-- 浮水印：最下方 -->
     <div class="watermark-bottom">Designed by 黃鈺心, Gemini Canvas輔助生成</div>
 
     <script>
@@ -197,117 +188,113 @@
         const ctx = canvas.getContext('2d');
         const container = document.getElementById('canvas-container');
         
-        let currentMode = 'free-mode'; // 'free-mode' or 'scenario-mode'
+        let currentMode = 'free-mode'; 
         let isAnimating = false;
         let animationId;
         
-        // 縮放設定
-        const BASE_SCALE = 4; // 基準：10 單位力 = 40px
+        // 暫停狀態 (供氣泡互動使用)
+        let isPaused = false;
+        
+        const BASE_SCALE = 4; 
         let zoomPercent = 100;
         let currentScale = BASE_SCALE; 
 
-        // 物體與物理狀態
         let obj = { x: 0, y: 0, vx: 0, vy: 0, mass: 1, radius: 15 };
         let speedMultiplier = 0.005; 
 
-        // 自由模式：顯示切換狀態
+        // 顯示狀態
         let showComponents = true;
         let showNetForce = false;
         let showValues = true;
         let currentUnit = 'kgw'; 
 
-        // 自由模式：動態分力陣列
+        // 情境專用顯示狀態
+        let scenShowComponents = true;
+        let scenShowNetForce = true;
+        let scenShowValues = true;
+
         let freeForces = [];
         const colorPalette = ['#3b82f6', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e'];
         let colorIndex = 0;
 
-        // 情境模式狀態
         let sceneEnv = 'none';
         let sceneObj = 'none';
         let sceneForces = [];
         let sceneEasterEggTriggered = false;
 
+        // 情境動態變數
+        let scenState = {
+            pullForce: 0,
+            frictionCoeff: 0.3,
+            handForce: 0,
+            cargoWeight: 0,
+            subMode: 'hover',
+            bubbleDepth: 150,
+            bubbleR: 5
+        };
+
+        let currentNetForce = { fx:0, fy:0, mag:0, ang:0 };
+
         /* =================畫布效能優化 (節流閥) ================= */
-        // 這個機制能確保快速拖曳滑桿時，畫面更新率維持在螢幕極限，不再卡頓
         let drawPending = false;
         function requestDraw() {
-            if (isAnimating) return; // 如果動畫正在跑，就交給動畫引擎畫，不要在這裡擋住
+            if (isAnimating && !isPaused) return; 
             if (!drawPending) {
                 drawPending = true;
-                requestAnimationFrame(() => {
-                    draw();
-                    drawPending = false;
-                });
+                requestAnimationFrame(() => { draw(); drawPending = false; });
             }
         }
 
         /* =================畫布與基礎函數================= */
-        function resizeCanvas() {
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-            if (!isAnimating) requestDraw();
-        }
+        function resizeCanvas() { canvas.width = container.clientWidth; canvas.height = container.clientHeight; requestDraw(); }
         window.addEventListener('resize', resizeCanvas);
         
         const degToRad = (deg) => deg * (Math.PI / 180);
         const radToDeg = (rad) => { let d = rad * (180 / Math.PI); return d < 0 ? d + 360 : d; };
 
-        // 縮放功能邏輯
         window.changeZoom = function(delta) {
             zoomPercent += delta;
-            if (zoomPercent < 25) zoomPercent = 25; // 最小縮到 25%
-            if (zoomPercent > 300) zoomPercent = 300; // 最大放大到 300%
-            
+            if (zoomPercent < 25) zoomPercent = 25; 
+            if (zoomPercent > 300) zoomPercent = 300; 
             document.getElementById('zoom-display').textContent = zoomPercent + '%';
             currentScale = BASE_SCALE * (zoomPercent / 100);
-            
-            // 如果是在動畫進行中縮放，它會在下一次 animate() 迴圈自動畫出來
-            // 如果暫停中，就呼叫 requestDraw 更新畫面
             requestDraw();
         }
 
-        // 畫向量箭頭
         function drawArrow(fromX, fromY, toX, toY, color, label, width = 3) {
-            const headlen = 12 * (zoomPercent / 100 > 1 ? 1 : zoomPercent / 100); // 箭頭大小隨縮放微調，但不會無限變大
-            const dx = toX - fromX;
-            const dy = toY - fromY;
+            const headlen = 12 * (zoomPercent / 100 > 1 ? 1 : zoomPercent / 100); 
+            const dx = toX - fromX; const dy = toY - fromY;
             const length = Math.sqrt(dx*dx + dy*dy);
             if (length < 1) return;
 
             const angle = Math.atan2(dy, dx);
-            ctx.beginPath();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = width;
-            ctx.moveTo(fromX, fromY);
-            ctx.lineTo(toX, toY);
-            ctx.stroke();
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = width;
+            ctx.moveTo(fromX, fromY); ctx.lineTo(toX, toY); ctx.stroke();
             
-            ctx.beginPath();
-            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.fillStyle = color;
             ctx.moveTo(toX, toY);
             ctx.lineTo(toX - headlen * Math.cos(angle - Math.PI / 6), toY - headlen * Math.sin(angle - Math.PI / 6));
             ctx.lineTo(toX - headlen * Math.cos(angle + Math.PI / 6), toY - headlen * Math.sin(angle + Math.PI / 6));
             ctx.fill();
 
             if(label) {
-                ctx.save();
-                ctx.scale(1, -1); 
-                ctx.fillStyle = color;
-                ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
-                
-                // 讓文字稍微浮動，避免擋住線條
-                const textOffsetX = 5 * Math.cos(angle);
-                const textOffsetY = 5 * Math.sin(angle);
+                ctx.save(); ctx.scale(1, -1); ctx.fillStyle = color; ctx.font = "bold 14px 'Noto Sans TC', sans-serif";
+                const textOffsetX = 5 * Math.cos(angle); const textOffsetY = 5 * Math.sin(angle);
                 ctx.fillText(label, toX + textOffsetX + 5, -toY - textOffsetY - 5);
                 ctx.restore();
             }
         }
 
         /* =================自由模式邏輯================= */
-        // 綁定顯示開關事件
         document.getElementById('toggle-components').addEventListener('change', (e) => { showComponents = e.target.checked; requestDraw(); });
         document.getElementById('toggle-netforce').addEventListener('change', (e) => { showNetForce = e.target.checked; requestDraw(); });
         document.getElementById('toggle-values').addEventListener('change', (e) => { showValues = e.target.checked; requestDraw(); });
+        
+        // 情境模式顯示開關
+        document.getElementById('scen-toggle-components').addEventListener('change', (e) => { scenShowComponents = e.target.checked; requestDraw(); });
+        document.getElementById('scen-toggle-netforce').addEventListener('change', (e) => { scenShowNetForce = e.target.checked; requestDraw(); });
+        document.getElementById('scen-toggle-values').addEventListener('change', (e) => { scenShowValues = e.target.checked; requestDraw(); });
+
         document.getElementById('unit-select').addEventListener('change', (e) => {
             currentUnit = e.target.value;
             document.getElementById('free-res-unit').textContent = currentUnit;
@@ -316,42 +303,28 @@
         });
 
         function addFreeForce(mag = 50, ang = 0) {
-            // 加入更強的隨機參數避免同時間產生力時發生 id 衝突
             const id = 'force_' + Date.now().toString() + '_' + Math.floor(Math.random()*10000);
-            const color = colorPalette[colorIndex % colorPalette.length];
-            colorIndex++;
+            const color = colorPalette[colorIndex % colorPalette.length]; colorIndex++;
             freeForces.push({ id, mag, ang, color });
-            renderFreeForcesUI();
-            updatePhysics();
+            renderFreeForcesUI(); updatePhysics();
         }
 
-        function removeFreeForce(id) {
-            freeForces = freeForces.filter(f => f.id !== id);
-            renderFreeForcesUI();
-            updatePhysics();
-        }
-
-        // 新增：透過按鈕精確增減力的大小 (符合點一次跳 10 的需求)
+        function removeFreeForce(id) { freeForces = freeForces.filter(f => f.id !== id); renderFreeForcesUI(); updatePhysics(); }
         window.changeForceMag = function(id, delta) {
             const force = freeForces.find(f => f.id === id);
             if (force) {
                 let newVal = force.mag + delta;
-                if (newVal < 0) newVal = 0;
-                if (newVal > 200) newVal = 200;
-                force.mag = Math.round(newVal * 10) / 10; // 避免浮點數誤差
-                // 局部更新 DOM 而不重繪整個列表，保持操作順暢
+                if (newVal < 0) newVal = 0; if (newVal > 200) newVal = 200;
+                force.mag = Math.round(newVal * 10) / 10; 
                 document.getElementById(`mag-input-${id}`).value = force.mag;
                 document.getElementById(`mag-val-${id}`).textContent = force.mag.toFixed(1);
                 updatePhysics();
             }
         }
-
-        // 新增：透過按鈕精確增減角度 (每次跳 15 度)
         window.changeForceAng = function(id, delta) {
             const force = freeForces.find(f => f.id === id);
             if (force) {
-                let newVal = force.ang + delta;
-                newVal = (newVal % 360 + 360) % 360; // 確保角度在 0~359 之間循環
+                let newVal = force.ang + delta; newVal = (newVal % 360 + 360) % 360; 
                 force.ang = Math.round(newVal); 
                 document.getElementById(`ang-input-${id}`).value = force.ang;
                 document.getElementById(`ang-val-${id}`).textContent = force.ang + '°';
@@ -360,38 +333,30 @@
         }
 
         function renderFreeForcesUI() {
-            const list = document.getElementById('forces-list');
-            list.innerHTML = '';
+            const list = document.getElementById('forces-list'); list.innerHTML = '';
             freeForces.forEach((f, index) => {
-                const div = document.createElement('div');
-                div.className = "bg-gray-50 rounded-lg p-2 mb-2 border border-gray-200 shadow-sm relative transition-all";
+                const div = document.createElement('div'); div.className = "bg-gray-50 rounded-lg p-2 mb-2 border border-gray-200 shadow-sm relative transition-all";
                 div.innerHTML = `
                     <div class="flex justify-between items-center mb-1">
                         <h3 class="font-bold text-[13px] flex items-center" style="color: ${f.color}">
-                            <span class="w-3 h-3 rounded-full inline-block mr-1" style="background-color: ${f.color}"></span>
-                            分力 ${index + 1}
+                            <span class="w-3 h-3 rounded-full inline-block mr-1" style="background-color: ${f.color}"></span>分力 ${index + 1}
                         </h3>
                         ${freeForces.length > 1 ? `<button onclick="removeFreeForce('${f.id}')" class="text-red-500 hover:text-white hover:bg-red-500 border border-red-200 rounded px-1.5 py-0.5 transition-colors text-[11px] font-bold">✖ 刪除</button>` : ''}
                     </div>
-                    
-                    <!-- 大小控制 (新增 -10 與 +10 快捷鍵，同時支援小數點拖曳) -->
                     <div class="flex gap-1 text-[12px] items-center mb-1 w-full">
                         <span class="shrink-0 font-bold text-gray-600 w-8">大小:</span>
-                        <button onclick="changeForceMag('${f.id}', -10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95 transition-transform">-10</button>
+                        <button onclick="changeForceMag('${f.id}', -10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">-10</button>
                         <input type="range" id="mag-input-${f.id}" min="0" max="200" step="0.1" value="${f.mag}" class="flex-1 min-w-0 mx-1" oninput="updateFreeForce('${f.id}', 'mag', this.value)">
-                        <button onclick="changeForceMag('${f.id}', 10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95 transition-transform">+10</button>
+                        <button onclick="changeForceMag('${f.id}', 10)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">+10</button>
                         <span id="mag-val-${f.id}" class="w-10 text-right font-black shrink-0 text-gray-800">${Number(f.mag).toFixed(1)}</span>
                     </div>
-                    
-                    <!-- 角度控制 (新增 -15 與 +15 快捷鍵) -->
                     <div class="flex gap-1 text-[12px] items-center w-full">
                         <span class="shrink-0 font-bold text-gray-600 w-8">角度:</span>
-                        <button onclick="changeForceAng('${f.id}', -15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95 transition-transform">-15</button>
+                        <button onclick="changeForceAng('${f.id}', -15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">-15</button>
                         <input type="range" id="ang-input-${f.id}" min="0" max="360" step="1" value="${f.ang}" class="flex-1 min-w-0 mx-1" oninput="updateFreeForce('${f.id}', 'ang', this.value)">
-                        <button onclick="changeForceAng('${f.id}', 15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95 transition-transform">+15</button>
+                        <button onclick="changeForceAng('${f.id}', 15)" class="bg-gray-200 hover:bg-gray-300 text-gray-800 rounded px-2 py-0.5 shrink-0 shadow-sm font-bold active:scale-95">+15</button>
                         <span id="ang-val-${f.id}" class="w-10 text-right font-black shrink-0 text-gray-800">${f.ang}°</span>
-                    </div>
-                `;
+                    </div>`;
                 list.appendChild(div);
             });
         }
@@ -400,12 +365,8 @@
             const force = freeForces.find(f => f.id === id);
             if(force) {
                 force[prop] = parseFloat(value);
-                // 局部更新 DOM，避免重建整個清單導致拖曳中斷
-                if (prop === 'mag') {
-                    document.getElementById(`mag-val-${id}`).textContent = force.mag.toFixed(1);
-                } else if (prop === 'ang') {
-                    document.getElementById(`ang-val-${id}`).textContent = force.ang + '°';
-                }
+                if (prop === 'mag') document.getElementById(`mag-val-${id}`).textContent = force.mag.toFixed(1);
+                else if (prop === 'ang') document.getElementById(`ang-val-${id}`).textContent = force.ang + '°';
                 updatePhysics();
             }
         }
@@ -418,15 +379,12 @@
                     fy += f.mag * Math.sin(degToRad(f.ang));
                 }
             });
-            const mag = Math.sqrt(fx*fx + fy*fy);
-            const ang = radToDeg(Math.atan2(fy, fx));
+            const mag = Math.sqrt(fx*fx + fy*fy); const ang = radToDeg(Math.atan2(fy, fx));
             return { fx, fy, mag, ang };
         }
 
-        // 動畫速度控制調整
         document.getElementById('sim-speed').addEventListener('input', (e) => {
-            const val = e.target.value;
-            const displayMultiplier = (val / 10).toFixed(1); 
+            const displayMultiplier = (e.target.value / 10).toFixed(1); 
             document.getElementById('speed-val').innerText = `${displayMultiplier}x`;
             speedMultiplier = 0.005 * displayMultiplier;
         });
@@ -434,11 +392,16 @@
         /* =================情境模式邏輯================= */
         const envSelect = document.getElementById('env-select');
         const objSelect = document.getElementById('obj-select');
+        const dynamicControls = document.getElementById('dynamic-scenario-controls');
         
+        envSelect.addEventListener('change', checkScenarioSetup);
+        objSelect.addEventListener('change', () => {
+            if (objSelect.value === 'bubble') envSelect.value = 'sea';
+            checkScenarioSetup();
+        });
+
         function checkScenarioSetup() {
-            sceneEnv = envSelect.value;
-            sceneObj = objSelect.value;
-            
+            sceneEnv = envSelect.value; sceneObj = objSelect.value;
             if (sceneEnv !== 'none' && sceneObj !== 'none') {
                 document.getElementById('scenario-hint').classList.add('hidden');
                 document.getElementById('scenario-forces-area').classList.remove('hidden');
@@ -448,59 +411,222 @@
                 document.getElementById('scenario-hint').classList.remove('hidden');
                 document.getElementById('scenario-forces-area').classList.add('hidden');
                 document.getElementById('scenario-forces-area').classList.remove('flex');
+                dynamicControls.innerHTML = '';
             }
         }
-        
-        envSelect.addEventListener('change', checkScenarioSetup);
-        objSelect.addEventListener('change', checkScenarioSetup);
 
         function setupScenarioPhysics() {
             stopAnim();
             obj = { x: 0, y: 0, vx: 0, vy: 0, mass: 1, radius: 25 };
-            sceneForces = [];
-            sceneEasterEggTriggered = false;
+            sceneForces = []; sceneEasterEggTriggered = false;
             document.getElementById('easter-egg').style.display = 'none';
+            dynamicControls.innerHTML = '';
 
             if (sceneEnv === 'air') {
                 obj.y = 150; 
-                sceneForces.push({ id: 'gravity', name: '重力', mag: 50, ang: 270, color: '#3b82f6', active: true, removable: true });
-            } else if (sceneEnv === 'pool') {
+                sceneForces.push({ id: 'gravity', name: '重力', mag: 50, ang: 270, color: '#3b82f6', active: true });
+            } 
+            else if (sceneEnv === 'pool' || sceneEnv === 'sea') {
                 obj.y = 0; 
-                if (sceneObj === 'plastic-ball') {
-                    sceneForces.push({ id: 'gravity', name: '重力 (W)', mag: 60, ang: 270, color: '#3b82f6', active: true, removable: true });
-                    sceneForces.push({ id: 'buoyancy', name: '水浮力 (B)', mag: 60, ang: 90, color: '#22c55e', active: true, removable: false });
-                } else if (sceneObj === 'baseball' || sceneObj === 'car') {
-                    sceneForces.push({ id: 'gravity', name: '重力 (W)', mag: 90, ang: 270, color: '#3b82f6', active: true, removable: true });
-                    sceneForces.push({ id: 'buoyancy', name: '水浮力 (B)', mag: 40, ang: 90, color: '#22c55e', active: true, removable: false });
+                if (sceneObj === 'plastic-ball' || sceneObj === 'bowling-8' || sceneObj === 'kickboard') {
+                    let baseW = sceneObj === 'plastic-ball' ? 10 : (sceneObj === 'bowling-8' ? 40 : 15);
+                    scenState.handForce = 0;
+                    dynamicControls.innerHTML = `
+                        <div class="bg-blue-50 p-2 rounded border border-blue-200">
+                            <label class="text-xs font-bold text-blue-800 flex justify-between"><span>✋ 手向下壓的力量:</span> <span id="hand-val">0</span></label>
+                            <input type="range" id="hand-slider" min="0" max="100" value="0" class="w-full mt-1">
+                        </div>`;
+                    document.getElementById('hand-slider').addEventListener('input', (e) => {
+                        scenState.handForce = parseFloat(e.target.value);
+                        document.getElementById('hand-val').textContent = scenState.handForce;
+                        updateScenarioDynamicForces();
+                    });
+                    sceneForces.push({ id: 'gravity', name: '重力 (W)', mag: baseW, ang: 270, color: '#3b82f6', active: true });
+                    sceneForces.push({ id: 'buoyancy', name: '水浮力 (B)', mag: baseW, ang: 90, color: '#22c55e', active: true });
+                    sceneForces.push({ id: 'hand', name: '手壓力 (F)', mag: 0, ang: 270, color: '#f59e0b', active: true });
+                } 
+                else if (sceneObj === 'bowling-15' || sceneObj === 'baseball' || sceneObj === 'car') {
+                    let baseW = sceneObj === 'bowling-15' ? 80 : 50;
+                    sceneForces.push({ id: 'gravity', name: '重力 (W)', mag: baseW, ang: 270, color: '#3b82f6', active: true });
+                    sceneForces.push({ id: 'buoyancy', name: '水浮力 (B)', mag: baseW * 0.5, ang: 90, color: '#22c55e', active: true });
                 }
-            } else if (sceneEnv === 'road') {
+                else if (sceneObj === 'ship') {
+                    scenState.cargoWeight = 0;
+                    dynamicControls.innerHTML = `
+                        <div class="bg-gray-100 p-2 rounded border border-gray-300">
+                            <label class="text-xs font-bold text-gray-800 flex justify-between"><span>📦 貨物重量:</span> <span id="cargo-val">0</span></label>
+                            <input type="range" id="cargo-slider" min="0" max="100" value="0" class="w-full mt-1">
+                        </div>`;
+                    document.getElementById('cargo-slider').addEventListener('input', (e) => {
+                        scenState.cargoWeight = parseFloat(e.target.value);
+                        document.getElementById('cargo-val').textContent = scenState.cargoWeight;
+                        updateScenarioDynamicForces();
+                    });
+                    sceneForces.push({ id: 'gravity', name: '空船重 (W)', mag: 30, ang: 270, color: '#3b82f6', active: true });
+                    sceneForces.push({ id: 'cargo', name: '貨物重', mag: 0, ang: 270, color: '#64748b', active: true });
+                    sceneForces.push({ id: 'buoyancy', name: '總浮力 (B)', mag: 30, ang: 90, color: '#22c55e', active: true });
+                }
+                else if (sceneObj === 'submarine' || sceneObj === 'scuba') {
+                    scenState.subMode = 'hover';
+                    dynamicControls.innerHTML = `
+                        <div class="bg-cyan-50 p-2 rounded border border-cyan-200">
+                            <span class="text-xs font-bold text-cyan-800 block mb-1">🎛️ 狀態控制 (${sceneObj === 'submarine' ? '進排水' : 'BC充氣'}):</span>
+                            <div class="flex gap-1 text-xs">
+                                <button id="btn-float" class="flex-1 bg-white border border-cyan-400 py-1 rounded shadow-sm hover:bg-cyan-100 font-bold text-cyan-700">上浮</button>
+                                <button id="btn-hover" class="flex-1 bg-cyan-500 text-white border border-cyan-500 py-1 rounded shadow-sm font-bold">不動</button>
+                                <button id="btn-sink" class="flex-1 bg-white border border-cyan-400 py-1 rounded shadow-sm hover:bg-cyan-100 font-bold text-cyan-700">下沉</button>
+                            </div>
+                        </div>`;
+                    const setMode = (mode, activeBtnId) => {
+                        scenState.subMode = mode;
+                        ['btn-float', 'btn-hover', 'btn-sink'].forEach(id => {
+                            document.getElementById(id).className = "flex-1 bg-white border border-cyan-400 py-1 rounded shadow-sm hover:bg-cyan-100 font-bold text-cyan-700";
+                        });
+                        document.getElementById(activeBtnId).className = "flex-1 bg-cyan-500 text-white border border-cyan-500 py-1 rounded shadow-sm font-bold";
+                        updateScenarioDynamicForces();
+                    };
+                    document.getElementById('btn-float').onclick = () => setMode('float', 'btn-float');
+                    document.getElementById('btn-hover').onclick = () => setMode('hover', 'btn-hover');
+                    document.getElementById('btn-sink').onclick  = () => setMode('sink', 'btn-sink');
+                    
+                    sceneForces.push({ id: 'gravity', name: '重力 (W)', mag: 50, ang: 270, color: '#3b82f6', active: true });
+                    sceneForces.push({ id: 'buoyancy', name: '浮力 (B)', mag: 50, ang: 90, color: '#22c55e', active: true });
+                }
+                else if (sceneObj === 'bubble') {
+                    obj.y = -scenState.bubbleDepth;
+                    scenState.bubbleR = 5;
+                    dynamicControls.innerHTML = `
+                        <div class="bg-blue-100 p-2 rounded border border-blue-300">
+                            <label class="text-xs font-bold text-blue-900 flex justify-between"><span>🤿 潛水員深度:</span> <span id="depth-val">${scenState.bubbleDepth}</span></label>
+                            <input type="range" id="depth-slider" min="50" max="250" value="${scenState.bubbleDepth}" class="w-full mt-1 mb-2">
+                            <button id="btn-blow" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-1.5 rounded text-sm shadow-sm transition-colors">吐出泡泡 (啟動)</button>
+                            <div class="text-[10px] text-blue-800 text-center mt-1">💡提示：上浮時<strong>點擊畫布</strong>即可暫停，再次點擊顯示分析</div>
+                        </div>`;
+                    
+                    document.getElementById('depth-slider').addEventListener('input', (e) => {
+                        scenState.bubbleDepth = parseFloat(e.target.value);
+                        document.getElementById('depth-val').textContent = scenState.bubbleDepth;
+                        obj.y = -scenState.bubbleDepth;
+                        scenState.bubbleR = 5; 
+                        requestDraw();
+                    });
+
+                    document.getElementById('btn-blow').onclick = () => {
+                        obj.y = -scenState.bubbleDepth;
+                        scenState.bubbleR = 5;
+                        toggleAnim('start-btn-scene', '▶ 啟動', 'bg-green-600', 'hover:bg-green-700'); 
+                    };
+
+                    sceneForces.push({ id: 'gravity', name: '氣泡重 (微小)', mag: 2, ang: 270, color: '#3b82f6', active: true });
+                    sceneForces.push({ id: 'buoyancy', name: '浮力 (B)', mag: 20, ang: 90, color: '#22c55e', active: true });
+                }
+            } 
+            else if (sceneEnv === 'road') {
                 obj.y = -100; 
-                if (sceneObj === 'car') {
-                    sceneForces.push({ id: 'gravity', name: '重力 (W)', mag: 80, ang: 270, color: '#3b82f6', active: true, removable: false });
-                    sceneForces.push({ id: 'normal', name: '正向力 (N)', mag: 80, ang: 90, color: '#f59e0b', active: true, removable: false });
-                    sceneForces.push({ id: 'engine', name: '引擎推力 (F)', mag: 70, ang: 0, color: '#ec4899', active: true, removable: true });
-                    sceneForces.push({ id: 'friction', name: '摩擦力 (f)', mag: 30, ang: 180, color: '#14b8a6', active: true, removable: true });
-                } else {
-                    sceneForces.push({ id: 'gravity', name: '重力 (W)', mag: 50, ang: 270, color: '#3b82f6', active: true, removable: false });
-                    sceneForces.push({ id: 'normal', name: '正向力 (N)', mag: 50, ang: 90, color: '#f59e0b', active: true, removable: false });
+                dynamicControls.innerHTML = `
+                    <div class="bg-gray-100 p-2 rounded border border-gray-300 mb-2">
+                        <label class="text-xs font-bold text-gray-800 flex justify-between items-center">
+                            <span>🛣️ 路面材質:</span>
+                            <select id="friction-select" class="text-xs border border-gray-300 rounded p-1">
+                                <option value="0.3">一般馬路</option>
+                                <option value="0.6">草地/礫石 (大摩擦)</option>
+                                <option value="0.0">冰面 (無摩擦)</option>
+                            </select>
+                        </label>
+                    </div>`;
+                document.getElementById('friction-select').addEventListener('change', (e) => {
+                    scenState.frictionCoeff = parseFloat(e.target.value);
+                    updateScenarioDynamicForces();
+                });
+
+                if (sceneObj === 'wood') {
+                    scenState.pullForce = 0;
+                    dynamicControls.innerHTML += `
+                        <div class="bg-amber-50 p-2 rounded border border-amber-200">
+                            <label class="text-xs font-bold text-amber-800 flex justify-between"><span>📏 彈簧秤拉力:</span> <span id="pull-val">0</span></label>
+                            <input type="range" id="pull-slider" min="0" max="100" value="0" class="w-full mt-1">
+                        </div>`;
+                    document.getElementById('pull-slider').addEventListener('input', (e) => {
+                        scenState.pullForce = parseFloat(e.target.value);
+                        document.getElementById('pull-val').textContent = scenState.pullForce;
+                        updateScenarioDynamicForces();
+                    });
+                    
+                    sceneForces.push({ id: 'gravity', name: '重力 (W)', mag: 50, ang: 270, color: '#3b82f6', active: true });
+                    sceneForces.push({ id: 'normal', name: '正向力 (N)', mag: 50, ang: 90, color: '#f59e0b', active: true });
+                    sceneForces.push({ id: 'pull', name: '彈簧秤拉力', mag: 0, ang: 0, color: '#ec4899', active: true });
+                    sceneForces.push({ id: 'friction', name: '摩擦力 (f)', mag: 0, ang: 180, color: '#14b8a6', active: true });
+                } else if (sceneObj === 'car') {
+                    sceneForces.push({ id: 'gravity', name: '重力 (W)', mag: 80, ang: 270, color: '#3b82f6', active: true });
+                    sceneForces.push({ id: 'normal', name: '正向力 (N)', mag: 80, ang: 90, color: '#f59e0b', active: true });
+                    sceneForces.push({ id: 'engine', name: '引擎推力 (F)', mag: 50, ang: 0, color: '#ec4899', active: true });
+                    sceneForces.push({ id: 'friction', name: '摩擦力 (f)', mag: 24, ang: 180, color: '#14b8a6', active: true }); 
+                }
+            }
+            updateScenarioDynamicForces();
+        }
+
+        function updateScenarioDynamicForces() {
+            if (sceneEnv === 'road') {
+                if (sceneObj === 'wood') {
+                    const pull = sceneForces.find(f => f.id === 'pull');
+                    const fric = sceneForces.find(f => f.id === 'friction');
+                    pull.mag = scenState.pullForce;
+                    let maxStatic = 50 * scenState.frictionCoeff; 
+                    if (scenState.pullForce <= maxStatic) {
+                        fric.mag = scenState.pullForce; 
+                    } else {
+                        fric.mag = maxStatic * 0.8; 
+                    }
+                } else if (sceneObj === 'car') {
+                    const fric = sceneForces.find(f => f.id === 'friction');
+                    if(fric) fric.mag = 80 * scenState.frictionCoeff; 
+                }
+            } else if (sceneEnv === 'pool' || sceneEnv === 'sea') {
+                if (sceneObj === 'plastic-ball' || sceneObj === 'bowling-8' || sceneObj === 'kickboard') {
+                    const hand = sceneForces.find(f => f.id === 'hand');
+                    const buoy = sceneForces.find(f => f.id === 'buoyancy');
+                    const grav = sceneForces.find(f => f.id === 'gravity');
+                    hand.mag = scenState.handForce;
+                    let maxBuoy = 120; 
+                    buoy.mag = Math.min(grav.mag + scenState.handForce, maxBuoy);
+                } else if (sceneObj === 'ship') {
+                    const cargo = sceneForces.find(f => f.id === 'cargo');
+                    const buoy = sceneForces.find(f => f.id === 'buoyancy');
+                    cargo.mag = scenState.cargoWeight;
+                    buoy.mag = 30 + scenState.cargoWeight;
+                } else if (sceneObj === 'submarine' || sceneObj === 'scuba') {
+                    const buoy = sceneForces.find(f => f.id === 'buoyancy');
+                    const grav = sceneForces.find(f => f.id === 'gravity');
+                    if (sceneObj === 'submarine') {
+                        if (scenState.subMode === 'float') grav.mag = 30; 
+                        else if (scenState.subMode === 'hover') grav.mag = 50;
+                        else grav.mag = 70; 
+                    } else {
+                        if (scenState.subMode === 'float') buoy.mag = 70; 
+                        else if (scenState.subMode === 'hover') buoy.mag = 50;
+                        else buoy.mag = 30; 
+                    }
                 }
             }
             renderScenarioForcesUI();
             updatePhysics();
         }
 
+        window.closeMagnify = function() {
+            document.getElementById('magnify-overlay').style.display = 'none';
+        }
+
         function renderScenarioForcesUI() {
-            const list = document.getElementById('scenario-forces-list');
-            list.innerHTML = '';
+            const list = document.getElementById('scenario-forces-list'); list.innerHTML = '';
             sceneForces.forEach(f => {
                 const div = document.createElement('div');
-                div.className = `p-2 mb-2 rounded border flex items-center justify-between ${f.active ? 'bg-white border-gray-300' : 'bg-gray-100 border-gray-200 opacity-60'} transition-colors`;
+                div.className = `p-1 mb-1 rounded border flex items-center justify-between ${f.active ? 'bg-white border-gray-300' : 'bg-gray-100 border-gray-200 opacity-60'} transition-colors text-sm`;
                 div.innerHTML = `
                     <label class="flex items-center cursor-pointer flex-1">
-                        <input type="checkbox" ${f.active ? 'checked' : ''} ${!f.removable ? 'disabled' : ''} 
-                            onchange="toggleSceneForce('${f.id}', this.checked)" class="mr-2 w-4 h-4 text-green-600 rounded cursor-pointer">
+                        <input type="checkbox" ${f.active ? 'checked' : ''} onchange="toggleSceneForce('${f.id}', this.checked)" class="mr-2 w-4 h-4 text-green-600 rounded cursor-pointer">
                         <span class="font-bold" style="color: ${f.color}">${f.name}</span>
-                        <span class="ml-auto text-sm text-gray-500">${f.mag} ${currentUnit}, ${f.ang}°</span>
+                        <span class="ml-auto text-xs text-gray-500">${f.mag.toFixed(1)} ${currentUnit}, ${f.ang}°</span>
                     </label>
                 `;
                 list.appendChild(div);
@@ -523,38 +649,19 @@
                 document.getElementById('free-res-mag').textContent = currentNetForce.mag.toFixed(1);
                 document.getElementById('free-res-ang').textContent = currentNetForce.ang.toFixed(1);
             }
-            
-            requestDraw(); // 當手動操作改變數值時，要求重繪畫面
+            requestDraw(); 
         }
 
         function drawBackground() {
-            const hw = canvas.width / 2;
-            const hh = canvas.height / 2;
+            const hw = canvas.width / 2; const hh = canvas.height / 2;
 
             if (currentMode === 'free-mode' || sceneEnv === 'none') {
-                ctx.strokeStyle = '#e5e7eb';
-                ctx.lineWidth = 1;
-                
-                // 網格設定：確保一格就是等於 10 單位力
+                ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1;
                 const gridSize = 10 * currentScale; 
-
-                // 從中央原點 (0,0) 向外繪製 X 方向的垂直線
-                for (let x = 0; x <= hw; x += gridSize) {
-                    ctx.beginPath(); ctx.moveTo(x, -hh); ctx.lineTo(x, hh); ctx.stroke();
-                }
-                for (let x = 0; x >= -hw; x -= gridSize) {
-                    ctx.beginPath(); ctx.moveTo(x, -hh); ctx.lineTo(x, hh); ctx.stroke();
-                }
-                
-                // 從中央原點 (0,0) 向外繪製 Y 方向的水平線
-                for (let y = 0; y <= hh; y += gridSize) {
-                    ctx.beginPath(); ctx.moveTo(-hw, y); ctx.lineTo(hw, y); ctx.stroke();
-                }
-                for (let y = 0; y >= -hh; y -= gridSize) {
-                    ctx.beginPath(); ctx.moveTo(-hw, y); ctx.lineTo(hw, y); ctx.stroke();
-                }
-                
-                // 畫深色的 X, Y 軸
+                for (let x = 0; x <= hw; x += gridSize) { ctx.beginPath(); ctx.moveTo(x, -hh); ctx.lineTo(x, hh); ctx.stroke(); }
+                for (let x = 0; x >= -hw; x -= gridSize) { ctx.beginPath(); ctx.moveTo(x, -hh); ctx.lineTo(x, hh); ctx.stroke(); }
+                for (let y = 0; y <= hh; y += gridSize) { ctx.beginPath(); ctx.moveTo(-hw, y); ctx.lineTo(hw, y); ctx.stroke(); }
+                for (let y = 0; y >= -hh; y -= gridSize) { ctx.beginPath(); ctx.moveTo(-hw, y); ctx.lineTo(hw, y); ctx.stroke(); }
                 ctx.strokeStyle = '#9ca3af'; ctx.lineWidth = 2;
                 ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(hw, 0); ctx.moveTo(0, -hh); ctx.lineTo(0, hh); ctx.stroke();
             } else if (sceneEnv === 'air') {
@@ -566,9 +673,24 @@
                 ctx.fillStyle = 'rgba(56, 189, 248, 0.5)'; ctx.fillRect(-hw, -hh, canvas.width, hh); 
                 ctx.beginPath(); ctx.moveTo(-hw, 0); ctx.lineTo(hw, 0);
                 ctx.strokeStyle = '#0284c7'; ctx.lineWidth = 2; ctx.stroke(); 
+            } else if (sceneEnv === 'sea') {
+                let seaLevel = hh - (canvas.height * 0.2); 
+                ctx.fillStyle = '#bae6fd'; ctx.fillRect(-hw, seaLevel, canvas.width, hh - seaLevel); 
+                
+                const seaGrad = ctx.createLinearGradient(0, seaLevel, 0, -hh);
+                seaGrad.addColorStop(0, '#0284c7'); 
+                seaGrad.addColorStop(1, '#1e3a8a'); 
+                ctx.fillStyle = seaGrad; ctx.fillRect(-hw, -hh, canvas.width, seaLevel + hh); 
+                
+                ctx.beginPath(); ctx.moveTo(-hw, seaLevel); ctx.lineTo(hw, seaLevel);
+                ctx.strokeStyle = '#bae6fd'; ctx.lineWidth = 1; ctx.stroke(); 
             } else if (sceneEnv === 'road') {
                 ctx.fillStyle = '#bae6fd'; ctx.fillRect(-hw, -100, canvas.width, hh + 100); 
-                ctx.fillStyle = '#9ca3af'; ctx.fillRect(-hw, -hh, canvas.width, hh - 100); 
+                if (scenState.frictionCoeff === 0) ctx.fillStyle = '#e0f2fe'; 
+                else if (scenState.frictionCoeff === 0.6) ctx.fillStyle = '#4ade80'; 
+                else ctx.fillStyle = '#9ca3af'; 
+                
+                ctx.fillRect(-hw, -hh, canvas.width, hh - 100); 
                 ctx.beginPath(); ctx.moveTo(-hw, -100); ctx.lineTo(hw, -100);
                 ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 4; ctx.stroke(); 
             }
@@ -578,42 +700,72 @@
             ctx.save();
             ctx.translate(obj.x, obj.y);
             
-            if (currentMode === 'free-mode' || sceneObj === 'none' || sceneObj === 'plastic-ball') {
+            const drawEmoji = (emoji, offsetX, offsetY, size = '40px') => {
+                ctx.save(); ctx.scale(1, -1); ctx.font = `${size} sans-serif`;
+                ctx.fillText(emoji, offsetX, offsetY); ctx.restore();
+            };
+
+            if (currentMode === 'free-mode' || sceneObj === 'none') {
                 ctx.beginPath(); ctx.arc(0, 0, obj.radius, 0, Math.PI * 2);
                 const g = ctx.createRadialGradient(-5, 5, 2, 0, 0, obj.radius);
-                g.addColorStop(0, sceneObj === 'plastic-ball' ? '#fcd34d' : '#fca5a5');
-                g.addColorStop(1, sceneObj === 'plastic-ball' ? '#d97706' : '#b91c1c');
+                g.addColorStop(0, '#fca5a5'); g.addColorStop(1, '#b91c1c');
                 ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = '#000'; ctx.lineWidth=1; ctx.stroke();
+            } else if (sceneObj === 'plastic-ball') {
+                drawEmoji('🎈', -20, 15);
             } else if (sceneObj === 'baseball') {
-                ctx.beginPath(); ctx.arc(0, 0, obj.radius, 0, Math.PI * 2);
-                ctx.fillStyle = '#f8fafc'; ctx.fill(); ctx.stroke();
-                ctx.beginPath(); ctx.strokeStyle = 'red'; ctx.lineWidth = 2;
-                ctx.arc(-15, 0, 18, -Math.PI/4, Math.PI/4); ctx.stroke();
-                ctx.beginPath(); ctx.arc(15, 0, 18, Math.PI - Math.PI/4, Math.PI + Math.PI/4); ctx.stroke();
+                drawEmoji('⚾', -20, 15);
             } else if (sceneObj === 'car') {
-                ctx.fillStyle = '#ef4444'; ctx.fillRect(-30, 0, 60, 20); 
-                ctx.fillStyle = '#333'; 
-                ctx.beginPath(); ctx.arc(-20, -5, 10, 0, Math.PI*2); ctx.fill(); 
-                ctx.beginPath(); ctx.arc(20, -5, 10, 0, Math.PI*2); ctx.fill();  
+                drawEmoji('🚗', -25, 20, '50px');
+            } else if (sceneObj === 'wood') {
+                ctx.fillStyle = '#d97706'; ctx.fillRect(-30, -20, 60, 40);
+                ctx.strokeStyle = '#78350f'; ctx.lineWidth = 2; ctx.strokeRect(-30, -20, 60, 40);
+            } else if (sceneObj === 'bowling-15' || sceneObj === 'bowling-8') {
+                drawEmoji('🎳', -20, 15);
+            } else if (sceneObj === 'kickboard') {
+                drawEmoji('🏏', -20, 15); 
+            } else if (sceneObj === 'ship') {
+                drawEmoji('🛳️', -30, 20, '60px');
+                if(scenState.cargoWeight > 0) {
+                    drawEmoji('📦', -10, 10, '20px');
+                    if(scenState.cargoWeight > 50) drawEmoji('📦', 5, 10, '20px');
+                }
+            } else if (sceneObj === 'submarine') {
+                drawEmoji('🚢', -30, 20, '60px');
+                ctx.fillStyle = '#3b82f6';
+                if (scenState.subMode === 'sink') ctx.fillRect(-15, -10, 30, 15); 
+                else if (scenState.subMode === 'hover') ctx.fillRect(-15, -10, 30, 8); 
+            } else if (sceneObj === 'scuba') {
+                drawEmoji('🤿', -25, 20, '50px');
+                ctx.beginPath(); ctx.fillStyle = 'rgba(250, 204, 21, 0.7)';
+                if (scenState.subMode === 'float') ctx.arc(10, 5, 15, 0, Math.PI*2);
+                else if (scenState.subMode === 'hover') ctx.arc(10, 5, 8, 0, Math.PI*2);
+                ctx.fill();
+            } else if (sceneObj === 'bubble') {
+                scenState.bubbleR = 5 + (150 + obj.y) * 0.1; 
+                if (scenState.bubbleR < 5) scenState.bubbleR = 5;
+                ctx.beginPath(); ctx.arc(0, 0, scenState.bubbleR, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)'; ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.stroke();
             }
+            
             ctx.restore();
         }
 
         function draw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.save();
-            ctx.translate(canvas.width / 2, canvas.height / 2);
-            ctx.scale(1, -1); // 物理 Y 軸朝上
+            ctx.save(); ctx.translate(canvas.width / 2, canvas.height / 2); ctx.scale(1, -1); 
 
             drawBackground();
             
             const forces = currentMode === 'free-mode' ? freeForces : sceneForces;
             const activeForces = forces.filter(f => f.active !== false);
 
-            // 畫平行四邊形輔助線
-            if (currentMode === 'free-mode' && showComponents && showNetForce && activeForces.length === 2) {
-                const f1 = activeForces[0];
-                const f2 = activeForces[1];
+            let dispComp = currentMode === 'free-mode' ? showComponents : scenShowComponents;
+            let dispNet  = currentMode === 'free-mode' ? showNetForce : scenShowNetForce;
+            let dispVal  = currentMode === 'free-mode' ? showValues : scenShowValues;
+
+            if (dispComp && dispNet && activeForces.length === 2 && currentMode === 'free-mode') {
+                const f1 = activeForces[0]; const f2 = activeForces[1];
                 const end1X = obj.x + f1.mag * currentScale * Math.cos(degToRad(f1.ang));
                 const end1Y = obj.y + f1.mag * currentScale * Math.sin(degToRad(f1.ang));
                 const end2X = obj.x + f2.mag * currentScale * Math.cos(degToRad(f2.ang));
@@ -621,38 +773,26 @@
                 const resX = obj.x + currentNetForce.mag * currentScale * Math.cos(degToRad(currentNetForce.ang));
                 const resY = obj.y + currentNetForce.mag * currentScale * Math.sin(degToRad(currentNetForce.ang));
 
-                ctx.beginPath();
-                ctx.setLineDash([5, 5]);
-                ctx.strokeStyle = '#9ca3af';
-                ctx.moveTo(end1X, end1Y);
-                ctx.lineTo(resX, resY);
-                ctx.moveTo(end2X, end2Y);
-                ctx.lineTo(resX, resY);
-                ctx.stroke();
-                ctx.setLineDash([]);
+                ctx.beginPath(); ctx.setLineDash([5, 5]); ctx.strokeStyle = '#9ca3af';
+                ctx.moveTo(end1X, end1Y); ctx.lineTo(resX, resY);
+                ctx.moveTo(end2X, end2Y); ctx.lineTo(resX, resY);
+                ctx.stroke(); ctx.setLineDash([]);
             }
 
-            // 畫分力
-            if (currentMode === 'scenario-mode' || (currentMode === 'free-mode' && showComponents)) {
+            if (dispComp) {
                 activeForces.forEach((f, index) => {
                     const ex = obj.x + f.mag * currentScale * Math.cos(degToRad(f.ang));
                     const ey = obj.y + f.mag * currentScale * Math.sin(degToRad(f.ang));
-                    
-                    let baseLabel = f.name || `F${index + 1}`;
-                    let label = showValues ? `${baseLabel} (${f.mag} ${currentUnit})` : baseLabel;
+                    let label = dispVal ? `${f.name || `F${index + 1}`} (${f.mag.toFixed(1)} ${currentUnit})` : (f.name || `F${index + 1}`);
                     drawArrow(obj.x, obj.y, ex, ey, f.color, label);
                 });
             }
 
-            // 畫合力
-            if (currentNetForce.mag > 0.1) {
-                if (currentMode === 'scenario-mode' || (currentMode === 'free-mode' && showNetForce)) {
-                    const resX = obj.x + currentNetForce.mag * currentScale * Math.cos(degToRad(currentNetForce.ang));
-                    const resY = obj.y + currentNetForce.mag * currentScale * Math.sin(degToRad(currentNetForce.ang));
-                    
-                    let label = showValues ? `合力 (${currentNetForce.mag.toFixed(1)} ${currentUnit})` : '合力Fnet';
-                    drawArrow(obj.x, obj.y, resX, resY, '#000000', label, 4);
-                }
+            if (dispNet && currentNetForce.mag > 0.1) {
+                const resX = obj.x + currentNetForce.mag * currentScale * Math.cos(degToRad(currentNetForce.ang));
+                const resY = obj.y + currentNetForce.mag * currentScale * Math.sin(degToRad(currentNetForce.ang));
+                let label = dispVal ? `合力 (${currentNetForce.mag.toFixed(1)} ${currentUnit})` : '合力Fnet';
+                drawArrow(obj.x, obj.y, resX, resY, '#000000', label, 4);
             }
 
             drawObject();
@@ -660,26 +800,25 @@
         }
 
         function animate() {
-            if (!isAnimating) return;
+            if (!isAnimating || isPaused) return;
 
-            const ax = currentNetForce.fx * speedMultiplier;
-            const ay = currentNetForce.fy * speedMultiplier;
+            // ===== 泡泡上浮速度極致減半 =====
+            // 將質量因子提高為 4，這樣加速度就會變得很小，上浮就會慢到適合觀察
+            const massFactor = (sceneObj === 'bubble') ? 4 : 1; 
+            const ax = (currentNetForce.fx / massFactor) * speedMultiplier;
+            const ay = (currentNetForce.fy / massFactor) * speedMultiplier;
 
-            obj.vx += ax;
-            obj.vy += ay;
-            obj.x += obj.vx;
-            obj.y += obj.vy;
+            obj.vx += ax; obj.vy += ay;
+            obj.x += obj.vx; obj.y += obj.vy;
 
             if (currentMode === 'scenario-mode') {
                 if (sceneEnv === 'road' && obj.y < -100) { obj.y = -100; obj.vy = 0; } 
                 
-                if (sceneEnv === 'pool' && sceneObj === 'plastic-ball') {
-                    const gravForce = sceneForces.find(f => f.id === 'gravity');
-                    if (gravForce && gravForce.active === false && obj.y > 50 && !sceneEasterEggTriggered) {
-                        sceneEasterEggTriggered = true;
-                        stopAnim();
-                        document.getElementById('easter-egg').style.display = 'block';
-                    }
+                const gravForce = sceneForces.find(f => f.id === 'gravity');
+                if (gravForce && gravForce.active === false && currentNetForce.fy > 0 && obj.y > 100 && !sceneEasterEggTriggered) {
+                    sceneEasterEggTriggered = true;
+                    stopAnim();
+                    document.getElementById('easter-egg').style.display = 'block';
                 }
             }
 
@@ -688,17 +827,18 @@
                 stopAnim();
             }
 
-            draw(); // 動畫迴圈中直接呼叫畫圖，不再透過防卡頓機制，這樣才會逐格顯示
+            draw(); 
             if(isAnimating) animationId = requestAnimationFrame(animate);
         }
 
         /* =================UI 互動與初始化================= */
         function toggleAnim(btnId, playText, activeColor, hoverColor) {
             const btn = document.getElementById(btnId);
-            if (isAnimating) {
+            if (isAnimating && !isPaused) {
                 stopAnim();
             } else {
                 isAnimating = true;
+                isPaused = false;
                 btn.innerHTML = "⏸ 暫停";
                 btn.classList.replace(activeColor, 'bg-yellow-500');
                 btn.classList.replace(hoverColor, 'hover:bg-yellow-600');
@@ -708,95 +848,99 @@
         }
 
         function stopAnim() {
-            isAnimating = false;
-            cancelAnimationFrame(animationId);
+            isAnimating = false; cancelAnimationFrame(animationId);
             let btn = document.getElementById('start-btn-free');
-            btn.innerHTML = "▶啟動";
-            btn.classList.replace('bg-yellow-500', 'bg-indigo-600');
-            btn.classList.replace('hover:bg-yellow-600', 'hover:bg-indigo-700');
+            btn.innerHTML = "▶啟動"; btn.classList.replace('bg-yellow-500', 'bg-indigo-600'); btn.classList.replace('hover:bg-yellow-600', 'hover:bg-indigo-700');
             btn = document.getElementById('start-btn-scene');
-            btn.innerHTML = "▶ 啟動模擬";
-            btn.classList.replace('bg-yellow-500', 'bg-green-600');
-            btn.classList.replace('hover:bg-yellow-600', 'hover:bg-green-700');
+            btn.innerHTML = "▶ 啟動"; btn.classList.replace('bg-yellow-500', 'bg-green-600'); btn.classList.replace('hover:bg-yellow-600', 'hover:bg-green-700');
         }
 
-        // 徹底初始化的重設功能
         function resetSim() {
-            stopAnim();
-            obj.x = 0; obj.vy = 0; obj.vx = 0;
-            
-            // 畫布縮放也一起歸零
-            zoomPercent = 100;
-            currentScale = BASE_SCALE;
+            stopAnim(); obj.x = 0; obj.vy = 0; obj.vx = 0; isPaused = false;
+            zoomPercent = 100; currentScale = BASE_SCALE;
             document.getElementById('zoom-display').textContent = '100%';
 
             if(currentMode === 'scenario-mode') {
-                // 清空情境模式選單
                 document.getElementById('env-select').value = 'none';
                 document.getElementById('obj-select').value = 'none';
-                checkScenarioSetup(); // 讓介面重新判斷隱藏狀態
-                
-                // 清空物理態
-                obj = { x: 0, y: 0, vx: 0, vy: 0, mass: 1, radius: 25 };
-                sceneForces = [];
-                sceneEasterEggTriggered = false;
-                document.getElementById('easter-egg').style.display = 'none';
-                updatePhysics();
+                checkScenarioSetup(); 
             } else {
-                // 清空自由探索模式
-                obj.y = 0;
-                freeForces = [];
-                colorIndex = 0;
-                // 強制加入兩個最乾淨的初始力，解決之前疊加的問題
-                addFreeForce(0, 0); 
-                addFreeForce(0, 90);
+                obj.y = 0; freeForces = []; colorIndex = 0;
+                addFreeForce(0, 0); addFreeForce(0, 90);
             }
             requestDraw();
         }
 
         document.getElementById('start-btn-free').addEventListener('click', () => toggleAnim('start-btn-free', '▶啟動', 'bg-indigo-600', 'hover:bg-indigo-700'));
         document.getElementById('reset-btn-free').addEventListener('click', resetSim);
-        document.getElementById('start-btn-scene').addEventListener('click', () => toggleAnim('start-btn-scene', '▶ 啟動模擬', 'bg-green-600', 'hover:bg-green-700'));
+        document.getElementById('start-btn-scene').addEventListener('click', () => toggleAnim('start-btn-scene', '▶ 啟動', 'bg-green-600', 'hover:bg-green-700'));
         document.getElementById('reset-btn-scene').addEventListener('click', resetSim);
         
         document.getElementById('add-force-btn').addEventListener('click', () => {
             if(freeForces.length < 10) {
-                let newAngle = 0;
                 let currentCount = freeForces.length;
-                if (currentCount === 2) newAngle = 180; // 第 3 個分力預設 180度
-                else if (currentCount === 3) newAngle = 270; // 第 4 個分力預設 270度
-                else newAngle = (Math.floor(Math.random() * 24) * 15); // 其餘預設為 15 的倍數 (0, 15, 30... 345)
-                
+                let newAngle = currentCount === 2 ? 180 : (currentCount === 3 ? 270 : Math.floor(Math.random() * 24) * 15);
                 addFreeForce(0, newAngle);
-            }
-            else alert("太多力了！畫面會爆炸啦！💥 (限制最多10個)");
+            } else alert("太多力了！");
         });
 
-        // 修復切換頁籤偶爾失靈的錯誤 (確保無論點擊文字或圖標，都能抓到正確的按鈕區塊)
         document.querySelectorAll('.tab-btn').forEach(tab => {
             tab.addEventListener('click', () => {
                 document.querySelectorAll('.tab-btn').forEach(t => {
-                    t.classList.remove('border-blue-500', 'text-white');
-                    t.classList.add('border-transparent', 'text-gray-400');
+                    t.classList.remove('border-blue-500', 'text-white'); t.classList.add('border-transparent', 'text-gray-400');
                 });
-                tab.classList.remove('border-transparent', 'text-gray-400');
-                tab.classList.add('border-blue-500', 'text-white');
-
+                tab.classList.remove('border-transparent', 'text-gray-400'); tab.classList.add('border-blue-500', 'text-white');
                 const targetId = tab.getAttribute('data-target');
                 document.getElementById('free-mode-panel').classList.add('hidden');
                 document.getElementById('scenario-mode-panel').classList.add('hidden');
                 document.getElementById(targetId + '-panel').classList.remove('hidden');
-
-                currentMode = targetId;
-                resetSim();
+                currentMode = targetId; resetSim();
             });
         });
 
-        // 初始化
-        addFreeForce(0, 0); 
-        addFreeForce(0, 90);
-        resizeCanvas();
+        /* =================氣泡專屬：點擊畫布暫停與顯示放大鏡================= */
+        canvas.addEventListener('click', (e) => {
+            if (currentMode === 'scenario-mode' && sceneObj === 'bubble' && isAnimating) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left - canvas.width / 2;
+                const mouseY = -(e.clientY - rect.top - canvas.height / 2);
+                
+                // 計算滑鼠點擊位置與氣泡圓心的距離
+                const dist = Math.hypot(mouseX - obj.x, mouseY - obj.y);
+                
+                // 點擊判定範圍 (給予一些容錯空間方便點擊)
+                if (dist <= scenState.bubbleR + 30) {
+                    if (!isPaused) {
+                        isPaused = true; // 第 1 次點擊：暫停泡泡
+                    } else {
+                        document.getElementById('magnify-overlay').style.display = 'flex'; // 第 2 次點擊：顯示放大鏡
+                        isPaused = false; // 重設狀態，讓視窗關閉後可以繼續
+                    }
+                }
+            }
+        });
 
+        // 游標懸停在氣泡上時，變成手指圖示提示可點擊
+        canvas.addEventListener('mousemove', (e) => {
+            if (currentMode === 'scenario-mode' && sceneObj === 'bubble' && isAnimating) {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left - canvas.width / 2;
+                const mouseY = -(e.clientY - rect.top - canvas.height / 2);
+                const dist = Math.hypot(mouseX - obj.x, mouseY - obj.y);
+                
+                if (dist <= scenState.bubbleR + 30) {
+                    canvas.style.cursor = 'pointer';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        });
+
+        // 初始化
+        addFreeForce(0, 0); addFreeForce(0, 90);
+        resizeCanvas();
     </script>
 </body>
 </html>
