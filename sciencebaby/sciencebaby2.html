@@ -221,7 +221,7 @@
 
     <!-- 首頁 Splash Screen -->
     <div id="splash-screen" class="screen fixed inset-0 bg-gray-900 flex-col items-center justify-center z-50 cursor-pointer">
-        <img src="beginning.png" alt="科學寶貝首頁" class="w-full h-full object-contain">
+        <img src="beginning.png" alt="科學寶貝首頁" onerror="this.onerror=null; this.src='https://placehold.co/800x600/111827/ffffff?text=Click+to+Start';" class="w-full h-full object-contain">
         <div class="absolute bottom-16 text-white text-xl md:text-2xl font-bold animate-pulse bg-black bg-opacity-60 px-8 py-3 rounded-full shadow-lg">
             請點擊畫面開始遊戲
         </div>
@@ -272,21 +272,21 @@
                 <!-- Character 1: 小岩 -->
                 <div id="select-xiaoYan" class="character-card cursor-pointer p-4 rounded-lg w-32 sm:w-auto flex flex-col items-center">
                     <div class="w-24 h-24 sm:w-32 sm:h-32 mx-auto rounded-full overflow-hidden border-4 border-indigo-200">
-                        <img src="圖A.png" alt="小岩" class="w-full h-full object-cover object-top">
+                        <img src="圖A.png" alt="小岩" onerror="this.onerror=null; this.src='https://placehold.co/150x150/4f46e5/ffffff?text=小岩';" class="w-full h-full object-cover object-top">
                     </div>
                     <p class="mt-4 font-bold text-lg">小岩</p>
                 </div>
                 <!-- Character 2: 小石 -->
                 <div id="select-xiaoShi" class="character-card cursor-pointer p-4 rounded-lg w-32 sm:w-auto flex flex-col items-center">
                      <div class="w-24 h-24 sm:w-32 sm:h-32 mx-auto rounded-full overflow-hidden border-4 border-green-200">
-                        <img src="圖B.png" alt="小石" class="w-full h-full object-cover object-top">
+                        <img src="圖B.png" alt="小石" onerror="this.onerror=null; this.src='https://placehold.co/150x150/10b981/ffffff?text=小石';" class="w-full h-full object-cover object-top">
                     </div>
                     <p class="mt-4 font-bold text-lg">小石</p>
                 </div>
                 <!-- Character 3: 小礦 -->
                 <div id="select-xiaoKuang" class="character-card cursor-pointer p-4 rounded-lg w-32 sm:w-auto flex flex-col items-center">
                      <div class="w-24 h-24 sm:w-32 sm:h-32 mx-auto rounded-full overflow-hidden border-4 border-blue-200">
-                        <img src="圖C.png" alt="小礦" class="w-full h-full object-cover object-top">
+                        <img src="圖C.png" alt="小礦" onerror="this.onerror=null; this.src='https://placehold.co/150x150/3b82f6/ffffff?text=小礦';" class="w-full h-full object-cover object-top">
                     </div>
                     <p class="mt-4 font-bold text-lg">小礦</p>
                 </div>
@@ -305,7 +305,7 @@
             <!-- Left Panel: Map -->
             <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-4 relative overflow-hidden">
                 <div id="map-area" class="relative w-full aspect-[4/3] max-w-full mx-auto">
-                    <img id="map-image" src="圖1.jpg" alt="校園地圖" class="absolute w-full h-full object-contain opacity-50">
+                    <img id="map-image" src="圖1.jpg" alt="校園地圖" onerror="this.onerror=null; this.src='https://placehold.co/800x600/e5e7eb/6b7280?text=校園地圖';" class="absolute w-full h-full object-contain opacity-50">
                     <svg id="grid-svg" class="absolute top-0 left-0 w-full h-full pointer-events-none z-0"></svg>
                     <svg id="path-svg" class="absolute top-0 left-0 w-full h-full pointer-events-none z-10"></svg>
                     <div id="locations-container" class="absolute top-0 left-0 w-full h-full z-20"></div>
@@ -684,8 +684,8 @@
                 actionButton.textContent = '提交最終答案';
                 restartButton.classList.add('hidden');
                 
-                // 設定角色圖示在畫面上（使用圓形裁切與邊框）
-                playerAvatar.innerHTML = `<img src="${playerImages[studentInfo.characterId]}" class="w-full h-full object-cover rounded-full border-2 border-indigo-600 shadow-lg bg-white">`;
+                // 設定角色圖示在畫面上（使用圓形裁切與邊框），加入 object-top 確保顯示頭部
+                playerAvatar.innerHTML = `<img src="${playerImages[studentInfo.characterId]}" class="w-full h-full object-cover object-top rounded-full border-2 border-indigo-600 shadow-lg bg-white">`;
                 
                 document.querySelectorAll('.rock-option').forEach(btn => btn.classList.remove('selected'));
                 const finalChallengeForm = finalChallengeArea.querySelector('.space-y-6');
