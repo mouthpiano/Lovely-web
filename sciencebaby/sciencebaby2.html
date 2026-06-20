@@ -227,9 +227,11 @@
         </div>
     </div>
 
-    <!-- Password Screen -->
-    <div id="password-screen" class="screen hidden fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50">
-        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-sm w-full relative" id="password-container">
+    <!-- Password Screen (加入 background.png 背景) -->
+    <div id="password-screen" class="screen hidden fixed inset-0 bg-gray-900 bg-cover bg-center bg-no-repeat items-center justify-center z-50" style="background-image: url('background.png');">
+        <!-- 黑色半透明遮罩，確保中間白框清楚可讀 -->
+        <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-sm w-full relative z-10" id="password-container">
             <h1 class="text-3xl font-bold mb-2 text-indigo-700">科學寶貝</h1>
             <h2 class="text-xl font-bold mb-6 text-gray-800">位移之石傳說</h2>
             <p class="text-gray-600 mb-4">請輸入通關密碼以進入遊戲：</p>
@@ -241,9 +243,10 @@
         </div>
     </div>
 
-    <!-- Student Info Screen -->
-    <div id="start-screen" class="screen hidden fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50">
-        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-sm w-full relative">
+    <!-- Student Info Screen (加入 background.png 背景) -->
+    <div id="start-screen" class="screen hidden fixed inset-0 bg-gray-900 bg-cover bg-center bg-no-repeat items-center justify-center z-50" style="background-image: url('background.png');">
+        <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-sm w-full relative z-10">
             <h2 class="text-2xl font-bold mb-4">開始遊戲前...</h2>
             <p class="text-gray-600 mb-6">請輸入你的資料，以便記錄分數！</p>
             <form id="student-form" class="space-y-4">
@@ -263,9 +266,10 @@
         </button>
     </div>
 
-    <!-- Character Selection Screen -->
-    <div id="character-selection-screen" class="screen hidden fixed inset-0 bg-gray-900 bg-opacity-75 items-center justify-center z-50">
-        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-2xl w-full relative">
+    <!-- Character Selection Screen (加入 background.png 背景以維持整體風格) -->
+    <div id="character-selection-screen" class="screen hidden fixed inset-0 bg-gray-900 bg-cover bg-center bg-no-repeat items-center justify-center z-50" style="background-image: url('background.png');">
+        <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+        <div class="bg-white rounded-xl shadow-2xl p-8 text-center max-w-2xl w-full relative z-10">
             <h2 class="text-2xl font-bold mb-4">選擇你的玩家！</h2>
             <p class="text-gray-600 mb-6">不同的玩家有不同的挑戰路線喔！</p>
             <div class="flex flex-wrap justify-center gap-4 sm:gap-8">
