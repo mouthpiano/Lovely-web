@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <!-- 👑 加入 maximum-scale 防止手機端連點時不小心放大畫面 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>步步見真章：國中自然科複習遊戲</title>
+    <!-- 載入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 載入 Tone.js (用於音效) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #050510; /* 深色背景 */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* 👑 鎖定 16:9 比例，並完美支援手機、平板、電視等各種螢幕尺寸 */
+        #app-window {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: calc(100vh * (16 / 9)); /* 寬度不超過高度對應的16:9 */
+            max-height: calc(100vw * (9 / 16)); /* 高度不超過寬度對應的16:9 */
+            aspect-ratio: 16 / 9;
+            background-color: #000;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.2);
+            overflow: hidden;
+            /* 定義容器，讓內部文字大小可以依賴容器寬度 (cqw) 自動完美縮放 */
+            container-type: inline-size;
+        }
+
+        /* 載入首頁 */
+        #frontpage {
+            position: absolute;
+            inset: 0;
+            background-image: url('frontpage.png');
+            background-size: cover;
+            background-position: center;
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 8%;
+            cursor: pointer;
+            transition: opacity 0.8s ease-in-out;
+        }
+
+        /* 遊戲畫面 */
+        #game-screen {
+            position: absolute;
+            inset: 0;
+            background-image: url('background.png');
+            background-size: cover;
+            background-position: center;
+            z-index: 40;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+        }
+
+        /* 卡片容器 (精準定位覆蓋於背景圖的 4 個框框) */
+        #card-container {
+            position: absolute;
+            top: 24%;
+            left: 15.5%;
+            width: 69%;
+            height: 33%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* 單張卡片設定 (去除了背景色與長方形框) */
+        .card {
+            position: relative;
+            width: 22%; /* 讓 4 張卡片加上 gap 剛好填滿 */
+            height: 100%;
+            perspective: 1000px;
+            transition: transform 0.3s ease;
+        }
+        .clickable-card {
+            cursor: pointer;
+            /* 提升手機點擊體驗 */
+            touch-action: manipulation; 
+        }
+        .clickable-card:hover {
+            transform: scale(1.05); /* 去框後微微放大 */
+            filter: drop-shadow(0 0 15px rgba(0, 255, 255, 0.8));
+        }
+        .clickable-card:active {
+            transform: scale(0.98); /* 點擊時的微縮放回饋 */
+        }
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+        .flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+        .card-face, .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 8px;
+        }
+        
+        /* 卡片背面 (顯示 圖A~圖D) */
+        .card-back {
+            background-color: transparent;
+        }
+        .card-back img {
+            width: 90%;
+            height: 90%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 8px rgba(0, 255, 255, 0.3));
+        }
+
+        /* 卡片正面提示 (完全去背、純白色、字體放大帶陰影) */
+        .card-face {
+            background-color: transparent; 
+            border: none;
+            box-shadow: none;
+            color: #ffffff; 
+            transform: rotateY(180deg);
+            padding: 5%;
+            text-align: center;
+            font-size: 2.8cqw; /* 👑 配合手機端縮放，從 vw 改為 cqw (容器寬度的比例) */
+            font-weight: bold;
+            line-height: 1.4;
+            overflow: hidden;
+            word-break: break-word;
+            text-shadow: 2px 2px 5px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.8); 
+        }
+
+        /* 中央「請回答」互動區域 */
+        #central-action-area {
+            position: absolute;
+            top: 61%;
+            left: 39%;
+            width: 22%;
+            height: 16%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 45;
+            border-radius: 20px;
+            touch-action: manipulation;
+        }
+        .action-ready {
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 200, 0, 0.6), inset 0 0 15px rgba(255, 200, 0, 0.4);
+            animation: pulse-glow 1.5s infinite alternate;
+        }
+        .action-ready:hover {
+            background-color: rgba(255, 200, 0, 0.2);
+        }
+
+        /* 最終答案顯示區域 */
+        #answer-area {
+            position: absolute;
+            top: 78.8%; /* 👑 向上微調0.5步，完美置中 */
+            left: 26%;
+            width: 48%;
+            height: 12.5%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+            pointer-events: none;
+        }
+        #answer-text {
+            color: #ffe066;
+            font-size: 3.5cqw; /* 👑 使用 cqw 對應所有裝置 */
+            font-weight: 900;
+            text-shadow: 0 0 10px rgba(255, 200, 0, 0.8), 2px 2px 4px rgba(0,0,0,0.8);
+            letter-spacing: 0.1em;
+        }
+
+        /* 右上角進度提示 */
+        #progress-info {
+            position: absolute;
+            top: 4%;
+            right: 4%;
+            color: rgba(0, 255, 255, 0.8);
+            font-size: 1.2cqw; /* 👑 使用 cqw */
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        }
+
+        /* 按鈕內覆蓋層 (下一題) */
+        #central-overlay-text {
+            color: white;
+            font-size: 2cqw; /* 👑 使用 cqw */
+            font-weight: bold;
+            text-shadow: 0 0 10px #000;
+            opacity: 0;
+            transition: opacity 0.3s;
+            background: transparent; 
+        }
+
+        @keyframes pulse-glow {
+            0% { box-shadow: 0 0 10px rgba(255, 200, 0, 0.4), inset 0 0 10px rgba(255, 200, 0, 0.2); }
+            100% { box-shadow: 0 0 25px rgba(255, 200, 0, 0.8), inset 0 0 20px rgba(255, 200, 0, 0.6); }
+        }
+
+        /* 載入動畫 */
+        .loader {
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #4f46e5;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <!-- 署名標記 -->
+    <div class="absolute top-2 right-2 md:top-3 md:right-3 text-gray-500/60 text-xs font-bold z-[100] pointer-events-none text-right" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
+        Designed by 黃鈺心<br>
+        Gemini Canvas 輔助生成
+    </div>
+
+    <!-- 自動載入畫面 (層級高於 frontpage) -->
+    <div id="loading-overlay" class="absolute inset-0 bg-[#1a1a2e] flex flex-col items-center justify-center z-[60] p-4 transition-opacity duration-500">
+        <div class="bg-gray-800 border-2 border-indigo-500 p-8 rounded-xl shadow-2xl flex flex-col items-center text-center max-w-md w-full">
+            <h2 class="text-2xl font-bold text-white mb-4">正在連線至您的專屬題庫...</h2>
+            <div id="loading-spinner" class="loader mb-4"></div>
+            <p id="loading-message" class="text-indigo-300">系統正在繞過安全限制抓取資料，請稍候</p>
+            
+            <div id="error-container" class="mt-4 hidden flex-col items-center w-full">
+                <p id="error-text" class="text-red-400 font-bold mb-4"></p>
+                <button onclick="loadGoogleSheetsData()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-6 rounded-lg mb-2 w-full">重新嘗試</button>
+                <button onclick="useDefaultRiddles()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded-lg w-full">使用內建範例上課</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="app-window">
+        <!-- 首頁載入層 (題庫載入完成後會顯示，點擊即可開始) -->
+        <div id="frontpage" onclick="startGame()"></div>
+
+        <!-- 遊戲主畫面 -->
+        <div id="game-screen">
+            <!-- 進度顯示 -->
+            <div id="progress-info">第 1 / 10 題</div>
+
+            <!-- 卡片區域 -->
+            <div id="card-container">
+                <!-- 卡片由 JS 動態生成 -->
+            </div>
+
+            <!-- 中央互動區 (疊加於 ? 請回答 區域) -->
+            <div id="central-action-area" onclick="handleCentralClick()">
+                <span id="central-overlay-text">下一題 ➡️</span>
+            </div>
+
+            <!-- 最終答案區 -->
+            <div id="answer-area">
+                <span id="answer-text"></span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🌟 老師專屬設定區 🌟
+        const TEACHER_SHEET_ID = '1bsKtU1K9uefYj9U3fZvpndvtAk8QX0BExmdUfUHCwyw';
+        const CARD_BACK_IMAGES = ['圖A.png', '圖B.png', '圖C.png', '圖D.png'];
+
+        // 👑 位置與縮放控制參數：[左移%, 下移%, 縮放比例]
+        const cardPositions = [
+            { left: '-3%', top: '8%', imgScale: 0.9 }, // 提示一：向右移動0.5步，縮小90%
+            { left: '-1%', top: '8%', imgScale: 0.9 }, // 提示二：向右移動0.5步，縮小90%
+            { left: '+1.25%', top: '8%', imgScale: 1 },   // 👑提示三：向左移動0.5步，原始大小
+            { left: '+3%', top: '8%', imgScale: 1 }    // 👑提示四：向左移動0.5步，原始大小
+        ];
+        // ==========================================
+
+        let customRiddleSets = [];
+        let gameState = { 
+            currentRiddleSetIndex: 0, 
+            currentClueIndex: 0, 
+            isReadyToReveal: false, 
+            isAnswerRevealed: false, 
+            isToneReady: false,
+            isDataLoaded: false
+        };
+        let gameStarted = false; 
+        
+        // 緊急備用的範例題庫
+        const DEFAULT_RIDDLES = [
+            { clues:[{clue:'后羿'},{clue:'嫦娥'},{clue:'遠'},{clue:'上帝的戒指'}], answer:'日環食' },
+            { clues:[{clue:'海綿體'},{clue:'七龍珠'},{clue:'火影忍者'},{clue:'橡膠果實'}], answer:'香蕉' }
+        ];
+
+        // --- 音效設定 ---
+        const successSynth = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'sine' }, envelope: { attack: 0.05, decay: 0.4, sustain: 0.2, release: 1.0 }, volume: -8 }).toDestination();
+        const flipTone = new Tone.Synth({ oscillator: { type: 'square' }, envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 }, volume: -15 }).toDestination();
+        const startTone = new Tone.Synth({ oscillator: { type: 'triangle' }, envelope: { attack: 0.1, decay: 0.2, sustain: 0.5, release: 1.0 }, volume: -10 }).toDestination();
+
+        function playSuccessSound() { if (!gameState.isToneReady) return; const now = Tone.now(); successSynth.triggerAttackRelease(['C5', 'E5', 'G5'], '4n', now); successSynth.triggerAttackRelease(['F5', 'A5', 'C6'], '4n', now + 0.3); successSynth.triggerAttackRelease(['G5', 'B5', 'D6'], '2n', now + 0.6); }
+        function playFlipSound(time = Tone.now()) { if (!gameState.isToneReady) return; flipTone.triggerAttackRelease('G5', '32n', time); }
+        function playStartSound() { if (!gameState.isToneReady) return; startTone.triggerAttackRelease('C4', '8n'); }
+        
+        // --- 🚀 Google JSONP API 跨網域讀取技術 ---
+        let loadTimeout;
+        
+        function loadGoogleSheetsData() {
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const loadingMsg = document.getElementById('loading-message');
+            const errorContainer = document.getElementById('error-container');
+            
+            loadingOverlay.style.display = 'flex';
+            loadingSpinner.style.display = 'block';
+            loadingMsg.textContent = '系統正在繞過安全限制抓取資料，請稍候...';
+            errorContainer.classList.add('hidden');
+            errorContainer.classList.remove('flex');
+
+            const callbackName = 'googleSheetsCallback_' + Math.round(Math.random() * 1000000);
+            
+            window.google = {
+                visualization: {
+                    Query: {
+                        setResponse: function(data) {
+                            clearTimeout(loadTimeout);
+                            processGvizData(data, callbackName);
+                        }
+                    }
+                }
+            };
+
+            const script = document.createElement('script');
+            script.id = callbackName;
+            script.src = `https://docs.google.com/spreadsheets/d/${TEACHER_SHEET_ID}/gviz/tq?tqx=out:json`;
+            
+            script.onerror = function() {
+                clearTimeout(loadTimeout);
+                showLoadError("無法連線到您的 Google Sheets！<br>請確認網路正常，且試算表已設定為「知道連結的任何人都能查看」。");
+            };
+
+            document.body.appendChild(script);
+            
+            loadTimeout = setTimeout(() => {
+                if (window.google) showLoadError("讀取超時！可能是權限未開或網路不穩。");
+            }, 10000);
+        }
+
+        function processGvizData(data, callbackId) {
+            const scriptEl = document.getElementById(callbackId);
+            if (scriptEl) scriptEl.remove();
+
+            if (data.status === 'error') {
+                showLoadError("讀取失敗：" + (data.errors[0]?.message || "未知錯誤"));
+                return;
+            }
+
+            try {
+                const rows = data.table.rows;
+                const parsedSets = [];
+                let startIndex = 0;
+                
+                if (rows.length > 0 && rows[0].c && rows[0].c[0] && rows[0].c[0].v) {
+                    const firstVal = String(rows[0].c[0].v).toLowerCase();
+                    if (firstVal.includes("提示") || firstVal.includes("題") || firstVal.includes("解答") || firstVal.includes("答案")) startIndex = 1;
+                }
+
+                for (let i = startIndex; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || !row.c) continue;
+
+                    const getVal = (idx) => (row.c && row.c.length > idx && row.c[idx] && row.c[idx].v !== null && row.c[idx].v !== undefined) ? String(row.c[idx].v).trim() : "";
+
+                    const c1 = getVal(0); const c2 = getVal(1); const c3 = getVal(2); const c4 = getVal(3);
+                    const ans = getVal(4);
+                    if (!ans) continue;
+
+                    parsedSets.push({ clues: [{ clue: c1 }, { clue: c2 }, { clue: c3 }, { clue: c4 }], answer: ans });
+                }
+
+                if (parsedSets.length > 0) {
+                    customRiddleSets = parsedSets;
+                    markDataLoaded();
+                } else {
+                    showLoadError("表格讀取成功，但找不到題目資料！請確保答案寫在 E 欄。");
+                }
+            } catch (err) {
+                showLoadError("資料解析發生錯誤：" + err.message);
+            }
+        }
+
+        function showLoadError(msg) {
+            document.getElementById('loading-spinner').style.display = 'none';
+            document.getElementById('loading-message').textContent = '';
+            document.getElementById('error-container').classList.remove('hidden');
+            document.getElementById('error-container').classList.add('flex');
+            document.getElementById('error-text').innerHTML = msg;
+        }
+
+        function useDefaultRiddles() {
+            customRiddleSets = DEFAULT_RIDDLES;
+            markDataLoaded();
+        }
+
+        function markDataLoaded() {
+            gameState.isDataLoaded = true;
+            // 題庫載入完成後，直接隱藏 loading-overlay，露出背後的 frontpage
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+
+        // --- 遊戲流程控制 ---
+
+        function startGame() {
+            if (!gameState.isDataLoaded) return; 
+
+            // 啟動音效 (同時支援行動裝置的手勢互動限制)
+            if (!gameState.isToneReady) {
+                Tone.start().then(() => { 
+                    gameState.isToneReady = true; 
+                    playStartSound();
+                }).catch(e => console.warn("音效啟動失敗:", e)); 
+            } else {
+                playStartSound();
+            }
+
+            const frontpage = document.getElementById('frontpage');
+            const gameScreen = document.getElementById('game-screen');
+            
+            frontpage.style.opacity = '0';
+            setTimeout(() => {
+                frontpage.style.display = 'none';
+                gameScreen.style.display = 'block';
+                void gameScreen.offsetWidth; 
+                gameScreen.style.opacity = '1';
+                initLevel();
+            }, 800);
+        }
+
+        function initLevel() {
+            gameState.currentClueIndex = 0; 
+            gameState.isReadyToReveal = false;
+            gameState.isAnswerRevealed = false;
+            
+            const currentSet = customRiddleSets[gameState.currentRiddleSetIndex];
+            
+            document.getElementById('progress-info').textContent = `第 ${gameState.currentRiddleSetIndex + 1} / ${customRiddleSets.length} 題`;
+            
+            // 隱藏答案區
+            const answerArea = document.getElementById('answer-area');
+            answerArea.style.opacity = '0';
+            document.getElementById('answer-text').textContent = '';
+            
+            // 重置中央按鈕到預設位置，並清空內聯樣式
+            const actionArea = document.getElementById('central-action-area');
+            actionArea.classList.remove('action-ready');
+            actionArea.style.top = '61%';
+            actionArea.style.left = '39%';
+            actionArea.style.width = '22%';
+            actionArea.style.height = '16%';
+            actionArea.style.backgroundColor = '';
+            actionArea.style.border = '';
+            actionArea.style.boxShadow = '';
+            actionArea.style.animation = '';
+            actionArea.style.cursor = 'default';
+            
+            document.getElementById('central-overlay-text').style.opacity = '0';
+            
+            renderCards(currentSet);
+        }
+
+        function renderCards(currentSet) {
+            const container = document.getElementById('card-container'); 
+            container.innerHTML = '';
+            
+            currentSet.clues.forEach((clue, index) => {
+                const div = document.createElement('div');
+                const isFlipped = index < gameState.currentClueIndex;
+                
+                div.className = `card ${isFlipped ? 'flipped' : ''}`;
+                div.id = `card-${index}`;
+                
+                // 套用位置偏移量
+                const pos = cardPositions[index];
+                div.style.left = pos.left;
+                div.style.top = pos.top;
+                
+                if (index === 0) {
+                    // 初始化時只有第1張牌可點擊
+                    div.classList.add('clickable-card');
+                    div.onclick = () => { flipCard(index, currentSet); };
+                } else {
+                    // 還沒輪到的牌呈半透明且不可點擊
+                    div.classList.add('opacity-70', 'cursor-default');
+                    div.onclick = null;
+                }
+                
+                const clueText = clue.clue || "(無提示)";
+                const imgStyle = pos.imgScale !== 1 ? `style="transform: scale(${pos.imgScale});"` : '';
+
+                div.innerHTML = `
+                    <div class="card-inner">
+                        <div class="card-back">
+                            <img src="${CARD_BACK_IMAGES[index]}" alt="提示卡 ${index + 1}" onerror="this.style.display='none'" ${imgStyle}>
+                        </div>
+                        <div class="card-face flex items-center justify-center">
+                            ${clueText}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function flipCard(index, currentSet) {
+            if (gameState.isReadyToReveal || index !== gameState.currentClueIndex) return;
+            
+            const cardElement = document.getElementById(`card-${index}`);
+            if (!cardElement) return;
+
+            playFlipSound();
+            
+            // 解決動畫中斷問題：僅修改 DOM 類別，不觸發重新渲染
+            cardElement.classList.add('flipped');
+            cardElement.classList.remove('clickable-card');
+            cardElement.onclick = null;
+            
+            gameState.currentClueIndex++;
+            
+            if (gameState.currentClueIndex < 4) {
+                // 解鎖下一張卡片
+                const nextIndex = gameState.currentClueIndex;
+                const nextCard = document.getElementById(`card-${nextIndex}`);
+                if (nextCard) {
+                    nextCard.classList.remove('opacity-70', 'cursor-default');
+                    nextCard.classList.add('clickable-card');
+                    nextCard.onclick = () => { flipCard(nextIndex, currentSet); };
+                }
+            } else {
+                // 4 張都翻完，啟用中央按鈕
+                gameState.isReadyToReveal = true;
+                const actionArea = document.getElementById('central-action-area');
+                actionArea.classList.add('action-ready');
+            }
+        }
+
+        // 處理中央區域點擊
+        function handleCentralClick() {
+            if (!gameState.isReadyToReveal) return;
+
+            const actionArea = document.getElementById('central-action-area');
+            const overlayText = document.getElementById('central-overlay-text');
+
+            if (!gameState.isAnswerRevealed) {
+                // 階段 1：揭曉答案
+                gameState.isAnswerRevealed = true;
+                playSuccessSound();
+                
+                const currentSet = customRiddleSets[gameState.currentRiddleSetIndex];
+                document.getElementById('answer-text').textContent = currentSet.answer;
+                document.getElementById('answer-area').style.opacity = '1';
+                
+                // 去背並將下一題按鈕移至答案區右側 (關閉動畫)
+                actionArea.classList.remove('action-ready');
+                actionArea.style.animation = 'none'; 
+                actionArea.style.boxShadow = 'none'; 
+                actionArea.style.backgroundColor = 'transparent'; 
+                actionArea.style.border = 'none'; 
+                actionArea.style.cursor = 'pointer';
+                
+                actionArea.style.top = '81%'; 
+                actionArea.style.left = '76%'; 
+                actionArea.style.width = '20%';
+                actionArea.style.height = '10%';
+                
+                if (gameState.currentRiddleSetIndex < customRiddleSets.length - 1) {
+                    overlayText.textContent = '下一題 ➡️';
+                } else {
+                    overlayText.textContent = '重新開始 🔄';
+                }
+                overlayText.style.opacity = '1';
+
+            } else {
+                // 階段 2：進入下一題或重新開始
+                if (gameState.currentRiddleSetIndex < customRiddleSets.length - 1) {
+                    gameState.currentRiddleSetIndex++;
+                    initLevel();
+                } else {
+                    gameState.currentRiddleSetIndex = 0;
+                    initLevel();
+                }
+            }
+        }
+
+        // 自動啟動連線載入機制
+        window.onload = loadGoogleSheetsData;
+        
+    </script>
+</body>
+</html>
