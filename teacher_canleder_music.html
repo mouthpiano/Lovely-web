@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>老師的專屬倒數日曆</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js for Generative Ambient Music -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', 'Inter', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background-color: #f3f4f6;
+        }
+
+        .glass-panel {
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .theme-dark { color: #1f2937; }
+        .theme-light { color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+
+        /* Custom Scrollbar for Settings */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.8s ease-out forwards; }
+    </style>
+</head>
+<body class="relative h-screen w-screen flex flex-col items-center justify-between">
+
+    <!-- Background Image -->
+    <div id="bg-layer" class="absolute inset-0 bg-cover bg-center bg-no-repeat z-[-1] transition-all duration-700" style="background-image: url('https://images.unsplash.com/photo-1470071494754-47121658b5bd?q=80&w=2000&auto=format&fit=crop');"></div>
+    <div class="absolute inset-0 bg-black/10 z-0 pointer-events-none"></div>
+
+    <!-- Header Actions -->
+    <header class="w-full p-4 flex justify-end items-center relative z-20 space-x-3">
+        <button id="btn-music-toggle" class="bg-white/30 hover:bg-white/50 backdrop-blur-md text-gray-800 p-3 rounded-full shadow-lg transition-all duration-300 animate-pulse" title="播放/暫停音樂">
+            <i class="fas fa-music text-xl"></i>
+        </button>
+        <button id="settings-btn" class="bg-white/30 hover:bg-white/50 backdrop-blur-md text-gray-800 p-3 rounded-full shadow-lg transition-all duration-300" title="設定">
+            <i class="fas fa-cog text-xl"></i>
+        </button>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="relative z-10 flex-1 flex flex-col items-center justify-center w-full px-4 max-w-5xl">
+        
+        <h1 id="main-title" class="text-4xl md:text-6xl font-bold mb-8 text-center animate-fade-in theme-light tracking-wide">
+            老師的專屬日曆
+        </h1>
+
+        <!-- Countdown Cards Container (Grid) -->
+        <div id="countdown-container" class="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr">
+            <!-- Cards will be injected here by JS -->
+        </div>
+
+    </main>
+
+    <!-- Daily Quote Area -->
+    <footer class="relative z-10 w-full p-6 flex flex-col items-center justify-center animate-fade-in" style="animation-delay: 0.4s;">
+        <div id="quote-card" class="glass-panel rounded-2xl p-6 max-w-3xl w-full text-center relative group transition-colors duration-300">
+            <p id="daily-quote" class="text-lg md:text-xl font-medium leading-relaxed theme-light">
+                「每一天都是一個新的開始，深呼吸，微笑面對。」
+            </p>
+            <!-- AI Generate Button -->
+            <button id="ai-quote-btn" class="absolute -top-4 -right-4 bg-indigo-500 hover:bg-indigo-600 text-white rounded-full p-3 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform hover:scale-110" title="AI 生成專屬小語">
+                <i class="fas fa-magic"></i>
+            </button>
+            <div id="ai-quote-loading" class="hidden absolute inset-0 flex items-center justify-center bg-white/50 rounded-2xl backdrop-blur-sm">
+                <i class="fas fa-spinner fa-spin text-2xl text-indigo-600"></i>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex justify-center items-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden relative">
+            
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+                <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-sliders-h mr-2 text-indigo-500"></i>日曆設定</h2>
+                <button id="close-settings-btn" class="text-gray-400 hover:text-gray-700 transition"><i class="fas fa-times text-2xl"></i></button>
+            </div>
+
+            <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
+                
+                <!-- General Info -->
+                <div class="space-y-4">
+                    <label class="block text-sm font-bold text-gray-800 border-b pb-2">主標題</label>
+                    <input type="text" id="input-title" class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-lg" placeholder="例如：王老師的專屬日曆">
+                </div>
+
+                <!-- Events Manager -->
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <label class="block text-sm font-bold text-gray-800">倒數事件</label>
+                        <button id="btn-add-event" class="text-xs bg-indigo-100 text-indigo-700 px-3 py-1.5 rounded-lg hover:bg-indigo-200 transition font-medium">
+                            <i class="fas fa-plus mr-1"></i>新增
+                        </button>
+                    </div>
+                    <div id="settings-events-list" class="space-y-3">
+                        <!-- Event items injected here -->
+                    </div>
+                </div>
+
+                <!-- Appearance Setting -->
+                <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 space-y-4">
+                    <label class="block text-sm font-bold text-gray-800 border-b border-indigo-100 pb-2">外觀與顏色設定</label>
+                    
+                    <div class="flex gap-4">
+                        <div class="flex-1">
+                            <label class="block text-xs font-medium text-gray-600 mb-2">文字主題</label>
+                            <div class="flex space-x-4">
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="text-theme" value="light" class="form-radio text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                                    <span class="ml-2 text-sm text-gray-700">淺色字體</span>
+                                </label>
+                                <label class="inline-flex items-center cursor-pointer">
+                                    <input type="radio" name="text-theme" value="dark" class="form-radio text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                                    <span class="ml-2 text-sm text-gray-700">深色字體</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 items-center">
+                        <div class="flex-1">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">畫布底色</label>
+                            <input type="color" id="input-card-color" value="#ffffff" class="h-10 w-full rounded cursor-pointer border-0 p-0">
+                        </div>
+                        <div class="flex-[2]">
+                            <label class="block text-xs font-medium text-gray-600 mb-1 flex justify-between">
+                                <span>畫布不透明度</span>
+                                <span id="opacity-val" class="font-bold text-indigo-600">40%</span>
+                            </label>
+                            <input type="range" id="input-card-opacity" min="0" max="1" step="0.05" value="0.4" class="w-full accent-indigo-600 cursor-pointer">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Music Setting -->
+                <div class="bg-yellow-50/50 p-4 rounded-xl border border-yellow-100 space-y-3">
+                    <label class="block text-sm font-bold text-gray-800 border-b border-yellow-100 pb-2">背景音樂設定</label>
+                    <div class="flex flex-wrap gap-4 mt-2">
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="bgm-style" value="none" class="form-radio text-yellow-600 focus:ring-yellow-500 h-4 w-4">
+                            <span class="ml-2 text-sm text-gray-700">無音效</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="bgm-style" value="warm" class="form-radio text-yellow-600 focus:ring-yellow-500 h-4 w-4">
+                            <span class="ml-2 text-sm text-gray-700">溫馨暖陽</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="bgm-style" value="starry" class="form-radio text-yellow-600 focus:ring-yellow-500 h-4 w-4">
+                            <span class="ml-2 text-sm text-gray-700">寧靜星空</span>
+                        </label>
+                        <label class="inline-flex items-center cursor-pointer">
+                            <input type="radio" name="bgm-style" value="custom" class="form-radio text-yellow-600 focus:ring-yellow-500 h-4 w-4">
+                            <span class="ml-2 text-sm text-gray-700">自訂網址</span>
+                        </label>
+                    </div>
+                    <div id="custom-bgm-container" class="hidden mt-2">
+                        <input type="text" id="input-bgm-url" placeholder="貼上自訂音樂網址 (需為音訊直連如 .mp3)" class="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-yellow-500 outline-none">
+                    </div>
+                </div>
+
+                <!-- Background Setting -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">選擇背景風格</label>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4" id="bg-options">
+                        <!-- Options injected by JS -->
+                    </div>
+                    <div class="mt-4 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                        <label class="block text-xs font-bold text-gray-600 mb-2"><i class="fas fa-paint-brush mr-1"></i>AI 繪製專屬背景 (Imagen)</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="input-ai-bg-prompt" class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="描述畫面，例如：梵谷星空下的溫馨學校">
+                            <button id="ai-bg-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm transition relative overflow-hidden">
+                                生成
+                                <div id="ai-bg-loading" class="hidden absolute inset-0 bg-indigo-600 flex items-center justify-center">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-xs text-gray-500 mb-1">或貼上自訂圖片網址：</label>
+                        <input type="text" id="input-bg-url" class="w-full px-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="https://...">
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-6 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+                <button id="share-btn" class="text-indigo-600 hover:text-indigo-800 font-medium px-4 py-2 rounded-lg hover:bg-indigo-50 transition">
+                    <i class="fas fa-share-alt mr-2"></i>分享設定
+                </button>
+                <button id="save-btn" class="bg-gray-900 hover:bg-gray-800 text-white px-8 py-3 rounded-xl shadow-lg transition transform hover:scale-105 font-bold">
+                    套用設定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 預設背景選項 ---
+        const bgOptions = [
+            { id: 'bg1', name: '寧靜海洋', url: 'https://images.unsplash.com/photo-1505118380757-91f5f5632de0?q=80&w=2000&auto=format&fit=crop' },
+            { id: 'bg2', name: '晨曦森林', url: 'https://images.unsplash.com/photo-1470071494754-47121658b5bd?q=80&w=2000&auto=format&fit=crop' },
+            { id: 'bg3', name: '溫馨書桌', url: 'https://images.unsplash.com/photo-1517842645767-c639042777db?q=80&w=2000&auto=format&fit=crop' },
+            { id: 'bg4', name: '極簡漸層', url: 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809?q=80&w=2000&auto=format&fit=crop' },
+        ];
+
+        // --- 靜態每日小語 ---
+        const staticQuotes = [
+            "每一天都是一個新的開始，深呼吸，微笑面對。",
+            "教育是點燃火焰，而非填滿容器。老師辛苦了！",
+            "慢慢來，比較快。給自己一點喘息的空間。",
+            "您的耐心與愛心，正在改變世界的未來。",
+            "休息是為了走更長遠的路，期待美好的日子到來。",
+            "不論今天多麼疲憊，明天又是充滿希望的一天。",
+            "看到學生眼裡的光芒，一切辛勞都值得了。"
+        ];
+
+        // --- 應用程式狀態 ---
+        let config = {
+            title: '老師的專屬日曆',
+            events: [
+                { id: 'evt-1', name: '距離美好的日子', date: '' }
+            ],
+            bgUrl: bgOptions[3].url,
+            theme: 'light',      // 文字主題：light(淺色字), dark(深色字)
+            cardColor: '#ffffff', // 畫布顏色
+            cardOpacity: 0.4,     // 畫布透明度
+            bgmStyle: 'warm',     // 音樂風格: none, warm, starry, custom
+            bgmUrl: ''            // 自訂音樂網址
+        };
+
+        // --- DOM 元素 ---
+        const els = {
+            bgLayer: document.getElementById('bg-layer'),
+            mainTitle: document.getElementById('main-title'),
+            countdownContainer: document.getElementById('countdown-container'),
+            quoteCard: document.getElementById('quote-card'),
+            dailyQuote: document.getElementById('daily-quote'),
+            
+            settingsBtn: document.getElementById('settings-btn'),
+            modal: document.getElementById('settings-modal'),
+            btnCloseSettings: document.getElementById('close-settings-btn'),
+            btnSave: document.getElementById('save-btn'),
+            btnShare: document.getElementById('share-btn'),
+            
+            inTitle: document.getElementById('input-title'),
+            eventsList: document.getElementById('settings-events-list'),
+            btnAddEvent: document.getElementById('btn-add-event'),
+            
+            bgOptionsContainer: document.getElementById('bg-options'),
+            inBgUrl: document.getElementById('input-bg-url'),
+            themeRadios: document.getElementsByName('text-theme'),
+            inCardColor: document.getElementById('input-card-color'),
+            inCardOpacity: document.getElementById('input-card-opacity'),
+            opacityValDisplay: document.getElementById('opacity-val'),
+            
+            btnAiQuote: document.getElementById('ai-quote-btn'),
+            aiQuoteLoading: document.getElementById('ai-quote-loading'),
+            btnAiBg: document.getElementById('ai-bg-btn'),
+            inAiBgPrompt: document.getElementById('input-ai-bg-prompt'),
+            aiBgLoading: document.getElementById('ai-bg-loading'),
+
+            btnMusicToggle: document.getElementById('btn-music-toggle'),
+            bgmRadios: document.getElementsByName('bgm-style'),
+            customBgmContainer: document.getElementById('custom-bgm-container'),
+            inBgmUrl: document.getElementById('input-bgm-url'),
+        };
+
+        let countdownInterval;
+        let tempEvents = []; // 暫存設定面板中的事件
+
+        // --- 音樂系統變數 ---
+        let isMusicPlaying = false;
+        let toneSetupDone = false;
+        let ambientSynth, ambientLoop, reverb, delay;
+        let customAudioElement = new Audio();
+        customAudioElement.loop = true;
+
+        // --- STREAMING_CHUNK:Initialization and Settings Management ---
+        
+        // 初始化
+        function init() {
+            // 從網址載入設定 (分享功能)
+            const params = new URLSearchParams(window.location.search);
+            const data = params.get('data');
+            
+            if (data) {
+                try {
+                    const parsedData = JSON.parse(decodeURIComponent(escape(atob(data))));
+                    // 相容舊版單一事件
+                    if (parsedData.targetName && parsedData.targetDate) {
+                        parsedData.events = [{
+                            id: 'evt-' + Date.now(),
+                            name: parsedData.targetName,
+                            date: parsedData.targetDate
+                        }];
+                    }
+                    config = { ...config, ...parsedData };
+                } catch (e) {
+                    console.error("解析分享資料失敗", e);
+                }
+            } else {
+                // 若無資料，預設時間為下個月
+                const nextMonth = new Date();
+                nextMonth.setMonth(nextMonth.getMonth() + 1);
+                config.events[0].date = nextMonth.toISOString().split('T')[0];
+            }
+
+            // 初始化背景選項 UI
+            els.bgOptionsContainer.innerHTML = bgOptions.map(bg => `
+                <div class="cursor-pointer group relative rounded-lg overflow-hidden h-20 border-2 border-transparent hover:border-indigo-400 transition" onclick="selectBg('${bg.url}', this)">
+                    <img src="${bg.url}" class="w-full h-full object-cover" alt="${bg.name}">
+                    <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                        <span class="text-white text-xs font-bold">${bg.name}</span>
+                    </div>
+                </div>
+            `).join('');
+
+            // 綁定事件
+            els.settingsBtn.addEventListener('click', openSettings);
+            els.btnCloseSettings.addEventListener('click', closeSettings);
+            els.btnSave.addEventListener('click', saveSettings);
+            els.btnShare.addEventListener('click', shareCalendar);
+            
+            els.inCardOpacity.addEventListener('input', (e) => {
+                els.opacityValDisplay.textContent = Math.round(e.target.value * 100) + '%';
+            });
+
+            els.btnAddEvent.addEventListener('click', addSettingEvent);
+
+            els.btnAiQuote.addEventListener('click', generateAIQuote);
+            els.btnAiBg.addEventListener('click', generateAIBackground);
+            
+            els.btnMusicToggle.addEventListener('click', toggleMusic);
+            els.bgmRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    els.customBgmContainer.classList.toggle('hidden', e.target.value !== 'custom');
+                });
+            });
+
+            els.modal.addEventListener('click', (e) => {
+                if (e.target === els.modal) closeSettings();
+            });
+
+            // 套用並啟動
+            updateUI();
+            startCountdown();
+            setDailyQuote();
+            updateURL();
+        }
+
+        // --- STREAMING_CHUNK:UI Updating and Rendering ---
+
+        function hexToRgba(hex, alpha) {
+            let r = parseInt(hex.slice(1, 3), 16),
+                g = parseInt(hex.slice(3, 5), 16),
+                b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+        }
+
+        function updateUI() {
+            // 背景
+            els.bgLayer.style.backgroundImage = `url('${config.bgUrl}')`;
+            
+            // 標題
+            els.mainTitle.textContent = config.title;
+            
+            // 主題顏色切換
+            els.mainTitle.className = `text-4xl md:text-6xl font-bold mb-8 text-center animate-fade-in tracking-wide theme-${config.theme}`;
+            els.dailyQuote.className = `text-lg md:text-xl font-medium leading-relaxed theme-${config.theme}`;
+            
+            // 畫布顏色與透明度
+            const cardBgColor = hexToRgba(config.cardColor, config.cardOpacity);
+            els.quoteCard.style.backgroundColor = cardBgColor;
+
+            // 渲染卡片
+            renderCountdownCards();
+        }
+
+        function renderCountdownCards() {
+            els.countdownContainer.innerHTML = '';
+            
+            const cardBgColor = hexToRgba(config.cardColor, config.cardOpacity);
+
+            config.events.forEach((evt, index) => {
+                const card = document.createElement('div');
+                card.className = `glass-panel rounded-3xl p-8 flex flex-col items-center justify-center animate-fade-in relative overflow-hidden group`;
+                card.style.animationDelay = `${0.1 * index}s`;
+                card.style.backgroundColor = cardBgColor;
+
+                card.innerHTML = `
+                    <div class="absolute inset-0 bg-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <h2 class="text-xl md:text-2xl font-semibold mb-4 theme-${config.theme} relative z-10 text-center">${evt.name}</h2>
+                    <div class="flex items-baseline space-x-2 relative z-10">
+                        <span id="days-val-${evt.id}" class="text-6xl md:text-8xl font-black theme-${config.theme} drop-shadow-lg">0</span>
+                        <span class="text-xl font-medium theme-${config.theme}">天</span>
+                    </div>
+                    <div class="mt-4 text-sm opacity-80 theme-${config.theme} font-medium relative z-10">目標日期：${evt.date || '未設定'}</div>
+                `;
+                els.countdownContainer.appendChild(card);
+            });
+
+            // 調整 Grid 佈局，如果只有一個，就不要太寬
+            if (config.events.length === 1) {
+                els.countdownContainer.className = "w-full max-w-md mx-auto";
+            } else if (config.events.length === 2) {
+                els.countdownContainer.className = "w-full grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto";
+            } else {
+                els.countdownContainer.className = "w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6";
+            }
+        }
+
+        // --- STREAMING_CHUNK:Countdown Logic ---
+
+        function startCountdown() {
+            if (countdownInterval) clearInterval(countdownInterval);
+            
+            const calculate = () => {
+                const now = new Date();
+                
+                config.events.forEach(evt => {
+                    const elDays = document.getElementById(`days-val-${evt.id}`);
+                    if (!elDays) return;
+
+                    if (!evt.date) {
+                        elDays.textContent = '-';
+                        return;
+                    }
+                    
+                    const target = new Date(evt.date);
+                    target.setHours(0,0,0,0);
+                    now.setHours(0,0,0,0);
+                    
+                    const diffTime = target - now;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    if (diffDays > 0) {
+                        elDays.textContent = diffDays;
+                    } else if (diffDays === 0) {
+                        elDays.textContent = "就是今天！";
+                        elDays.classList.add('text-4xl', 'md:text-5xl');
+                    } else {
+                        elDays.textContent = "已達成";
+                        elDays.classList.add('text-4xl', 'md:text-5xl');
+                    }
+                });
+            };
+
+            calculate();
+            // 每小時更新一次就好
+            countdownInterval = setInterval(calculate, 1000 * 60 * 60);
+        }
+
+        // --- STREAMING_CHUNK:Music System ---
+
+        async function toggleMusic() {
+            if (config.bgmStyle === 'none') {
+                alert('目前設定為無音樂。請至設定面板選擇音樂風格！');
+                return;
+            }
+
+            if (!isMusicPlaying) {
+                // Play
+                els.btnMusicToggle.classList.remove('animate-pulse');
+                els.btnMusicToggle.innerHTML = '<i class="fas fa-pause text-xl"></i>';
+                
+                if (config.bgmStyle === 'custom' && config.bgmUrl) {
+                    customAudioElement.src = config.bgmUrl;
+                    customAudioElement.play().catch(e => {
+                        alert('無法播放自訂音樂，請檢查網址是否正確。');
+                        els.btnMusicToggle.innerHTML = '<i class="fas fa-music text-xl"></i>';
+                        isMusicPlaying = false;
+                    });
+                } else if (config.bgmStyle !== 'custom') {
+                    await Tone.start();
+                    if (!toneSetupDone) setupToneJsMusic();
+                    Tone.Transport.start();
+                }
+                isMusicPlaying = true;
+            } else {
+                // Pause
+                els.btnMusicToggle.innerHTML = '<i class="fas fa-music text-xl"></i>';
+                if (config.bgmStyle === 'custom') {
+                    customAudioElement.pause();
+                } else {
+                    Tone.Transport.pause();
+                }
+                isMusicPlaying = false;
+            }
+        }
+
+        function setupToneJsMusic() {
+            if (ambientSynth) {
+                ambientSynth.dispose();
+                if(ambientLoop) ambientLoop.dispose();
+            }
+            
+            reverb = new Tone.Reverb({ decay: 6, wet: 0.8 }).toDestination();
+            delay = new Tone.FeedbackDelay("8n", 0.5).connect(reverb);
+            
+            let notes = [];
+            let interval = "4n";
+
+            if (config.bgmStyle === 'warm') {
+                ambientSynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: 'sine' },
+                    envelope: { attack: 2, decay: 1, sustain: 0.8, release: 4 }
+                }).connect(delay);
+                ambientSynth.volume.value = -15;
+                notes = ["C4", "E4", "G4", "A4", "C5"];
+            } else if (config.bgmStyle === 'starry') {
+                ambientSynth = new Tone.PolySynth(Tone.FMSynth, {
+                    harmonicity: 3,
+                    modulationIndex: 3.5,
+                    oscillator: { type: "sine" },
+                    modulation: { type: "square" },
+                    envelope: { attack: 1.5, decay: 2, sustain: 0.5, release: 3 }
+                }).connect(delay);
+                ambientSynth.volume.value = -20;
+                notes = ["D4", "F4", "A4", "C5", "E5"];
+                interval = "2n";
+            }
+
+            ambientLoop = new Tone.Loop(time => {
+                if (Math.random() > 0.4) {
+                    const note = notes[Math.floor(Math.random() * notes.length)];
+                    ambientSynth.triggerAttackRelease(note, "4n", time);
+                }
+            }, interval).start(0);
+
+            toneSetupDone = true;
+        }
+
+        function applyMusicSettingsChange() {
+            if (isMusicPlaying) toggleMusic(); 
+            toneSetupDone = false;
+            if (ambientSynth) {
+                ambientSynth.dispose();
+                ambientLoop.dispose();
+                ambientSynth = null;
+            }
+            customAudioElement.pause();
+            customAudioElement.src = '';
+            
+            els.btnMusicToggle.innerHTML = '<i class="fas fa-music text-xl"></i>';
+            if (config.bgmStyle !== 'none') {
+                els.btnMusicToggle.classList.add('animate-pulse');
+            } else {
+                els.btnMusicToggle.classList.remove('animate-pulse');
+            }
+        }
+
+        // --- STREAMING_CHUNK:Settings & Events Management ---
+
+        function openSettings() {
+            els.inTitle.value = config.title;
+            els.inBgUrl.value = config.bgUrl;
+            
+            // Events
+            tempEvents = JSON.parse(JSON.stringify(config.events));
+            renderSettingsEvents();
+            
+            // Appearance
+            els.inCardColor.value = config.cardColor || '#ffffff';
+            els.inCardOpacity.value = config.cardOpacity !== undefined ? config.cardOpacity : 0.4;
+            els.opacityValDisplay.textContent = Math.round(els.inCardOpacity.value * 100) + '%';
+
+            for(let radio of els.themeRadios) {
+                if(radio.value === config.theme) radio.checked = true;
+            }
+
+            // Music
+            let isCustom = false;
+            for(let radio of els.bgmRadios) {
+                if(radio.value === (config.bgmStyle || 'warm')) {
+                    radio.checked = true;
+                    if(radio.value === 'custom') isCustom = true;
+                }
+            }
+            els.inBgmUrl.value = config.bgmUrl || '';
+            els.customBgmContainer.classList.toggle('hidden', !isCustom);
+
+            els.modal.classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            els.modal.classList.add('hidden');
+        }
+
+        function renderSettingsEvents() {
+            els.eventsList.innerHTML = '';
+            tempEvents.forEach((evt, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex gap-2 items-center bg-gray-50 p-3 rounded-lg border border-gray-200';
+                div.innerHTML = `
+                    <div class="flex-1 space-y-2">
+                        <input type="text" class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 outline-none" value="${evt.name}" onchange="updateTempEvent(${index}, 'name', this.value)" placeholder="事件名稱">
+                        <input type="date" class="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-indigo-500 outline-none" value="${evt.date}" onchange="updateTempEvent(${index}, 'date', this.value)">
+                    </div>
+                    <button onclick="removeSettingEvent(${index})" class="text-red-400 hover:text-red-600 p-2" title="移除"><i class="fas fa-trash"></i></button>
+                `;
+                els.eventsList.appendChild(div);
+            });
+        }
+
+        window.updateTempEvent = function(index, field, value) {
+            tempEvents[index][field] = value;
+        }
+
+        window.removeSettingEvent = function(index) {
+            tempEvents.splice(index, 1);
+            renderSettingsEvents();
+        }
+
+        function addSettingEvent() {
+            tempEvents.push({ id: 'evt-' + Date.now(), name: '新倒數事件', date: '' });
+            renderSettingsEvents();
+        }
+
+        window.selectBg = function(url, el) {
+            els.inBgUrl.value = url;
+            // Visual feedback
+            document.querySelectorAll('#bg-options > div').forEach(d => d.classList.remove('border-indigo-500', 'border-2'));
+            el.classList.add('border-indigo-500', 'border-2');
+        }
+
+        function saveSettings() {
+            config.title = els.inTitle.value.trim() || '老師的專屬日曆';
+            config.bgUrl = els.inBgUrl.value.trim();
+            
+            // Filter empty events
+            config.events = tempEvents.filter(e => e.name.trim() !== '');
+            if(config.events.length === 0) {
+                config.events = [{ id: 'evt-1', name: '距離美好的日子', date: '' }];
+            }
+
+            config.cardColor = els.inCardColor.value;
+            config.cardOpacity = parseFloat(els.inCardOpacity.value);
+            
+            for(let radio of els.themeRadios) {
+                if(radio.checked) config.theme = radio.value;
+            }
+            
+            let oldBgmStyle = config.bgmStyle;
+            let oldBgmUrl = config.bgmUrl;
+            for(let radio of els.bgmRadios) {
+                if(radio.checked) config.bgmStyle = radio.value;
+            }
+            config.bgmUrl = els.inBgmUrl.value.trim();
+
+            if (oldBgmStyle !== config.bgmStyle || oldBgmUrl !== config.bgmUrl) {
+                applyMusicSettingsChange();
+            }
+
+            updateUI();
+            startCountdown();
+            updateURL();
+            closeSettings();
+        }
+
+        // --- STREAMING_CHUNK:Share and URL Logic ---
+
+        function getShareUrl() {
+            const dataToEncode = { ...config };
+            // Avoid extreme long URL from base64 AI image
+            if (dataToEncode.bgUrl && dataToEncode.bgUrl.startsWith('data:image')) {
+                dataToEncode.bgUrl = bgOptions[0].url; 
+            }
+            const jsonStr = JSON.stringify(dataToEncode);
+            const base64 = btoa(unescape(encodeURIComponent(jsonStr)));
+            const baseUrl = window.location.href.split('?')[0];
+            return `${baseUrl}?data=${base64}`;
+        }
+
+        function updateURL() {
+            if (window.location.protocol === 'blob:') return; // 防呆預覽環境
+            try {
+                const newUrl = getShareUrl();
+                window.history.replaceState({}, '', newUrl);
+            } catch (e) {
+                console.warn("無法更新 URL:", e);
+            }
+        }
+
+        function shareCalendar() {
+            const shareUrl = getShareUrl();
+            
+            // 建立暫時輸入框來複製
+            const tempInput = document.createElement("input");
+            tempInput.value = shareUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            
+            try {
+                document.execCommand("copy");
+                alert("🎉 分享連結已成功複製到剪貼簿！\n\n您可以將連結傳給任何人，他們打開後會看到和您一模一樣的倒數與音樂設定！");
+            } catch (err) {
+                alert("複製失敗，請手動複製網址列的連結。");
+            }
+            document.body.removeChild(tempInput);
+        }
+
+        // --- STREAMING_CHUNK:AI Features (Quote and Background) ---
+
+        function setDailyQuote() {
+            const today = new Date().toDateString();
+            let hash = 0;
+            for (let i = 0; i < today.length; i++) {
+                hash = today.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const index = Math.abs(hash) % staticQuotes.length;
+            els.dailyQuote.textContent = staticQuotes[index];
+        }
+
+        async function generateAIQuote() {
+            els.aiQuoteLoading.classList.remove('hidden');
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+            const eventsText = config.events.map(e => `${e.name} (日期: ${e.date || '未定'})`).join('、');
+            const prompt = `你是一個充滿溫暖、能給人力量的資深教育工作者。
+            這位老師正在倒數以下的日子：${eventsText}。
+            請根據這些目標，給這位老師一句今天專屬的「溫馨能量小語」。
+            語氣要像朋友般鼓勵、溫柔，字數控制在 30 字以內，不要有引號或多餘的解說。`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                    })
+                });
+                const result = await response.json();
+                if (result.candidates && result.candidates[0].content.parts[0].text) {
+                    els.dailyQuote.textContent = result.candidates[0].content.parts[0].text.trim();
+                } else {
+                    throw new Error("API No Result");
+                }
+            } catch (error) {
+                console.error("AI Quote Error:", error);
+                alert("不好意思，小語靈感暫時枯竭了，請稍後再試。");
+            } finally {
+                els.aiQuoteLoading.classList.add('hidden');
+            }
+        }
+
+        async function generateAIBackground() {
+            const userPrompt = els.inAiBgPrompt.value.trim();
+            if (!userPrompt) {
+                alert("請輸入您想像中的畫面喔！");
+                return;
+            }
+
+            els.aiBgLoading.classList.remove('hidden');
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        instances: { prompt: `${userPrompt}, peaceful, beautiful, high quality, 16:9 wallpaper style, soft lighting` },
+                        parameters: { sampleCount: 1 }
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                    const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                    els.inBgUrl.value = imageUrl;
+                    document.querySelectorAll('#bg-options > div').forEach(d => d.classList.remove('border-indigo-500', 'border-2'));
+                } else {
+                    throw new Error("Imagen No Result");
+                }
+            } catch (error) {
+                console.error("AI Image Error:", error);
+                alert("不好意思，繪圖精靈暫時需要休息，請稍後再試。");
+            } finally {
+                els.aiBgLoading.classList.add('hidden');
+            }
+        }
+
+        // 啟動應用程式
+        window.addEventListener('DOMContentLoaded', init);
+
+    </script>
+</body>
+</html>
