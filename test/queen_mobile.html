@@ -61,7 +61,7 @@
         liquids: [
           { real: 'HCl', name: '鹽酸', desc: '無色透明溶液', smell: '無色，微酸味', reactionType: '強酸', type: 'liquid' },
           { real: 'CH3COOH', name: '醋酸', desc: '無色透明溶液', smell: '明顯酸嗆味', reactionType: '弱酸', type: 'liquid' },
-          { real: 'Ca(OH)2', name: '氫氧化鈣(石灰水)', desc: '無色透明溶液', smell: '無味', reactionType: '強鹼(溶解度隨溫度下降)', type: 'liquid' },
+          { real: 'Ca(OH)2', name: '氫氧化鈣(石灰水)', desc: '無色透明溶液', smell: '無味', reactionType: '強鹼(溶解度隨溫度上升而下降)', type: 'liquid' },
           { real: 'NH3', name: '氨水', desc: '無色透明溶液', smell: '強烈刺鼻臭味！(女王提醒：請用手煽聞！)', reactionType: '弱鹼(高揮發)', type: 'liquid' },
           { real: 'Na2S2O3', name: '硫代硫酸鈉', desc: '無色透明溶液', smell: '無味', reactionType: '遇酸產生硫沉澱', type: 'liquid' }
         ]
@@ -369,7 +369,7 @@
                 onClick={() => setGameState('playing')}
                 className="relative z-50 cursor-pointer bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 sm:py-4 px-6 sm:px-10 md:px-12 rounded-full text-xl sm:text-2xl md:text-3xl transition-all hover:scale-105 shadow-xl shadow-purple-500/40 border border-purple-400"
               >
-                接受考驗，開始練習！
+                接受考驗，開始挑戰！
               </button>
             </div>
 
@@ -380,7 +380,7 @@
         );
       }
 
-      // 2. 結算畫面 (練習版：直接顯示成績與解答，不上傳)
+      // 2. 結算畫面 (直接顯示成績與解答，不上傳)
       if (gameState === 'result') {
         return (
           <div className="h-screen w-screen overflow-y-auto bg-slate-900 text-white p-4 sm:p-6 relative flex flex-col items-center justify-start sm:justify-center font-sans">
@@ -392,8 +392,8 @@
               <div className="flex justify-center mb-2 sm:mb-4">
                 <img src="./queen.png" alt="女王 IP" className="w-20 h-20 sm:w-28 sm:h-28 object-contain drop-shadow-[0_0_15px_rgba(74,222,128,0.5)]" />
               </div>
-              <h1 className="text-3xl sm:text-4xl font-bold mb-2 text-green-400">練習結束！</h1>
-              <p className="text-base sm:text-xl text-slate-300 mb-4 sm:mb-8">這是你本次練習的結果對照表：</p>
+              <h1 className="text-3xl sm:text-4xl font-bold mb-2 text-green-400">挑戰結束！</h1>
+              <p className="text-base sm:text-xl text-slate-300 mb-4 sm:mb-8">這是你本次挑戰的結果對照表：</p>
               
               <div className="flex flex-col md:flex-row gap-4 sm:gap-8 w-full items-start">
                 
