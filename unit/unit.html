@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基本測量虛擬實驗室</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0fdf4;
+            user-select: none;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 8px 32px 0 rgba(22, 163, 74, 0.1);
+        }
+
+        /* 體積測量樣式 */
+        .faucet-container {
+             position: absolute;
+             top: 0px;
+             left: 50%;
+             transform: translateX(-50%);
+             z-index: 20;
+             display: flex;
+             flex-direction: column;
+             align-items: center;
+        }
+        .faucet {
+            position: relative;
+            width: 50px;
+            height: 36px;
+            background: #94a3b8;
+            border-radius: 4px 4px 0 0;
+        }
+        .faucet::after {
+            content: '';
+            position: absolute;
+            bottom: -13px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 25px;
+            height: 13px;
+            background: #64748b;
+            border-radius: 0 0 4px 4px;
+        }
+        .faucet-valve {
+            position: absolute;
+            top: 22px;
+            right: -20px;
+            width: 27px;
+            height: 9px;
+            background: #ef4444; 
+            border-radius: 4px;
+        }
+
+        .water-drop {
+            position: absolute;
+            left: 50%;
+            bottom: -22px;
+            transform: translateX(-50%);
+            width: 11px;
+            height: 13px;
+            background: #60a5fa; 
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            opacity: 0;
+            animation: none;
+        }
+        @keyframes drip {
+            0% { bottom: -22px; opacity: 1; transform: translateX(-50%) scaleY(1); }
+            80% { opacity: 1; transform: translateX(-50%) scaleY(1.2); }
+            100% { bottom: -90px; opacity: 0; transform: translateX(-50%) scaleY(0.8); }
+        }
+        .flowing .water-drop {
+            animation: drip 0.4s infinite linear;
+        }
+
+        .vessel {
+            position: relative;
+            border: 2px solid #1f2937; /* 黑色邊框 */
+            border-top: none;
+            background: rgba(255,255,255,0.8);
+            margin: 0 auto;
+            border-radius: 0 0 10px 10px;
+            display: flex;
+            align-items: flex-end;
+            transition: all 0.3s ease;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+        .vessel-liquid {
+            width: 100%;
+            background: #7cb5f9; 
+            transition: height 1.5s ease-in-out;
+            border-radius: 0 0 6px 6px; 
+            border-top: 2px solid rgba(255,255,255,0.4); 
+        }
+        .scale-mark {
+            position: absolute;
+            left: 0;
+            border-top-color: #1f2937; /* 黑色刻度線 */
+            transform: translateY(-50%); 
+        }
+        .scale-text {
+            color: #111827; /* 黑色文字 */
+            font-size: 14px;
+            font-weight: bold;
+            position: absolute;
+            right: calc(100% + 5px);
+            top: 50%;
+            transform: translateY(-50%);
+            line-height: 1;
+        }
+
+        .draggable {
+            cursor: grab;
+            transition: transform 0.1s;
+        }
+        .draggable:active {
+            cursor: grabbing;
+            transform: scale(0.95);
+        }
+        input[type=range] {
+            accent-color: #2563eb;
+        }
+        
+        .ruler {
+            background-color: #f4d03f;
+            border: 2px solid #ca8a04;
+            border-radius: 5px;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .ruler-mark {
+            position: absolute;
+            top: 0;
+            width: 1px;
+            background-color: #713f12;
+        }
+        .ruler-text {
+            position: absolute;
+            top: 100%; 
+            font-size: 14px;
+            font-weight: bold;
+            color: #451a03;
+            transform: translate(-50%, 8px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col text-slate-800 relative pb-12" onload="app.init()">
+
+    <!-- 絕對定位版權宣告 -->
+    <div class="fixed top-2 right-2 text-xs text-white font-bold z-50 text-right pointer-events-none drop-shadow-md">
+        ＜Designed by 黃鈺心,<br>Gemini Canvas輔助生成>
+    </div>
+    <div class="fixed bottom-2 left-0 w-full text-center text-xs text-gray-500 bg-white/50 border-t border-green-100 z-50 pointer-events-none">
+        ＜Designed by 黃鈺心, Gemini Canvas輔助生成>
+    </div>
+
+    <header class="bg-green-600 text-white p-4 shadow-md z-10 w-full flex justify-center items-center h-[72px] relative">
+        <div class="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-green-900 bg-green-100/90 px-4 py-1.5 rounded-full shadow-sm flex items-center">
+            <i class="fa-solid fa-chart-line mr-2"></i>瀏覽: <span id="page-view-count" class="ml-1">載入中</span>
+        </div>
+        <h1 class="text-3xl font-bold text-center flex items-center justify-center w-full">
+            <i class="fa-solid fa-flask text-yellow-300 mr-3"></i> 國二理化：基本測量虛擬實驗室<span id="sub-title"></span>
+        </h1>
+    </header>
+
+    <main class="flex-grow flex items-center justify-center p-4 w-full" id="main-container">
+        
+        <!-- 登入畫面 -->
+        <div id="view-login" class="w-full max-w-md glass-panel rounded-3xl p-10 shadow-2xl flex flex-col items-center">
+            <h2 class="text-3xl font-black text-green-800 mb-6 text-center">基本測量實驗室</h2>
+            <div class="w-full space-y-4 mb-6">
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">班級</label>
+                    <input type="text" id="login-class" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="例：801">
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">座號</label>
+                    <input type="number" id="login-num" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="例：05">
+                </div>
+                <div>
+                    <label class="block text-gray-700 font-bold mb-2">姓名</label>
+                    <input type="text" id="login-name" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="請輸入姓名">
+                </div>
+            </div>
+            <button onclick="app.login()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-md transition-colors text-xl">開始探索</button>
+        </div>
+
+        <!-- 主選單 -->
+        <div id="view-menu" class="hidden w-full max-w-[95vw]">
+            <div class="text-center mb-12 mt-4">
+                <h2 class="text-5xl font-black text-green-800 mb-4"><span id="student-name-display"></span> 同學，請選擇實驗站</h2>
+                <p class="text-gray-600 text-xl font-bold">完成三項挑戰，掌握「最小單位」與「估計值」的奧祕！</p>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <div class="glass-panel rounded-3xl p-12 text-center hover:scale-105 transition-transform cursor-pointer border-t-8 border-blue-500 shadow-2xl flex flex-col items-center justify-center relative" onclick="app.loadView('mass')">
+                    <div class="w-40 h-40 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-8 text-blue-600 text-7xl">
+                        <i class="fa-solid fa-scale-balanced"></i>
+                    </div>
+                    <h3 class="text-4xl font-bold mb-4 text-slate-800">質量的測量</h3>
+                    <p class="text-lg text-gray-500 font-medium mb-6">上皿天平歸零與砝碼測量</p>
+                    <div class="bg-blue-50 text-blue-700 font-bold px-6 py-2 rounded-full border border-blue-200">練習 <span id="count-mass" class="text-xl">0</span> 次</div>
+                </div>
+                
+                <div class="glass-panel rounded-3xl p-12 text-center hover:scale-105 transition-transform cursor-pointer border-t-8 border-cyan-400 shadow-2xl flex flex-col items-center justify-center relative" onclick="app.loadView('volume')">
+                    <div class="w-40 h-40 mx-auto bg-cyan-100 rounded-full flex items-center justify-center mb-8 text-cyan-500 text-7xl border-4 border-cyan-400 relative overflow-hidden">
+                        <div class="absolute bottom-5 w-20 h-24 border-x-4 border-b-4 border-cyan-600 rounded-b-sm flex flex-col justify-end">
+                            <div class="w-full h-1/2 bg-cyan-400"></div>
+                            <div class="absolute left-0 top-3 w-6 border-b-4 border-cyan-600"></div>
+                            <div class="absolute left-0 top-8 w-4 border-b-4 border-cyan-600"></div>
+                            <div class="absolute left-0 top-13 w-6 border-b-4 border-cyan-600"></div>
+                        </div>
+                    </div>
+                    <h3 class="text-4xl font-bold mb-4 text-slate-800">體積的測量</h3>
+                    <p class="text-lg text-gray-500 font-medium mb-6">選擇量筒與水位讀取</p>
+                    <div class="bg-cyan-50 text-cyan-700 font-bold px-6 py-2 rounded-full border border-cyan-200">練習 <span id="count-volume" class="text-xl">0</span> 次</div>
+                </div>
+
+                <div class="glass-panel rounded-3xl p-12 text-center hover:scale-105 transition-transform cursor-pointer border-t-8 border-yellow-500 shadow-2xl flex flex-col items-center justify-center relative" onclick="app.loadView('length')">
+                    <div class="w-40 h-40 mx-auto bg-yellow-100 rounded-full flex items-center justify-center mb-8 text-yellow-600 text-7xl">
+                        <i class="fa-solid fa-ruler"></i>
+                    </div>
+                    <h3 class="text-4xl font-bold mb-4 text-slate-800">長度的測量</h3>
+                    <p class="text-lg text-gray-500 font-medium mb-6">使用不同最小刻度的尺</p>
+                    <div class="bg-yellow-50 text-yellow-700 font-bold px-6 py-2 rounded-full border border-yellow-200">練習 <span id="count-length" class="text-xl">0</span> 次</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 質量的測量 -->
+        <div id="view-mass" class="hidden w-full max-w-[95vw] glass-panel rounded-2xl p-6 flex flex-col md:flex-row gap-6 relative items-stretch h-[85vh]">
+            
+            <div class="w-full md:w-2/3 flex flex-col justify-start h-full">
+                
+                <div class="w-full bg-blue-50 text-blue-900 p-4 rounded-lg font-bold mb-2 flex items-center shadow-sm text-lg flex-shrink-0">
+                    <button onclick="app.goHome()" class="mr-4 text-gray-500 hover:text-gray-800 transition flex-shrink-0 cursor-pointer z-50 relative"><i class="fa-solid fa-circle-arrow-left text-3xl"></i></button>
+                    <span><i class="fa-solid fa-lightbulb text-yellow-500 mr-2 text-2xl"></i> 提示：1. 轉動螺絲歸零。 2. 拖曳待測物至左盤。 3. 拖曳砝碼至右盤。</span>
+                </div>
+                
+                <!-- 待測物與砝碼區 (移至上方) -->
+                <div class="w-full flex gap-4 items-stretch mb-2 flex-shrink-0">
+                    <div class="w-1/2 bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col items-center justify-center">
+                        <h4 class="font-bold text-gray-700 mb-2 text-center text-lg">待測物 (請選擇一個拖至左盤)</h4>
+                        <div class="flex flex-nowrap gap-2 justify-center items-center w-full">
+                            <div class="draggable bg-slate-600 text-white font-bold py-1 px-2 rounded shadow-md text-sm whitespace-nowrap" draggable="true" ondragstart="app.mass.dragStart(event, 'obj_a', 210, '鐵塊甲')">鐵塊甲</div>
+                            <div class="draggable bg-amber-700 text-white font-bold py-1 px-2 rounded shadow-md text-sm whitespace-nowrap" draggable="true" ondragstart="app.mass.dragStart(event, 'obj_b', 521, '銅塊乙')">銅塊乙</div>
+                            <div class="draggable bg-slate-400 text-white font-bold py-1 px-2 rounded shadow-md text-sm whitespace-nowrap" draggable="true" ondragstart="app.mass.dragStart(event, 'obj_c', 12.3, '鋁片丙')">鋁片丙</div>
+                            <div class="draggable bg-rose-500 text-white font-bold py-1 px-2 rounded shadow-md text-sm whitespace-nowrap" draggable="true" ondragstart="app.mass.dragStart(event, 'obj_d', 6.52, '塑膠丁')">塑膠丁</div>
+                        </div>
+                    </div>
+                    <div class="w-1/2 bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm flex flex-col items-center justify-center relative">
+                        <div class="w-full flex justify-between items-center mb-2 px-2">
+                            <div class="w-20"></div> 
+                            <h4 class="font-bold text-blue-800 text-lg m-0">砝碼盒 (拖至右盤)</h4>
+                            <button onclick="app.mass.clearRightPan()" class="w-20 text-sm font-bold text-red-600 bg-red-100 hover:bg-red-200 px-2 py-1 rounded shadow-sm border border-red-200 transition">全部清空</button>
+                        </div>
+                        <div class="flex flex-wrap gap-2 justify-center items-end">
+                            <div class="draggable bg-gray-500 border-2 border-gray-600 text-white font-bold text-sm flex items-center justify-center rounded-t-lg shadow relative" style="width:40px; height:45px;" draggable="true" ondragstart="app.mass.dragStart(event, 'weight_100', 100, '100g')">100g</div>
+                            <div class="draggable bg-gray-500 border-2 border-gray-600 text-white font-bold text-xs flex items-center justify-center rounded-t-lg shadow relative" style="width:30px; height:35px;" draggable="true" ondragstart="app.mass.dragStart(event, 'weight_10', 10, '10g')">10g</div>
+                            <div class="draggable bg-gray-500 border-2 border-gray-600 text-white font-bold text-xs flex items-center justify-center rounded-t-lg shadow relative" style="width:25px; height:25px;" draggable="true" ondragstart="app.mass.dragStart(event, 'weight_1', 1, '1g')">1g</div>
+                            <div class="draggable bg-gray-400 border border-gray-500 text-gray-800 font-bold text-[10px] flex items-center justify-center rounded-sm shadow relative" style="width:30px; height:18px;" draggable="true" ondragstart="app.mass.dragStart(event, 'weight_0.1', 0.1, '100mg')">100mg</div>
+                            <div class="draggable bg-gray-400 border border-gray-500 text-gray-800 font-bold text-[8px] flex items-center justify-center rounded-sm shadow relative" style="width:20px; height:12px;" draggable="true" ondragstart="app.mass.dragStart(event, 'weight_0.01', 0.01, '10mg')">10mg</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 天平主畫面 -->
+                <div class="relative w-full flex-grow bg-white rounded-xl shadow-inner border border-gray-200 flex flex-col overflow-hidden" id="mass-env" ondrop="app.mass.drop(event)" ondragover="app.mass.allowDrop(event)">
+                    <!-- 天平畫布區域 (滿版) -->
+                    <div class="w-full flex-grow relative pt-4">
+                        <canvas id="mass-canvas" class="cursor-pointer z-10 w-full h-full block" onclick="app.mass.handleCanvasClick(event)"></canvas>
+                    </div>
+
+                    <!-- 螺絲控制區 (移至畫布下方懸浮或固定底部) -->
+                    <div class="absolute bottom-4 w-full flex justify-between px-16 z-20 pointer-events-none">
+                        <div class="flex flex-col items-center w-1/3 pointer-events-auto bg-white/80 p-2 rounded-lg backdrop-blur-sm">
+                            <span class="text-sm font-bold text-gray-600 mb-1">左校準螺絲</span>
+                            <input type="range" id="mass-slider-left" min="-20" max="20" value="0" class="w-32" oninput="app.mass.updateCalibration()">
+                        </div>
+                        <div class="flex justify-center w-1/3 items-center">
+                            <div id="mass-status" class="px-4 py-2 rounded-full font-bold text-lg shadow-sm transition-colors duration-300"></div>
+                        </div>
+                        <div class="flex flex-col items-center w-1/3 pointer-events-auto bg-white/80 p-2 rounded-lg backdrop-blur-sm">
+                            <span class="text-sm font-bold text-gray-600 mb-1">右校準螺絲</span>
+                            <input type="range" id="mass-slider-right" min="-20" max="20" value="0" class="w-32" oninput="app.mass.updateCalibration()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 測量紀錄表 -->
+            <div class="w-full md:w-1/3 bg-white p-8 rounded-xl shadow-lg border-2 border-blue-100 flex flex-col h-full overflow-y-auto">
+                <h3 class="text-2xl font-bold text-slate-800 border-b-2 border-blue-100 pb-4 mb-6 flex items-center"><i class="fa-solid fa-pen-to-square text-blue-500 mr-3"></i> 測量紀錄表</h3>
+                
+                <div class="space-y-6 flex-grow">
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                        <label class="block font-bold text-gray-700 mb-3 text-lg">1. 選擇最小單位 <span class="text-sm font-normal text-gray-500">(依據你使用的最小砝碼)</span></label>
+                        <select id="mass-min-unit" class="w-full p-3 border rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg">
+                            <option value="">請選擇...</option>
+                            <option value="100">100g</option>
+                            <option value="10">10g</option>
+                            <option value="1">1g</option>
+                            <option value="0.1">100mg (0.1g)</option>
+                            <option value="0.01">10mg (0.01g)</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                        <label class="block font-bold text-gray-700 mb-3 text-lg">2. 選擇估計單位 <span class="text-sm font-normal text-gray-500">(最小單位的下一位)</span></label>
+                        <select id="mass-est-unit" class="w-full p-3 border rounded-md border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500 text-lg">
+                            <option value="">請選擇...</option>
+                            <option value="10">10g</option>
+                            <option value="1">1g</option>
+                            <option value="0.1">100mg (0.1g)</option>
+                            <option value="0.01">10mg (0.01g)</option>
+                            <option value="0.001">1mg (0.001g)</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-base font-bold text-gray-600 mb-2">準確值數字</label>
+                            <input type="text" id="mass-acc-val" class="w-full p-3 border rounded border-gray-300 text-center font-mono text-lg">
+                        </div>
+                        <div>
+                            <label class="block text-base font-bold text-gray-600 mb-2">估計值數字</label>
+                            <input type="text" id="mass-est-val" class="w-full p-3 border rounded border-gray-300 text-center font-mono text-lg">
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        <label class="block font-bold text-blue-700 mb-3 text-lg">3. 完整測量結果 <span class="text-sm font-normal text-gray-500">(請加上單位 g)</span></label>
+                        <input type="text" id="mass-final-val" class="w-full p-4 border-2 border-blue-300 rounded-lg text-2xl text-center font-bold text-blue-800 placeholder-blue-200 focus:ring-blue-500" placeholder="例: 12.30 g">
+                    </div>
+                </div>
+
+                <button onclick="app.mass.submit()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg shadow-md transition-colors mt-8 text-xl flex-shrink-0"><i class="fa-solid fa-paper-plane mr-2"></i> 確認送出</button>
+            </div>
+        </div>
+
+        <!-- 體積的測量 -->
+        <div id="view-volume" class="hidden w-full max-w-[95vw] glass-panel rounded-2xl p-6 flex flex-col md:flex-row gap-6 relative items-stretch h-[85vh]">
+            
+            <div class="w-full md:w-2/3 flex flex-col h-full">
+                <div class="w-full bg-cyan-50 text-cyan-900 p-4 rounded-lg font-bold mb-4 flex items-center shadow-sm text-lg flex-shrink-0">
+                    <button onclick="app.goHome()" class="mr-4 text-gray-500 hover:text-gray-800 transition flex-shrink-0 cursor-pointer z-50 relative"><i class="fa-solid fa-circle-arrow-left text-3xl"></i></button>
+                    <span><i class="fa-solid fa-lightbulb text-yellow-500 mr-2 text-2xl"></i> 提示：下方挑選儀器。水龍頭會自動加水。請拖曳放大鏡仔細觀察刻度。</span>
+                </div>
+                
+                <div class="w-full flex-grow bg-white rounded-xl shadow-inner border border-gray-200 flex flex-col items-center justify-start pt-6 pb-6 relative overflow-hidden" id="vol-env">
+                    
+                    <!-- 可拖曳放大鏡 (取代原本的按鈕) -->
+                    <div id="magnifier" class="absolute w-36 h-36 border-4 border-cyan-500 rounded-full bg-white shadow-[0_0_15px_rgba(0,0,0,0.3)] hidden overflow-hidden z-50 cursor-grab" style="touch-action: none;" onmousedown="app.volume.magDragStart(event)" ontouchstart="app.volume.magDragStart(event)">
+                        <div id="magnifier-content" class="absolute origin-top-left" style="transform: scale(2);">
+                            <!-- 內部將由 JavaScript 動態填入複製的燒杯/量筒 -->
+                        </div>
+                        <!-- 準星 -->
+                        <div class="absolute w-full border-t-2 border-red-500 border-dashed top-1/2 left-0 -translate-y-1/2 pointer-events-none opacity-80"></div>
+                    </div>
+                    
+                    <!-- 水龍頭容器 -->
+                    <div class="faucet-container" id="faucet-container">
+                        <div class="faucet">
+                            <div class="faucet-valve"></div>
+                        </div>
+                        <div class="relative w-full"><div class="water-drop" id="water-drop"></div></div>
+                    </div>
+
+                    <!-- 儀器顯示區 -->
+                    <div id="vessel-display" class="relative transition-all duration-500 opacity-0 flex justify-center items-end mt-24 pb-4 flex-grow w-full">
+                        <div id="active-vessel" class="vessel relative border-gray-800">
+                            <div class="vessel-liquid absolute bottom-0 bg-blue-400" id="active-liquid" style="height: 0%;"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- 名稱標示 -->
+                    <div id="vessel-name-label" class="mt-4 text-2xl font-bold text-cyan-800 bg-cyan-100 px-6 py-2 rounded-full shadow-sm opacity-0 transition-opacity duration-300 hidden"></div>
+
+                </div>
+
+                <!-- 選擇儀器區塊 (縮小高度) -->
+                <div class="w-full mt-2 bg-white py-2 px-2 rounded-xl border border-gray-200 shadow-sm flex flex-wrap justify-center gap-4 flex-shrink-0 h-24 items-center">
+                    <button onclick="app.volume.selectVessel('beaker_2000')" class="px-4 py-2 border-2 border-cyan-400 rounded-lg text-cyan-700 font-bold hover:bg-cyan-50 transition flex items-center justify-center text-lg w-40 whitespace-nowrap">2000ml 燒杯</button>
+                    <button onclick="app.volume.selectVessel('beaker_100')" class="px-4 py-2 border-2 border-cyan-400 rounded-lg text-cyan-700 font-bold hover:bg-cyan-50 transition flex items-center justify-center text-lg w-36">100ml 燒杯</button>
+                    <button onclick="app.volume.selectVessel('cylinder_100')" class="px-4 py-2 border-2 border-cyan-500 rounded-lg text-cyan-700 font-bold hover:bg-cyan-50 transition bg-cyan-50 flex items-center justify-center text-lg w-36">100ml 量筒</button>
+                    <button onclick="app.volume.selectVessel('cylinder_10')" class="px-4 py-2 border-2 border-cyan-500 rounded-lg text-cyan-700 font-bold hover:bg-cyan-50 transition bg-cyan-50 flex items-center justify-center text-lg w-36">10ml 量筒</button>
+                </div>
+            </div>
+
+            <!-- 測量紀錄表 -->
+            <div class="w-full md:w-1/3 bg-white p-8 rounded-xl shadow-lg border-2 border-cyan-100 flex flex-col h-full overflow-y-auto">
+                <h3 class="text-2xl font-bold text-slate-800 border-b-2 border-cyan-100 pb-4 mb-6 flex items-center"><i class="fa-solid fa-pen-to-square text-cyan-600 mr-3"></i> 測量紀錄表</h3>
+                
+                <div class="space-y-6 flex-grow">
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                        <label class="block font-bold text-gray-700 mb-3 text-lg">1. 判斷最小單位 <span class="text-sm font-normal text-gray-500">(觀察刻度間隔)</span></label>
+                        <select id="vol-min-unit" class="w-full p-3 border rounded-md border-gray-300 shadow-sm focus:ring-cyan-500 focus:border-cyan-500 text-lg">
+                            <option value="">請選擇...</option>
+                            <option value="100">100ml</option>
+                            <option value="10">10ml</option>
+                            <option value="1">1ml</option>
+                            <option value="0.1">0.1ml</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                        <label class="block font-bold text-gray-700 mb-3 text-lg">2. 判斷估計單位 <span class="text-sm font-normal text-gray-500">(最小單位下一位)</span></label>
+                        <select id="vol-est-unit" class="w-full p-3 border rounded-md border-gray-300 shadow-sm focus:ring-cyan-500 focus:border-cyan-500 text-lg">
+                            <option value="">請選擇...</option>
+                            <option value="10">10ml</option>
+                            <option value="1">1ml</option>
+                            <option value="0.1">0.1ml</option>
+                            <option value="0.01">0.01ml</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-base font-bold text-gray-600 mb-2">準確值數字</label>
+                            <input type="text" id="vol-acc-val" class="w-full p-3 border rounded border-gray-300 text-center font-mono text-lg">
+                        </div>
+                        <div>
+                            <label class="block text-base font-bold text-gray-600 mb-2">估計值數字</label>
+                            <input type="text" id="vol-est-val" class="w-full p-3 border rounded border-gray-300 text-center font-mono text-lg">
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        <label class="block font-bold text-cyan-700 mb-3 text-lg">3. 測量結果 <span class="text-sm font-normal text-gray-500">(請加上單位 ml)</span></label>
+                        <input type="text" id="vol-final-val" class="w-full p-4 border-2 border-cyan-300 rounded-lg text-2xl text-center font-bold text-cyan-800 placeholder-cyan-200 focus:ring-cyan-500" placeholder="例: 45.0 ml">
+                    </div>
+                </div>
+
+                <button onclick="app.volume.submit()" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-4 rounded-lg shadow-md transition-colors mt-8 text-xl flex-shrink-0"><i class="fa-solid fa-paper-plane mr-2"></i> 確認送出</button>
+            </div>
+        </div>
+
+        <!-- 長度的測量 -->
+        <div id="view-length" class="hidden w-full max-w-[95vw] glass-panel rounded-2xl p-6 flex flex-col md:flex-row gap-6 relative items-stretch h-[85vh]">
+            
+            <div class="w-full md:w-2/3 flex flex-col h-full">
+                <div class="w-full bg-yellow-50 text-yellow-900 p-4 rounded-lg font-bold mb-4 flex items-center shadow-sm text-lg flex-shrink-0">
+                    <button onclick="app.goHome()" class="mr-4 text-gray-500 hover:text-gray-800 transition flex-shrink-0 cursor-pointer z-50 relative"><i class="fa-solid fa-circle-arrow-left text-3xl"></i></button>
+                    <span><i class="fa-solid fa-lightbulb text-yellow-600 mr-2 text-2xl"></i> 提示：選擇待測物與工具。仔細觀察末端對齊的刻度，進行合理估計。</span>
+                </div>
+                
+                <div class="w-full flex-grow bg-white rounded-xl shadow-inner border border-gray-200 flex items-center justify-center p-6 relative overflow-hidden" style="min-height: 250px;">
+                    <div id="len-instruction" class="absolute text-gray-400 font-bold text-2xl tracking-widest z-0 pointer-events-none">請先選擇下方物品與測量工具</div>
+                    
+                    <div id="len-display-area" class="relative w-full h-full flex flex-col justify-center items-start pl-12 hidden mt-10">
+                        <div id="len-obj-display" class="relative mb-0 transition-all duration-300" style="width: 0px;">
+                            <div id="len-obj-label" class="absolute -top-12 left-0 text-base font-bold text-slate-700 bg-white/90 px-3 py-1 rounded shadow-sm border border-slate-200 z-10 w-max whitespace-nowrap flex items-center justify-center">物品</div>
+                            <div id="len-obj-body" class="w-full h-10 rounded-sm shadow-sm relative z-0"></div>
+                        </div>
+                        <div id="len-ruler-display" class="ruler w-full h-24 shadow-md transition-all duration-300 relative">
+                             <div id="len-ruler-unit-label" class="absolute right-3 top-2 text-sm font-bold bg-white/90 px-2 py-1 rounded shadow-sm text-yellow-800 z-10">單位: cm</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="w-full flex gap-6 mt-6 flex-shrink-0">
+                    <div class="w-1/2 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                        <h4 class="font-bold text-gray-700 mb-4 border-b pb-3 text-xl">步驟 1: 選擇待測物</h4>
+                        <div class="flex flex-wrap gap-4 justify-center">
+                            <button onclick="app.length.selectObj('pen')" class="px-6 py-3 border rounded-lg font-bold hover:bg-slate-50 focus:ring-2 focus:ring-slate-400 transition flex items-center text-lg whitespace-nowrap w-max"><i class="fa-solid fa-pen mr-2 text-slate-500"></i> 原子筆</button>
+                            <button onclick="app.length.selectObj('desk')" class="px-6 py-3 border rounded-lg font-bold hover:bg-slate-50 focus:ring-2 focus:ring-slate-400 transition flex items-center text-lg whitespace-nowrap w-max"><i class="fa-solid fa-table mr-2 text-slate-500"></i> 長桌</button>
+                            <button onclick="app.length.selectObj('screw')" class="px-6 py-3 border rounded-lg font-bold hover:bg-slate-50 focus:ring-2 focus:ring-slate-400 transition flex items-center text-lg whitespace-nowrap w-max">螺絲釘</button>
+                        </div>
+                    </div>
+                    <div class="w-1/2 bg-yellow-50 p-6 rounded-xl border border-yellow-100 shadow-sm">
+                        <h4 class="font-bold text-yellow-800 mb-4 border-b border-yellow-200 pb-3 text-xl">步驟 2: 選擇測量工具</h4>
+                        <div class="flex flex-col gap-4">
+                            <button onclick="app.length.selectRuler('tape_1m')" class="px-6 py-3 border border-yellow-400 bg-white rounded-lg font-bold text-yellow-800 hover:bg-yellow-100 focus:ring-2 focus:ring-yellow-500 transition text-left text-lg">大捲尺 (最小刻度 1m)</button>
+                            <button onclick="app.length.selectRuler('ruler_1cm')" class="px-6 py-3 border border-yellow-400 bg-white rounded-lg font-bold text-yellow-800 hover:bg-yellow-100 focus:ring-2 focus:ring-yellow-500 transition text-left text-lg">一般直尺 (最小刻度 1cm)</button>
+                            <button onclick="app.length.selectRuler('ruler_1mm')" class="px-6 py-3 border border-yellow-400 bg-white rounded-lg font-bold text-yellow-800 hover:bg-yellow-100 focus:ring-2 focus:ring-yellow-500 transition text-left text-lg">精密直尺 (最小刻度 1mm)</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 測量紀錄表 -->
+            <div class="w-full md:w-1/3 bg-white p-8 rounded-xl shadow-lg border-2 border-yellow-100 flex flex-col h-full overflow-y-auto">
+                <h3 class="text-2xl font-bold text-slate-800 border-b-2 border-yellow-100 pb-4 mb-6 flex items-center"><i class="fa-solid fa-pen-to-square text-yellow-600 mr-3"></i> 測量紀錄表</h3>
+                
+                <div class="space-y-6 flex-grow">
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                        <label class="block font-bold text-gray-700 mb-3 text-lg">1. 選擇尺的最小單位</label>
+                        <select id="len-min-unit" class="w-full p-3 border rounded-md border-gray-300 shadow-sm focus:ring-yellow-500 focus:border-yellow-500 text-lg">
+                            <option value="">請選擇...</option>
+                            <option value="1">1m (即 100cm)</option>
+                            <option value="0.1">0.1m (即 10cm 或 1dm)</option>
+                            <option value="0.01">0.01m (即 1cm)</option>
+                            <option value="0.001">1mm (即 0.1cm 或 0.001m)</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                        <label class="block font-bold text-gray-700 mb-3 text-lg">2. 判斷估計單位 <span class="text-sm font-normal text-gray-500">(最小單位下一位)</span></label>
+                        <select id="len-est-unit" class="w-full p-3 border rounded-md border-gray-300 shadow-sm focus:ring-yellow-500 focus:border-yellow-500 text-lg">
+                            <option value="">請選擇...</option>
+                            <option value="0.1">0.1m (即 10cm 或 1dm)</option>
+                            <option value="0.01">0.01m (即 1cm)</option>
+                            <option value="0.001">1mm (即 0.1cm 或 0.001m)</option>
+                            <option value="0.0001">0.1mm (即 0.01cm)</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-base font-bold text-gray-600 mb-2">準確值數字</label>
+                            <input type="text" id="len-acc-val" class="w-full p-3 border rounded border-gray-300 text-center font-mono text-lg">
+                        </div>
+                        <div>
+                            <label class="block text-base font-bold text-gray-600 mb-2">估計值數字</label>
+                            <input type="text" id="len-est-val" class="w-full p-3 border rounded border-gray-300 text-center font-mono text-lg">
+                        </div>
+                    </div>
+
+                    <div class="pt-4">
+                        <label class="block font-bold text-yellow-700 mb-3 text-lg">3. 測量結果 <span class="text-sm font-normal text-gray-500">(自訂並標示 cm 或 m)</span></label>
+                        <input type="text" id="len-final-val" class="w-full p-4 border-2 border-yellow-300 rounded-lg text-2xl text-center font-bold text-yellow-800 placeholder-yellow-200 focus:ring-yellow-500" placeholder="例: 13.0 cm">
+                    </div>
+                </div>
+
+                <button onclick="app.length.submit()" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 rounded-lg shadow-md transition-colors mt-8 text-xl flex-shrink-0"><i class="fa-solid fa-paper-plane mr-2"></i> 確認送出</button>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        const OBJ_SPECS = {
+            pen: { len_m: 0.14, color: '#3b82f6', name: '原子筆' },
+            desk: { len_m: 1.6, color: '#b45309', name: '長桌' },
+            screw: { len_m: 0.023, color: '#64748b', name: '螺絲釘' }
+        };
+
+        const INSTRUMENT_SPECS = {
+            beaker_2000: { max: 2000, step: 100, labelStep: 200, unit: 'ml', w: 180 * 1.5, h: 206 * 1.03, label: '2000ml 燒杯', type: 'beaker', minUnit: 100 },
+            beaker_100:  { max: 100, step: 10, labelStep: 10, unit: 'ml', w: 135 * 1.5, h: 206 * 1.03, label: '100ml 燒杯', type: 'beaker', minUnit: 10 },
+            cylinder_100:{ max: 100, step: 1, labelStep: 10, unit: 'ml', w: 60 * 1.5, h: 282.8 * 1.01, label: '100ml 量筒', type: 'cylinder', minUnit: 1 },
+            cylinder_10: { max: 10, step: 0.1, labelStep: 1, unit: 'ml', w: 45 * 1.5, h: 282.8 * 1.01, label: '10ml 量筒', type: 'cylinder', minUnit: 0.1 }
+        };
+
+        const RULER_SPECS = {
+            tape_1m: { minUnitValue_m: 1, screenRepresents_m: 2.5, tickInterval: 1, majorTickEvery: 1 },
+            ruler_1cm: { minUnitValue_m: 0.01, screenRepresents_m: 0.20, tickInterval: 0.01, majorTickEvery: 1 }, 
+            ruler_1mm: { minUnitValue_m: 0.001, screenRepresents_m: 0.05, tickInterval: 0.001, majorTickEvery: 10 }
+        };
+
+        const state = {
+            student: { cls: '', num: '', name: '' },
+            mass: {
+                leftObj: null,
+                rightWeights: [],
+                calibrationOffset: Math.floor(Math.random() * 11) - 5,
+                userOffset: 0
+            },
+            volume: { 
+                currentVessel: null, 
+                currentVol: 0,
+                magDragging: false,
+                magOffsetX: 0,
+                magOffsetY: 0
+            },
+            length: { currentObj: null, currentRuler: null },
+            counts: { mass: 0, volume: 0, length: 0 }
+        };
+
+        // 質量天平常數設定 (配合 1.25 倍放大)
+        const M_CFG = {
+            cx: 0, cy: 100, // cy 微調往下
+            armLen: 115 * 1.25, 
+            stringLen: 162.5 * 1.25, 
+            panRadius: 65 * 1.25, 
+            panHeight: 18.75 * 1.25,
+            objSize: 75 * 1.25,
+            weights: {
+                100: { w: 50 * 1.25, h: 56.25 * 1.25 },
+                10: { w: 37.5 * 1.25, h: 43.75 * 1.25 },
+                1: { w: 25 * 1.25, h: 31.25 * 1.25 },
+                0.1: { w: 25 * 1.25, h: 18.75 * 1.25 },
+                0.01: { w: 18.75 * 1.25, h: 12.5 * 1.25 }
+            }
+        };
+
+        const ui = {
+            alert: (title, text, icon = 'info') => Swal.fire({ title, text, icon, confirmButtonColor: '#16a34a' }),
+            success: (title, text) => {
+                Swal.fire({ title, text, icon: 'success', confirmButtonColor: '#16a34a' }).then(() => app.goHome());
+            },
+            error: (title, text) => Swal.fire({ title, text, icon: 'error', confirmButtonColor: '#ef4444' })
+        };
+
+        const app = {
+            views: ['view-login', 'view-menu', 'view-mass', 'view-volume', 'view-length'],
+            init: () => {
+                app.goHome();
+                // 取得並更新瀏覽人次
+                if (GOOGLE_SHEET_WEB_APP_URL !== 'YOUR_WEB_APP_URL_HERE') {
+                    fetch(GOOGLE_SHEET_WEB_APP_URL + '?action=getViews')
+                        .then(res => res.json())
+                        .then(data => {
+                            if(data.views) document.getElementById('page-view-count').innerText = data.views;
+                        })
+                        .catch(e => {
+                            console.log('無法取得瀏覽人次:', e);
+                            document.getElementById('page-view-count').innerText = '-';
+                        });
+                } else {
+                    document.getElementById('page-view-count').innerText = '未綁定';
+                }
+            },
+            login: () => {
+                const cls = document.getElementById('login-class').value.trim();
+                const num = document.getElementById('login-num').value.trim();
+                const name = document.getElementById('login-name').value.trim();
+                if (!cls || !num || !name) return ui.error('資料不齊全', '請填寫班級、座號與姓名！');
+                state.student = { cls, num, name };
+                document.getElementById('student-name-display').innerText = name;
+                app.goHome();
+            },
+            loadView: (viewName) => {
+                app.views.forEach(v => document.getElementById(v).classList.add('hidden'));
+                document.getElementById('view-' + (viewName === 'menu' ? 'menu' : viewName)).classList.remove('hidden');
+                
+                const subTitleEl = document.getElementById('sub-title');
+                if(viewName === 'menu' || viewName === 'login') {
+                    subTitleEl.innerHTML = '';
+                    document.getElementById('count-mass').innerText = state.counts.mass;
+                    document.getElementById('count-volume').innerText = state.counts.volume;
+                    document.getElementById('count-length').innerText = state.counts.length;
+                } else {
+                    const viewNames = { 'mass': ' - 質量的測量', 'volume': ' - 體積的測量', 'length': ' - 長度的測量' };
+                    subTitleEl.innerHTML = `<span class="text-yellow-200 ml-2">${viewNames[viewName]}</span>`;
+                }
+
+                if (viewName === 'mass') {
+                    app.mass.init();
+                    setTimeout(app.mass.draw, 100); 
+                }
+                else if (viewName === 'length') app.length.updateDisplay();
+            },
+            goHome: () => {
+                if (!state.student.name) {
+                    app.loadView('login');
+                } else {
+                    app.loadView('menu');
+                }
+            },
+
+            mass: {
+                ctx: null,
+                canvasWidth: 0,
+                canvasHeight: 0,
+                init: () => {
+                    const canvas = document.getElementById('mass-canvas');
+                    // 動態取得父容器大小
+                    const rect = canvas.parentElement.getBoundingClientRect();
+                    canvas.width = rect.width;
+                    // 強制設定一個夠高的高度，避免被切斷
+                    canvas.height = Math.max(rect.height, 450); 
+                    app.mass.canvasWidth = canvas.width;
+                    app.mass.canvasHeight = canvas.height;
+                    
+                    // 設定畫布中心點
+                    M_CFG.cx = canvas.width / 2;
+                    // cy 在全域常數中已微調
+
+                    app.mass.ctx = canvas.getContext('2d');
+                    document.getElementById('mass-slider-left').value = 0;
+                    document.getElementById('mass-slider-right').value = 0;
+                    state.mass.leftObj = null;
+                    state.mass.rightWeights = [];
+                    state.mass.calibrationOffset = Math.floor(Math.random() * 11) - 5;
+                    app.mass.updateCalibration();
+                },
+                clearRightPan: () => {
+                    state.mass.rightWeights = [];
+                    app.mass.draw();
+                },
+                updateCalibration: () => {
+                    // 左螺絲往左拉(負值) -> 數值變小 -> 天平向左傾
+                    // 確保滑桿值符合物理直覺：左邊數值越小，天平向左傾
+                    const leftVal = parseInt(document.getElementById('mass-slider-left').value);
+                    const rightVal = parseInt(document.getElementById('mass-slider-right').value);
+                    state.mass.userOffset = rightVal + leftVal; 
+                    app.mass.draw();
+                },
+                dragStart: (e, id, val, name) => e.dataTransfer.setData('text/plain', JSON.stringify({ id, val, name })),
+                allowDrop: (e) => e.preventDefault(),
+                drop: (e) => {
+                    e.preventDefault();
+                    try {
+                        const dataStr = e.dataTransfer.getData('text/plain');
+                        if (!dataStr) return; // 防呆
+                        const data = JSON.parse(dataStr);
+                        
+                        const canvas = document.getElementById('mass-canvas');
+                        const rect = canvas.getBoundingClientRect();
+                        const scaleX = canvas.width / rect.width;
+                        const dropX = (e.clientX - rect.left) * scaleX;
+                        
+                        if (dropX < M_CFG.cx) {
+                            if (data.id.startsWith('obj')) {
+                                state.mass.leftObj = data;
+                            }
+                            // 修正：拖曳錯誤時不再跳出 Alert 中斷體驗，直接忽略
+                        } else {
+                            if (data.id.startsWith('weight')) {
+                                const count = state.mass.rightWeights.length;
+                                // 採用金字塔排列: 1st 中間, 2nd 左邊, 3rd 右邊...
+                                const level = Math.floor(count / 5);
+                                const posInLevel = count % 5;
+                                const patternX = [0, -35 * 1.25, 35 * 1.25, -70 * 1.25, 70 * 1.25];
+                                
+                                data.offsetX = patternX[posInLevel];
+                                data.offsetY = level * -45 * 1.25; // 往上堆疊
+                                state.mass.rightWeights.push(data);
+                            }
+                        }
+                        app.mass.draw();
+                    } catch (err) {
+                        console.error("拖曳資料解析錯誤:", err);
+                    }
+                },
+                handleCanvasClick: (e) => {
+                    const canvas = document.getElementById('mass-canvas');
+                    const rect = canvas.getBoundingClientRect();
+                    const scaleX = canvas.width / rect.width;
+                    const scaleY = canvas.height / rect.height;
+                    const clickX = (e.clientX - rect.left) * scaleX;
+                    const clickY = (e.clientY - rect.top) * scaleY;
+
+                    let totalLeft = state.mass.leftObj ? state.mass.leftObj.val : 0;
+                    let totalRight = state.mass.rightWeights.reduce((sum, w) => sum + w.val, 0);
+                    let diff = totalRight - totalLeft + state.mass.calibrationOffset + state.mass.userOffset;
+                    
+                    // 修正浮點數誤差，確保重量相等時能完美歸零
+                    diff = Math.round(diff * 10000) / 10000;
+
+                    if (diff > 50) diff = 50; if (diff < -50) diff = -50;
+                    const angle = diff * (Math.PI / 180) * 0.4; 
+
+                    // 正確的反向旋轉座標轉換：需針對「盤面中心(panX, panY)」進行反向旋轉
+                    const checkPanClick = (panX, panY, btnX, btnY) => {
+                        // 1. 將點擊座標平移，以盤面(秤盤懸掛點)為原點
+                        const dx = clickX - panX;
+                        const dy = clickY - panY;
+                        // 2. 進行反向旋轉
+                        const rotatedX = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+                        const rotatedY = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+                        // 3. 計算點擊距離 (15^2 = 225)
+                        return (rotatedX - btnX)**2 + (rotatedY - btnY)**2 <= 225; 
+                    };
+
+                    // --- 左盤點擊檢查 (待測物) ---
+                    if (state.mass.leftObj) {
+                        const pivotLX = M_CFG.cx - M_CFG.armLen * Math.cos(angle);
+                        const pivotLY = M_CFG.cy - M_CFG.armLen * Math.sin(angle);
+                        const panLX = pivotLX;
+                        const panLY = pivotLY + M_CFG.stringLen;
+
+                        const size = M_CFG.objSize;
+                        // 減號按鈕的相對位置 (相對於畫布繪製時的原點 objX, objY 換算)
+                        const btnX = size/2;
+                        const btnY = -M_CFG.panHeight - size;
+
+                        // 判斷是否點中
+                        if (checkPanClick(panLX, panLY, btnX, btnY)) { 
+                            state.mass.leftObj = null; 
+                            app.mass.draw();
+                            return; 
+                        }
+                    }
+
+                    // --- 右盤點擊檢查 (砝碼) ---
+                    if (state.mass.rightWeights.length > 0) {
+                        const pivotRX = M_CFG.cx + M_CFG.armLen * Math.cos(angle);
+                        const pivotRY = M_CFG.cy + M_CFG.armLen * Math.sin(angle);
+                        const panRX = pivotRX;
+                        const panRY = pivotRY + M_CFG.stringLen;
+
+                        // 從最上層往回找，避免點到被遮住的
+                        for (let i = state.mass.rightWeights.length - 1; i >= 0; i--) {
+                            const w = state.mass.rightWeights[i];
+                            const w_spec = M_CFG.weights[w.val] || M_CFG.weights[0.01];
+
+                            const objX = -(w_spec.w / 2) + w.offsetX;
+                            const objY = -M_CFG.panHeight - w_spec.h + w.offsetY; 
+                            const btnX = objX + w_spec.w;
+                            const btnY = objY;
+
+                            if (checkPanClick(panRX, panRY, btnX, btnY)) {
+                                state.mass.rightWeights.splice(i, 1);
+                                // 重新排版
+                                const remaining = [...state.mass.rightWeights];
+                                state.mass.rightWeights = [];
+                                remaining.forEach((remW) => {
+                                    const count = state.mass.rightWeights.length;
+                                    const level = Math.floor(count / 5);
+                                    const posInLevel = count % 5;
+                                    const patternX = [0, -35 * 1.25, 35 * 1.25, -70 * 1.25, 70 * 1.25];
+                                    remW.offsetX = patternX[posInLevel];
+                                    remW.offsetY = level * -45 * 1.25;
+                                    state.mass.rightWeights.push(remW);
+                                });
+                                app.mass.draw();
+                                return; 
+                            }
+                        }
+                    }
+                },
+                draw: () => {
+                    const canvas = document.getElementById('mass-canvas');
+                    if (!canvas || !app.mass.ctx) return;
+                    const ctx = app.mass.ctx;
+                    ctx.clearRect(0, 0, canvas.width, canvas.height); 
+
+                    let totalLeft = state.mass.leftObj ? state.mass.leftObj.val : 0;
+                    let totalRight = state.mass.rightWeights.reduce((sum, w) => sum + w.val, 0);
+                    let diff = totalRight - totalLeft + state.mass.calibrationOffset + state.mass.userOffset;
+                    
+                    // 修正浮點數誤差，確保重量相等時能完美歸零
+                    diff = Math.round(diff * 10000) / 10000;
+                    
+                    if (diff > 50) diff = 50; if (diff < -50) diff = -50;
+                    const angle = diff * (Math.PI / 180) * 0.4;
+                    const cx = M_CFG.cx, cy = M_CFG.cy; 
+
+                    // 更新狀態文字
+                    const statusEl = document.getElementById('mass-status');
+                    if (diff > 0) {
+                        statusEl.innerText = "測量中：右邊較重...";
+                        statusEl.className = "px-4 py-2 rounded-full font-bold text-lg shadow-sm transition-colors duration-300 bg-blue-100 text-blue-700";
+                    } else if (diff < 0) {
+                        statusEl.innerText = "測量中：左邊較重...";
+                        statusEl.className = "px-4 py-2 rounded-full font-bold text-lg shadow-sm transition-colors duration-300 bg-blue-100 text-blue-700";
+                    } else {
+                        statusEl.innerText = "★★ 已達平衡 ★★";
+                        statusEl.className = "px-4 py-2 rounded-full font-bold text-lg shadow-sm transition-colors duration-300 bg-green-100 text-green-700";
+                    }
+
+                    if(!state.mass.leftObj && state.mass.rightWeights.length === 0) {
+                        if (diff !== 0) {
+                            statusEl.innerText = diff > 0 ? "未歸零，右邊較重" : "未歸零，左邊較重";
+                            statusEl.className = "px-4 py-2 rounded-full font-bold text-lg shadow-sm transition-colors duration-300 bg-red-100 text-red-700";
+                        }
+                    }
+
+                    // Pillar
+                    ctx.fillStyle = '#1e3a8a';
+                    ctx.fillRect(cx - 18.75*1.25, cy, 37.5*1.25, 150*1.25); 
+                    ctx.beginPath();
+                    ctx.moveTo(cx - 62.5*1.25, cy + 150*1.25); ctx.lineTo(cx + 62.5*1.25, cy + 150*1.25);
+                    ctx.lineTo(cx + 62.5*1.25, cy + 175*1.25); ctx.lineTo(cx - 62.5*1.25, cy + 175*1.25);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = '#e2e8f0'; ctx.fillRect(cx - 37.5*1.25, cy - 31.25*1.25, 75*1.25, 25*1.25);
+                    ctx.strokeStyle = '#000'; ctx.lineWidth = 2.5;
+                    ctx.beginPath(); ctx.moveTo(cx, cy - 31.25*1.25); ctx.lineTo(cx, cy - 18.75*1.25); ctx.stroke();
+
+                    ctx.save();
+                    ctx.translate(cx, cy);
+                    ctx.rotate(angle);
+                    // Pointer
+                    ctx.fillStyle = 'red';
+                    ctx.beginPath(); ctx.moveTo(-2.5*1.25, 0); ctx.lineTo(2.5*1.25, 0); ctx.lineTo(0, -62.5*1.25); ctx.fill();
+                    // Arm
+                    ctx.fillStyle = '#94a3b8'; ctx.fillRect(-M_CFG.armLen, -6.25*1.25, M_CFG.armLen * 2, 12.5*1.25);
+                    ctx.restore();
+
+                    const drawPan = (pivotX, pivotY, items, isLeft) => {
+                        const panX = pivotX, panY = pivotY + M_CFG.stringLen;
+                        
+                        ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2.5;
+                        ctx.beginPath(); ctx.moveTo(pivotX, pivotY); ctx.lineTo(panX, panY); ctx.stroke();
+
+                        ctx.fillStyle = '#cbd5e1';
+                        ctx.beginPath(); ctx.ellipse(panX, panY, M_CFG.panRadius, M_CFG.panHeight, 0, 0, Math.PI * 2); ctx.fill();
+
+                        const drawRemoveBtn = (x, y) => {
+                            ctx.fillStyle = '#ef4444'; 
+                            ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill(); 
+                            ctx.fillStyle = 'white'; ctx.font = 'bold 16px Arial';
+                            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            ctx.fillText('-', x, y);
+                        }
+
+                        ctx.save();
+                        ctx.translate(panX, panY); ctx.rotate(angle);
+
+                        if (isLeft && items) {
+                            ctx.fillStyle = '#b45309'; 
+                            if(items.name.includes('鐵')) ctx.fillStyle = '#475569';
+                            if(items.name.includes('鋁')) ctx.fillStyle = '#94a3b8';
+                            if(items.name.includes('塑膠')) ctx.fillStyle = '#f43f5e';
+                            
+                            const size = M_CFG.objSize; 
+                            const objX = -size/2, objY = -M_CFG.panHeight - size; 
+                            
+                            ctx.fillRect(objX, objY, size, size); 
+                            ctx.fillStyle = 'white'; ctx.font = 'bold 20px Noto Sans TC';
+                            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                            ctx.fillText(items.name, objX + size/2, objY + size/2);
+                            drawRemoveBtn(objX + size, objY);
+
+                        } else if (!isLeft && items && items.length > 0) {
+                            items.forEach((w) => {
+                                const w_spec = M_CFG.weights[w.val] || M_CFG.weights[0.01];
+
+                                const objX = -(w_spec.w / 2) + w.offsetX;
+                                const objY = -M_CFG.panHeight - w_spec.h + w.offsetY; 
+
+                                ctx.fillStyle = w.val >= 1 ? '#64748b' : '#94a3b8';
+                                ctx.strokeStyle = '#475569'; ctx.lineWidth = 1.25;
+                                ctx.fillRect(objX, objY, w_spec.w, w_spec.h);
+                                ctx.strokeRect(objX, objY, w_spec.w, w_spec.h);
+                                
+                                ctx.fillStyle = w.val < 1 ? '#1e293b' : 'white';
+                                ctx.font = w.val >= 10 ? 'bold 18px Arial' : 'bold 12px Arial';
+                                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                                ctx.fillText(w.name, objX + w_spec.w/2, objY + w_spec.h/2);
+                                drawRemoveBtn(objX + w_spec.w, objY);
+                            });
+                        }
+                        ctx.restore();
+                    };
+
+                    const pivotLX = cx - M_CFG.armLen * Math.cos(angle);
+                    const pivotLY = cy - M_CFG.armLen * Math.sin(angle);
+                    const pivotRX = cx + M_CFG.armLen * Math.cos(angle);
+                    const pivotRY = cy + M_CFG.armLen * Math.sin(angle);
+
+                    drawPan(pivotLX, pivotLY, state.mass.leftObj, true);
+                    drawPan(pivotRX, pivotRY, state.mass.rightWeights, false);
+                },
+                submit: () => {
+                    if(!state.mass.leftObj) return ui.error('錯誤', '請先拖曳待測物到左盤！');
+                    const minUnit = parseFloat(document.getElementById('mass-min-unit').value);
+                    const estUnit = parseFloat(document.getElementById('mass-est-unit').value);
+                    const finalValStr = document.getElementById('mass-final-val').value.replace(/[^\d.]/g, ''); 
+                    
+                    if(!minUnit || !estUnit || !finalValStr) return ui.error('資料不齊全', '請填寫所有欄位！');
+                    if (Math.abs(minUnit / 10 - estUnit) > 0.0001) return ui.error('觀念錯誤', '「估計單位」必須是「最小單位」的十分之一！');
+
+                    const realMass = state.mass.leftObj.val;
+                    const finalVal = parseFloat(finalValStr);
+                    
+                    // 容錯範圍設定為一個最小單位內皆可接受
+                    const tolerance = minUnit;
+                    if (Math.abs(finalVal - realMass) >= tolerance) return ui.error('數值不對', '請確認天平是否平衡，並加上合理的估計值！');
+
+                    // 根據估計單位動態決定小數點位數
+                    let decimalsNeeded = 0;
+                    if (estUnit === 0.1) decimalsNeeded = 1;
+                    else if (estUnit === 0.01) decimalsNeeded = 2;
+                    else if (estUnit === 0.001) decimalsNeeded = 3;
+                    else if (estUnit === 0.0001) decimalsNeeded = 4;
+
+                    const expectedStr = finalVal.toFixed(decimalsNeeded);
+                    if(finalValStr !== expectedStr) return ui.error('格式錯誤', `請精確到小數點後 ${decimalsNeeded} 位。寫作 ${expectedStr} 才是正確估計！`);
+
+                    state.counts.mass++; document.getElementById('count-mass').innerText = state.counts.mass;
+                    submitScoreToGoogleSheet("質量的測量", true); 
+                    ui.success('恭喜過關！', '你已經完全掌握了質量測量與紀錄的規則！');
+                }
+            },
+
+            volume: {
+                selectVessel: (vid) => {
+                    const spec = INSTRUMENT_SPECS[vid];
+                    state.volume.currentVessel = spec;
+                    const displayArea = document.getElementById('vessel-display');
+                    const activeVessel = document.getElementById('active-vessel');
+                    
+                    displayArea.style.opacity = 0;
+                    document.getElementById('magnifier').classList.add('hidden'); // 隱藏放大鏡
+                    
+                    setTimeout(() => {
+                        activeVessel.style.width = spec.w + 'px';
+                        activeVessel.style.height = spec.h + 'px';
+                        activeVessel.style.borderColor = '#1f2937';
+                        activeVessel.style.borderWidth = '2px';
+                        
+                        let html = '<div class="vessel-liquid absolute bottom-0 bg-blue-400" id="active-liquid" style="height: 0%;"></div>';
+                        
+                        // 動態生成刻度與數字 (完美貼齊左邊)
+                        for(let val = 0; val <= spec.max; val = Math.round((val + spec.step)*10)/10) {
+                            const percent = (val / spec.max) * 100;
+                            let isMajor = false;
+                            let labelNum = null;
+                            
+                            // 針對不同儀器給予正確的數字顯示邏輯
+                            if (vid === 'beaker_2000') {
+                                if (val % 200 === 0 && val !== 0) { isMajor = true; labelNum = val; }
+                            } else if (vid === 'beaker_100') {
+                                if (val % 10 === 0 && val !== 0) { isMajor = true; labelNum = val; }
+                            } else if (vid === 'cylinder_100') {
+                                if (val % 10 === 0 && val !== 0) { isMajor = true; labelNum = val; }
+                            } else if (vid === 'cylinder_10') {
+                                if (Math.round(val * 10) % 10 === 0 && val !== 0) { isMajor = true; labelNum = val.toFixed(0); } // 去小數點
+                            }
+
+                            if (isMajor) {
+                                html += `<div class="scale-mark border-gray-800" style="bottom: ${percent}%; width: 35%; border-top-width: 1px;">
+                                            <div class="scale-text">${labelNum}</div>
+                                         </div>`;
+                            } else {
+                                html += `<div class="scale-mark border-gray-800" style="bottom: ${percent}%; width: 18%; border-top-width: 0.5px;"></div>`;
+                            }
+                        }
+                        
+                        activeVessel.innerHTML = html;
+                        displayArea.style.opacity = 1;
+                        
+                        let randomVol = 0;
+                        if(vid === 'cylinder_100') randomVol = Math.floor(Math.random() * 60) + 15 + (Math.floor(Math.random() * 10)/10); 
+                        else if(vid === 'cylinder_10') randomVol = (Math.floor(Math.random() * 60) + 10) / 10 + (Math.floor(Math.random() * 10)/100);
+                        else {
+                            randomVol = Math.floor(Math.random() * (spec.max * 0.5)) + (spec.max * 0.1);
+                            if(spec.minUnit === 10) randomVol = Math.floor(randomVol / 10) * 10 + (Math.floor(Math.random() * 10));
+                            else if(spec.minUnit === 100) randomVol = Math.floor(randomVol / 100) * 100 + (Math.floor(Math.random() * 10)*10);
+                        }
+                        
+                        if(vid === 'cylinder_100' && randomVol > 85) randomVol = 85;
+
+                        state.volume.currentVol = randomVol;
+                        document.getElementById('faucet-container').classList.add('flowing');
+                        
+                        setTimeout(() => {
+                            document.getElementById('active-liquid').style.height = (randomVol / spec.max * 100) + '%';
+                            setTimeout(() => { 
+                                document.getElementById('faucet-container').classList.remove('flowing'); 
+                                
+                                // 初始化放大鏡的內容與顯示
+                                const activeVessel = document.getElementById('active-vessel');
+                                const clone = activeVessel.cloneNode(true);
+                                clone.id = 'mag-vessel';
+                                clone.style.margin = '0'; // 移除可能置中的 margin
+                                const magLiquid = clone.querySelector('#active-liquid');
+                                if (magLiquid) magLiquid.id = 'mag-liquid';
+                                
+                                const magContent = document.getElementById('magnifier-content');
+                                magContent.innerHTML = '';
+                                magContent.appendChild(clone);
+                                
+                                const mag = document.getElementById('magnifier');
+                                mag.classList.remove('hidden');
+                                
+                                // 設定初始位置 (左上角)
+                                mag.style.left = '20px';
+                                mag.style.top = '20px';
+                                app.volume.updateMagnifierView(20 + 72, 20 + 72); // 72 是 w-36(144px) 的一半，代表放大鏡中心點
+                                
+                            }, 1500);
+                        }, 100);
+                    }, 300);
+                },
+                
+                updateMagnifierView: (centerX, centerY) => {
+                    const volEnv = document.getElementById('vol-env');
+                    const vessel = document.getElementById('active-vessel');
+                    if(!vessel) return;
+                    
+                    const envRect = volEnv.getBoundingClientRect();
+                    const vesRect = vessel.getBoundingClientRect();
+                    
+                    // 計算目標儀器相對於 vol-env 的位置
+                    const vesLeft = vesRect.left - envRect.left;
+                    const vesTop = vesRect.top - envRect.top;
+                    
+                    // 放大鏡中心點，相對於目標儀器的相對坐標
+                    const relX = centerX - vesLeft;
+                    const relY = centerY - vesTop;
+                    
+                    // 放大 2 倍後，位移也需調整 2 倍，才能讓指定位置精準置於放大鏡中央 (72, 72)
+                    const magContent = document.getElementById('magnifier-content');
+                    magContent.style.left = (72 - relX * 2) + 'px';
+                    magContent.style.top = (72 - relY * 2) + 'px';
+                },
+                magDragStart: (e) => {
+                    e.preventDefault();
+                    state.volume.magDragging = true;
+                    const mag = document.getElementById('magnifier');
+                    const rect = mag.getBoundingClientRect();
+                    
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    
+                    // 記錄滑鼠點擊位置與放大鏡左上角的偏差
+                    state.volume.magOffsetX = clientX - rect.left;
+                    state.volume.magOffsetY = clientY - rect.top;
+                    
+                    document.addEventListener('mousemove', app.volume.magDragMove, {passive: false});
+                    document.addEventListener('mouseup', app.volume.magDragEnd);
+                    document.addEventListener('touchmove', app.volume.magDragMove, {passive: false});
+                    document.addEventListener('touchend', app.volume.magDragEnd);
+                    
+                    mag.classList.add('cursor-grabbing');
+                    mag.classList.remove('cursor-grab');
+                },
+                magDragMove: (e) => {
+                    if (!state.volume.magDragging) return;
+                    e.preventDefault(); // 防止手機端滾動
+                    
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    
+                    const volEnv = document.getElementById('vol-env');
+                    const envRect = volEnv.getBoundingClientRect();
+                    
+                    // 計算新的位置
+                    let newLeft = clientX - envRect.left - state.volume.magOffsetX;
+                    let newTop = clientY - envRect.top - state.volume.magOffsetY;
+                    
+                    // 限制放大鏡只能在 vol-env 範圍內移動 (扣除放大鏡寬度 144)
+                    newLeft = Math.max(0, Math.min(newLeft, envRect.width - 144));
+                    newTop = Math.max(0, Math.min(newTop, envRect.height - 144));
+                    
+                    const mag = document.getElementById('magnifier');
+                    mag.style.left = newLeft + 'px';
+                    mag.style.top = newTop + 'px';
+                    
+                    // 同步更新放大內容 (傳入放大鏡中心點坐標)
+                    app.volume.updateMagnifierView(newLeft + 72, newTop + 72);
+                },
+                magDragEnd: () => {
+                    state.volume.magDragging = false;
+                    document.removeEventListener('mousemove', app.volume.magDragMove);
+                    document.removeEventListener('mouseup', app.volume.magDragEnd);
+                    document.removeEventListener('touchmove', app.volume.magDragMove);
+                    document.removeEventListener('touchend', app.volume.magDragEnd);
+                    
+                    const mag = document.getElementById('magnifier');
+                    mag.classList.remove('cursor-grabbing');
+                    mag.classList.add('cursor-grab');
+                },
+                
+                submit: () => {
+                    if(!state.volume.currentVessel) return ui.error('錯誤', '請先選擇一個測量儀器！');
+                    const minUnit = parseFloat(document.getElementById('vol-min-unit').value);
+                    const estUnit = parseFloat(document.getElementById('vol-est-unit').value);
+                    const finalValStr = document.getElementById('vol-final-val').value.replace(/[^\d.]/g, ''); 
+                    
+                    if(!minUnit || !estUnit || !finalValStr) return ui.error('資料不齊全', '請填寫所有欄位！');
+                    if(minUnit !== state.volume.currentVessel.minUnit) return ui.error('觀念錯誤', '最小單位判斷錯誤！');
+                    if (Math.abs(minUnit / 10 - estUnit) > 0.0001) return ui.error('觀念錯誤', '「估計單位」必須是十分之一！');
+
+                    const finalVal = parseFloat(finalValStr);
+                    // 容錯範圍設定為接近一個最小單位
+                    const tolerance = minUnit * 0.9;
+                    if (Math.abs(finalVal - state.volume.currentVol) >= tolerance) return ui.error('數值不對', '水平面對齊哪個刻度？再仔細看。');
+
+                    // 根據估計單位動態決定小數點位數
+                    let decimalsNeeded = 0;
+                    if (estUnit === 0.1) decimalsNeeded = 1;
+                    else if (estUnit === 0.01) decimalsNeeded = 2;
+                    else if (estUnit === 0.001) decimalsNeeded = 3;
+                    else if (estUnit === 0.0001) decimalsNeeded = 4;
+
+                    const expectedStr = finalVal.toFixed(decimalsNeeded);
+                    if(finalValStr !== expectedStr) return ui.error('格式錯誤', `請精確到小數點後 ${decimalsNeeded} 位。寫作 ${expectedStr} 才是正確的！`);
+
+                    state.counts.volume++; document.getElementById('count-volume').innerText = state.counts.volume;
+                    submitScoreToGoogleSheet("體積的測量", true); 
+                    ui.success('恭喜過關！', '完美掌握體積測量與紀錄規則！');
+                }
+            },
+
+            length: {
+                selectObj: (objId) => { state.length.currentObj = OBJ_SPECS[objId]; app.length.updateDisplay(); },
+                selectRuler: (rulerId) => { state.length.currentRuler = RULER_SPECS[rulerId]; app.length.updateDisplay(); },
+                updateDisplay: () => {
+                    if(!state.length.currentObj || !state.length.currentRuler) return;
+                    document.getElementById('len-instruction').style.display = 'none';
+                    document.getElementById('len-display-area').classList.remove('hidden');
+
+                    const obj = state.length.currentObj;
+                    const ruler = state.length.currentRuler;
+                    const percentage = (obj.len_m / ruler.screenRepresents_m) * 100;
+                    
+                    const objDisplay = document.getElementById('len-obj-display');
+                    objDisplay.style.width = percentage + '%';
+                    document.getElementById('len-obj-body').style.backgroundColor = obj.color;
+                    document.getElementById('len-obj-label').innerText = obj.name;
+
+                    const rulerDisplay = document.getElementById('len-ruler-display');
+                    
+                    let unitText = "cm";
+                    if(ruler.minUnitValue_m === 1) unitText = "m (示意圖)";
+                    else if(ruler.minUnitValue_m === 0.001) unitText = "cm"; 
+                    
+                    rulerDisplay.innerHTML = `<div id="len-ruler-unit-label" class="absolute right-3 top-2 text-sm font-bold bg-white/90 px-2 py-1 rounded shadow-sm text-yellow-800 z-10">單位: ${unitText}</div>`;
+
+                    const totalMarks = Math.floor(ruler.screenRepresents_m / ruler.tickInterval);
+                    for(let i=0; i<=totalMarks; i++) {
+                        const mark = document.createElement('div');
+                        mark.className = 'ruler-mark';
+                        mark.style.left = (i / totalMarks) * 100 + '%';
+                        
+                        if(i % ruler.majorTickEvery === 0) {
+                            mark.style.height = '50%'; 
+                            const text = document.createElement('div');
+                            text.className = 'ruler-text';
+                            
+                            let displayNum = i;
+                            if(ruler.minUnitValue_m === 1) displayNum = i / 1; 
+                            else if(ruler.minUnitValue_m === 0.001) displayNum = i / 10;
+                            text.innerText = displayNum;
+                            text.style.transform = 'translate(-50%, 15px)';
+                            mark.appendChild(text);
+                        } else {
+                            if (ruler.minUnitValue_m !== 1) {
+                                mark.style.height = '25%'; 
+                            } else {
+                                mark.style.display = 'none'; 
+                            }
+                        }
+                        rulerDisplay.appendChild(mark);
+                    }
+                },
+                submit: () => {
+                    if(!state.length.currentObj || !state.length.currentRuler) return ui.error('錯誤', '請選擇物品與工具！');
+                    const minUnit = parseFloat(document.getElementById('len-min-unit').value);
+                    const estUnit = parseFloat(document.getElementById('len-est-unit').value);
+                    const finalValStrRaw = document.getElementById('len-final-val').value.trim();
+                    const finalValStr = finalValStrRaw.replace(/[^\d.]/g, '');
+                    
+                    if(!minUnit || !estUnit || !finalValStr) return ui.error('資料不齊全', '請填寫所有欄位！');
+                    if(minUnit !== state.length.currentRuler.minUnitValue_m) return ui.error('觀念錯誤', '最小單位判斷錯誤！');
+                    
+                    // 確保估計單位是最小單位的十分之一
+                    if (Math.abs(minUnit / 10 - estUnit) > 0.00001) return ui.error('觀念錯誤', '「估計單位」必須是「最小單位」的十分之一！');
+
+                    let finalValConverted = parseFloat(finalValStr);
+                    if(finalValStrRaw.includes('cm')) finalValConverted /= 100;
+                    else if(finalValStrRaw.includes('mm')) finalValConverted /= 1000;
+                    else if(!finalValStrRaw.includes('m')) return ui.error('格式錯誤', '請在數值後方標示單位 (m, cm, 或 mm)！');
+
+                    // 放寬容錯範圍：允許在最小單位的範圍內皆可估計 (例如 1cm 的尺，允許 1cm 內的誤差)
+                    let tolerance = minUnit;
+                    let expectedLengthCm = state.length.currentObj.len_m * 100;
+                    let errorMsg = `數值不對！物品長度接近 ${parseFloat(expectedLengthCm.toFixed(2))} cm。再仔細觀察末端對齊哪兩個刻度之間，並加上一位估計值！`;
+                    
+                    if (state.length.currentRuler.minUnitValue_m === 1 && state.length.currentObj.name === '長桌') {
+                        tolerance = 0.9; 
+                        errorMsg = `再看仔細一點！長桌的長度介於 1m 和 2m 之間。既然你使用最小刻度 1m 的大捲尺，估計值請填寫到小數點後第一位（0.1m），例如 1.X m 都是合理的估計！`;
+                    }
+
+                    if (Math.abs(finalValConverted - state.length.currentObj.len_m) > tolerance) return ui.error('數值不對', errorMsg);
+
+                    // 根據使用者輸入的單位，判斷需要的小數點位數
+                    let decimalsNeeded = 0;
+                    if (finalValStrRaw.includes('cm')) {
+                        let estUnitCm = estUnit * 100; 
+                        if (Math.abs(estUnitCm - 0.1) < 0.0001) decimalsNeeded = 1;
+                        else if (Math.abs(estUnitCm - 0.01) < 0.0001) decimalsNeeded = 2;
+                        else if (Math.abs(estUnitCm - 0.001) < 0.0001) decimalsNeeded = 3;
+                    } else if (finalValStrRaw.includes('mm')) {
+                        let estUnitMm = estUnit * 1000; 
+                        if (Math.abs(estUnitMm - 0.1) < 0.0001) decimalsNeeded = 1;
+                        else if (Math.abs(estUnitMm - 1) < 0.0001) decimalsNeeded = 0;
+                        else if (Math.abs(estUnitMm - 0.01) < 0.0001) decimalsNeeded = 2;
+                    } else { // 如果單位是 'm'
+                        if (Math.abs(estUnit - 0.1) < 0.0001) decimalsNeeded = 1;
+                        else if (Math.abs(estUnit - 0.01) < 0.0001) decimalsNeeded = 2;
+                        else if (Math.abs(estUnit - 0.001) < 0.0001) decimalsNeeded = 3;
+                        else if (Math.abs(estUnit - 0.0001) < 0.0001) decimalsNeeded = 4;
+                    }
+
+                    const expectedStr = parseFloat(finalValStr).toFixed(decimalsNeeded);
+                    if(finalValStr !== expectedStr) return ui.error('格式錯誤', `請精確到正確的小數點位數。以你選擇的單位及估計位，寫作 ${expectedStr} 才是正確的格式！`);
+
+                    state.counts.length++; document.getElementById('count-length').innerText = state.counts.length;
+                    submitScoreToGoogleSheet("長度的測量", true);
+                    ui.success('過關！', '完美掌握長度測量與單位換算！');
+                }
+            }
+        };
+
+        const GOOGLE_SHEET_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwbaege_eHsdKs_E3NHUdX7wZDzRTY5Q7LlCfRw406tuedMU_IaOLwZRml3uZutjExQ/exec'; 
+
+        function submitScoreToGoogleSheet(taskName, isSuccess) {
+            if (GOOGLE_SHEET_WEB_APP_URL === 'YOUR_WEB_APP_URL_HERE') return;
+
+            // 計算總練習次數
+            const totalCounts = state.counts.mass + state.counts.volume + state.counts.length;
+            const data = {
+                action: 'submit', // 新增這個通關密語，對應最新的 GAS 程式碼
+                cls: state.student.cls,
+                num: state.student.num,
+                name: state.student.name,
+                taskName: taskName,
+                counts: state.counts,
+                totalCounts: totalCounts, // 新增總練習次數
+                timestamp: new Date().toLocaleString()
+            };
+
+            fetch(GOOGLE_SHEET_WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+
+        /*
+        === 最新版 Google Apps Script (GAS) 程式碼 ===
+        請在 Google 雲端硬碟建立一個新的 Google 試算表，點擊「擴充功能」>「Apps Script」。
+        覆蓋貼上以下程式碼，然後點擊「部署」>「管理部署作業」>「編輯(鉛筆圖示)」> 選擇「新增版本」進行更新。
+        存取權限請設為「所有人」，然後將產生的「網頁應用程式 URL」貼到上方的 GOOGLE_SHEET_WEB_APP_URL 變數中。
+
+        // 處理 GET 請求，回傳並更新瀏覽次數
+        function doGet(e) {
+          var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("瀏覽次數");
+          if (!sheet) {
+            sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("瀏覽次數");
+            sheet.appendRow(['總瀏覽人次']);
+            sheet.appendRow([0]);
+          }
+          var range = sheet.getRange(2, 1);
+          var count = range.getValue() + 1;
+          range.setValue(count);
+          
+          var output = JSON.stringify({ 'views': count });
+          return ContentService.createTextOutput(output)
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+
+        // 處理 POST 請求，記錄學生練習數據
+        function doPost(e) {
+          var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("練習紀錄");
+          if (!sheet) {
+            sheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("練習紀錄");
+            sheet.appendRow(['時間戳記', '班級', '座號', '姓名', '測量項目', '質量練習次數', '體積練習次數', '長度練習次數', '總練習次數']);
+          }
+          try {
+            var data = JSON.parse(e.postData.contents);
+            sheet.appendRow([
+              data.timestamp,
+              data.cls,
+              data.num,
+              data.name,
+              data.taskName,
+              data.counts.mass,
+              data.counts.volume,
+              data.counts.length,
+              data.totalCounts
+            ]);
+            return ContentService.createTextOutput(JSON.stringify({ 'result': 'success' })).setMimeType(ContentService.MimeType.JSON);
+          } catch (error) {
+            return ContentService.createTextOutput(JSON.stringify({ 'result': 'error', 'message': error.toString() })).setMimeType(ContentService.MimeType.JSON);
+          }
+        }
+        */
+    </script>
+</body>
+</html>
