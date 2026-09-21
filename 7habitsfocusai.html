@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>史蒂芬科維：關注圈與影響圈互動分析器</title>
+    <!-- 引入 Tailwind CSS 進行美化 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 html2canvas 與 jsPDF 用於匯出圖片與 PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        /* 拖曳時的視覺效果 */
+        .dragging {
+            opacity: 0.4;
+            transform: scale(0.95);
+        }
+        .drag-over {
+            background-color: rgba(243, 244, 246, 0.9);
+            border-style: dashed !important;
+            border-width: 2px;
+        }
+        /* 動畫效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        /* 隱藏捲軸但保持可捲動 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col items-center py-8 px-4 overflow-x-hidden">
+
+    <!-- 頂部控制按鈕列 -->
+    <div class="max-w-6xl w-full flex flex-wrap justify-end gap-2 mb-4">
+        <button onclick="openApiModal()" class="text-sm bg-slate-200 hover:bg-slate-300 text-slate-700 py-1.5 px-3 rounded-lg transition flex items-center gap-1 shadow-sm">
+            ⚙️ AI 設定
+        </button>
+        <button onclick="exportToJPG('main-board')" class="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 py-1.5 px-3 rounded-lg transition flex items-center gap-1 shadow-sm">
+            🖼️ 下載看板 JPG
+        </button>
+        <button onclick="exportToPDF()" class="text-sm bg-red-100 hover:bg-red-200 text-red-700 py-1.5 px-3 rounded-lg transition flex items-center gap-1 shadow-sm">
+            📥 下載看板 PDF
+        </button>
+    </div>
+
+    <!-- 標題與說明 -->
+    <div class="max-w-4xl w-full text-center mb-6">
+        <h1 class="text-3xl md:text-4xl font-bold text-indigo-700 mb-3">🎯 關注圈 vs 影響圈分析器</h1>
+        <p class="text-slate-600 text-sm md:text-base">
+            輸入讓你困擾的事，AI 會幫你客製化分析。你可以<strong>拖曳卡片</strong>改變態度，或<strong>點擊卡片</strong>查看詳細的心理影響！資料會自動暫存在你的設備中。
+        </p>
+    </div>
+
+    <!-- 輸入區塊 -->
+    <div class="max-w-4xl w-full bg-white p-6 rounded-xl shadow-md mb-8">
+        <label for="user-input" class="block text-sm font-semibold text-slate-700 mb-2">請輸入一件讓你煩惱或在意的事：</label>
+        <div class="flex flex-col sm:flex-row gap-3 relative">
+            <input type="text" id="user-input" 
+                   placeholder="例如：擔心明天的考試、氣候變遷、同事對我的看法..." 
+                   onkeypress="handleKeyPress(event)"
+                   class="flex-1 border border-slate-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full">
+            <button id="analyze-btn" onclick="analyzeItem()" 
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-6 py-2.5 rounded-lg transition whitespace-nowrap w-full sm:w-auto shadow-sm flex items-center justify-center gap-2 min-w-[130px]">
+                分析事項
+            </button>
+            <button onclick="openModal()" 
+                    class="bg-fuchsia-600 hover:bg-fuchsia-700 text-white font-medium px-6 py-2.5 rounded-lg transition whitespace-nowrap w-full sm:w-auto shadow-sm flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle></svg>
+                看同心圓
+            </button>
+        </div>
+        <!-- 錯誤或狀態提示 -->
+        <p id="status-msg" class="text-red-500 text-sm mt-2 hidden transition-opacity font-medium"></p>
+    </div>
+
+    <!-- 這是準備要被截圖/下載 PDF 的主要版面 -->
+    <div id="main-board" class="max-w-6xl w-full grid grid-cols-1 md:grid-cols-2 gap-6 bg-slate-50 p-2 md:p-4 rounded-xl">
+        
+        <!-- 關注圈 (Circle of Concern) -->
+        <div id="concern-dropzone" 
+             ondragover="allowDrop(event)" 
+             ondragenter="onDragEnter(event)" 
+             ondragleave="onDragLeave(event)" 
+             ondrop="dropItem(event, 'concern')"
+             class="bg-amber-50/70 border-2 border-amber-200 rounded-2xl p-4 md:p-6 shadow-sm flex flex-col min-h-[400px] transition-all relative">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-bold text-amber-800 flex items-center gap-2">🌐 關注圈</h2>
+                <span class="text-xs bg-amber-200 text-amber-900 px-2.5 py-1 rounded-full font-medium">無法直接控制</span>
+            </div>
+            <p class="text-xs md:text-sm text-amber-700 mb-4">外部環境、他人行為或過去發生的事。過度關注會消耗能量、增加無力感。</p>
+            <ul id="concern-list" class="space-y-3 flex-1 pb-4">
+                <!-- 動態插入項目 -->
+            </ul>
+        </div>
+
+        <!-- 影響圈 (Circle of Influence) -->
+        <div id="influence-dropzone" 
+             ondragover="allowDrop(event)" 
+             ondragenter="onDragEnter(event)" 
+             ondragleave="onDragLeave(event)" 
+             ondrop="dropItem(event, 'influence')"
+             class="bg-emerald-50/70 border-2 border-emerald-200 rounded-2xl p-4 md:p-6 shadow-sm flex flex-col min-h-[400px] transition-all relative">
+            <div class="flex justify-between items-center mb-2">
+                <h2 class="text-xl font-bold text-emerald-800 flex items-center gap-2">🌱 影響圈</h2>
+                <span class="text-xs bg-emerald-200 text-emerald-900 px-2.5 py-1 rounded-full font-medium">能掌控與改變</span>
+            </div>
+            <p class="text-xs md:text-sm text-emerald-700 mb-4">我們的態度、回應方式與行動。把精力放在這裡能讓影響力擴大。</p>
+            <ul id="influence-list" class="space-y-3 flex-1 pb-4">
+                <!-- 動態插入項目 -->
+            </ul>
+        </div>
+
+    </div>
+
+    <!-- 同心圓視覺化 Modal 面板 -->
+    <div id="circle-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]">
+            
+            <div class="p-4 md:p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+                <h3 class="text-lg md:text-xl font-bold text-slate-800 flex items-center gap-2">
+                    你的影響圈狀態
+                </h3>
+                <div class="flex items-center gap-2">
+                    <button onclick="exportToJPG('circle-content', '我的同心圓狀態.jpg')" class="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 py-1.5 px-3 rounded-md transition flex items-center gap-1">
+                        🖼️ 下載圖
+                    </button>
+                    <button onclick="closeModal()" class="text-slate-400 hover:text-red-500 p-1.5 rounded-md hover:bg-red-50 transition">
+                        ✕
+                    </button>
+                </div>
+            </div>
+
+            <!-- 這個區塊是我們準備截圖匯出的內容 -->
+            <div id="circle-content" class="p-6 md:p-8 flex flex-col items-center overflow-y-auto no-scrollbar bg-white">
+                
+                <div class="relative w-64 h-64 md:w-72 md:h-72 flex items-center justify-center mb-8 shrink-0">
+                    <!-- 外圈：關注圈 (固定大小) -->
+                    <div class="absolute w-full h-full rounded-full border-4 border-amber-300 bg-amber-50 flex flex-col items-center justify-start pt-6 transition-all shadow-inner">
+                        <span class="text-amber-700 font-bold text-sm tracking-widest bg-amber-100 px-3 py-1 rounded-full shadow-sm">關注圈</span>
+                    </div>
+                    <!-- 內圈：影響圈 (依賴比例動態縮放) -->
+                    <div id="inner-circle" class="absolute rounded-full border-4 border-emerald-400 bg-emerald-100 flex flex-col items-center justify-center shadow-lg transition-all duration-1000 ease-out" style="width: 30%; height: 30%;">
+                        <span class="text-emerald-800 font-bold text-sm tracking-widest bg-white/50 px-2 py-0.5 rounded-full backdrop-blur-sm">影響圈</span>
+                    </div>
+                </div>
+
+                <div class="text-center w-full bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <h4 id="analysis-title" class="text-lg font-bold text-slate-800 mb-2">...</h4>
+                    <p id="analysis-desc" class="text-sm text-slate-600 leading-relaxed"></p>
+                </div>
+            </div>
+            
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-center shrink-0">
+                <button onclick="closeModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-8 py-2.5 rounded-lg transition w-full shadow-sm">
+                    了解，繼續行動！
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key 設定 Modal -->
+    <div id="api-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden p-6">
+            <h3 class="text-xl font-bold text-slate-800 mb-2">⚙️ 設定 Gemini API Key</h3>
+            <p class="text-sm text-slate-600 mb-4">
+                為了讓網頁能在任何地方 (如 GitHub Pages) 正常進行 AI 分析，請輸入您的免費 Gemini API Key。這只會儲存在您的本機瀏覽器中。
+            </p>
+            <input type="password" id="api-key-input" placeholder="輸入 API Key (AIzaSy...)" 
+                   class="w-full border border-slate-300 rounded-lg px-4 py-2.5 mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <div class="flex justify-end gap-3">
+                <button onclick="closeApiModal()" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition">取消</button>
+                <button onclick="saveApiKey()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition shadow-sm">儲存設定</button>
+            </div>
+            <div class="mt-4 text-xs text-slate-500">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-500 underline hover:text-indigo-600">點此前往 Google AI Studio 獲取免費 Key</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 狀態管理 (儲存在瀏覽器 LocalStorage 中) ---
+        let appState = {
+            items: [] // 儲存所有的卡片 {id, text, type, reason, aiData}
+        };
+        let geminiApiKey = "";
+
+        // 初始化應用程式
+        function initApp() {
+            // 從本地讀取 API Key
+            const savedKey = localStorage.getItem('covey_api_key');
+            if (savedKey) geminiApiKey = savedKey;
+
+            // 從本地讀取卡片資料
+            const savedData = localStorage.getItem('covey_app_data');
+            if (savedData) {
+                try {
+                    appState = JSON.parse(savedData);
+                } catch (e) {
+                    console.error("讀取存檔失敗", e);
+                }
+            }
+            renderAll();
+        }
+
+        // 儲存狀態到本地
+        function saveState() {
+            localStorage.setItem('covey_app_data', JSON.stringify(appState));
+            renderAll();
+        }
+
+        // --- UI 渲染邏輯 ---
+        function renderAll() {
+            const concernList = document.getElementById('concern-list');
+            const influenceList = document.getElementById('influence-list');
+            concernList.innerHTML = '';
+            influenceList.innerHTML = '';
+
+            appState.items.forEach(item => {
+                const li = createListItem(item);
+                if (item.type === 'influence') {
+                    influenceList.appendChild(li);
+                } else {
+                    concernList.appendChild(li);
+                }
+            });
+            
+            // 如果同心圓面板是打開的，即時更新它
+            if (!document.getElementById('circle-modal').classList.contains('hidden')) {
+                updateModalVisualization();
+            }
+        }
+
+        function createListItem(item) {
+            const li = document.createElement('li');
+            li.id = item.id;
+            li.draggable = true;
+            li.className = `p-4 rounded-xl shadow-sm border bg-white flex flex-col gap-2 transition-all cursor-grab active:cursor-grabbing hover:shadow-md animate-fade-in group`;
+            
+            if (item.type === 'influence') {
+                li.classList.add('border-emerald-300', 'hover:border-emerald-400');
+            } else {
+                li.classList.add('border-amber-300', 'hover:border-amber-400');
+            }
+
+            // 拖曳事件
+            li.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', item.id);
+                setTimeout(() => li.classList.add('dragging'), 0);
+            });
+            li.addEventListener('dragend', () => li.classList.remove('dragging'));
+
+            // 取得對應的 AI 解析
+            const impactDetails = getImpactDetails(item);
+
+            li.innerHTML = `
+                <div class="flex justify-between items-start gap-2">
+                    <span class="font-semibold text-slate-800 text-base pointer-events-none break-all">${escapeHtml(item.text)}</span>
+                    <button onclick="event.stopPropagation(); deleteItem('${item.id}')" 
+                            class="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition shrink-0" title="刪除此項目">✕</button>
+                </div>
+                <div class="text-[13px] text-slate-500 bg-slate-50 p-2.5 rounded-lg pointer-events-none">
+                    <span class="font-bold text-slate-600">AI 評估：</span> ${item.reason}
+                </div>
+                
+                <div class="impact-section mt-2 pt-3 border-t border-slate-100 hidden">
+                    <p class="text-sm font-bold ${item.type === 'influence' ? 'text-emerald-700' : 'text-amber-700'} mb-1.5">
+                        🔍 對你的影響與建議：
+                    </p>
+                    <div class="text-[13px] text-slate-600 space-y-1.5 leading-relaxed">${impactDetails}</div>
+                </div>
+                
+                <div class="text-[11px] text-indigo-400 text-right mt-1 font-medium pointer-events-none">
+                    👆 點擊卡片看詳細分析 | ↔️ 左右拖曳換圈
+                </div>
+            `;
+
+            // 點擊展開/收合詳細分析
+            li.addEventListener('click', (e) => {
+                if (e.target.closest('button')) return; 
+                const impactSec = li.querySelector('.impact-section');
+                impactSec.classList.toggle('hidden');
+                impactSec.classList.toggle('animate-fade-in');
+            });
+
+            return li;
+        }
+
+        // --- 輔助函式與狀態互動 ---
+        function escapeHtml(unsafe) {
+            return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function showStatus(message, isError = true) {
+            const statusEl = document.getElementById('status-msg');
+            statusEl.textContent = message;
+            statusEl.className = `text-sm mt-2 font-medium transition-opacity ${isError ? 'text-red-500' : 'text-emerald-600'}`;
+            statusEl.classList.remove('hidden');
+            setTimeout(() => statusEl.classList.add('hidden'), 4000);
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') analyzeItem();
+        }
+
+        function deleteItem(id) {
+            appState.items = appState.items.filter(item => item.id !== id);
+            saveState();
+        }
+
+        async function analyzeItem() {
+            const inputField = document.getElementById('user-input');
+            const analyzeBtn = document.getElementById('analyze-btn');
+            const text = inputField.value.trim();
+
+            if (!text) {
+                showStatus('請先輸入內容喔！');
+                return;
+            }
+
+            if (!geminiApiKey) {
+                showStatus('請先點擊右上角「⚙️ AI 設定」輸入您的 API Key。');
+                openApiModal();
+                return;
+            }
+
+            // 按鈕顯示讀取中
+            const originalBtnText = analyzeBtn.innerHTML;
+            analyzeBtn.innerHTML = `⏳ 分析中...`;
+            analyzeBtn.disabled = true;
+            inputField.disabled = true;
+
+            try {
+                // 呼叫 AI
+                const aiResult = await fetchAIAnalysis(text);
+
+                const newItem = {
+                    id: 'item-' + Date.now(),
+                    text: text,
+                    type: aiResult.defaultType,
+                    reason: aiResult.reason,
+                    aiData: aiResult 
+                };
+
+                appState.items.unshift(newItem);
+                saveState();
+                
+                inputField.value = '';
+                showStatus('✅ 分析完成！', false);
+            } catch (error) {
+                console.error(error);
+                showStatus('AI 分析失敗，請檢查 API Key 是否正確或稍後再試。');
+            } finally {
+                analyzeBtn.innerHTML = originalBtnText;
+                analyzeBtn.disabled = false;
+                inputField.disabled = false;
+                inputField.focus();
+            }
+        }
+
+        async function fetchAIAnalysis(text) {
+            const prompt = `你是一位心理教練。使用者遇到煩惱：「${text}」。請判斷預設應屬於「關注圈(無法控制)」還是「影響圈(可掌控)」。
+請回傳嚴格的 JSON 格式 (不要有額外文字或 markdown)，包含以下欄位：
+- defaultType: "concern" 或是 "influence"
+- reason: 為什麼歸類在此(約30字)
+- concernImpact: { psychological: "若放關注圈的心理影響", energy: "能量消耗狀況", advice: "轉向影響圈的建議" }
+- influenceImpact: { psychological: "若放影響圈的心理影響", energy: "能量擴大狀況", advice: "具體下一步行動建議" }`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                }
+            };
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+            
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) throw new Error('API Request Failed');
+            const result = await response.json();
+            
+            let jsonText = result.candidates[0].content.parts[0].text;
+            // 處理可能有 markdown 的情況
+            if (jsonText.startsWith('```json')) {
+                jsonText = jsonText.replace(/^```json\n|\n```$/g, '');
+            }
+            return JSON.parse(jsonText);
+        }
+
+        function getImpactDetails(item) {
+            const safeText = escapeHtml(item.text);
+            if (!item.aiData) return "無分析資料";
+
+            if (item.type === 'concern') {
+                const data = item.aiData.concernImpact;
+                return `
+                <ul class="list-disc pl-4 space-y-1">
+                    <li><b>心理狀態：</b> ${escapeHtml(data.psychological)}</li>
+                    <li><b>能量消耗：</b> ${escapeHtml(data.energy)}</li>
+                </ul>
+                <p class="mt-2 text-amber-800 bg-amber-100/50 p-2 rounded text-xs">💡 <b>建議：</b> ${escapeHtml(data.advice)}</p>`;
+            } else {
+                const data = item.aiData.influenceImpact;
+                return `
+                <ul class="list-disc pl-4 space-y-1">
+                    <li><b>心理狀態：</b> ${escapeHtml(data.psychological)}</li>
+                    <li><b>能量擴大：</b> ${escapeHtml(data.energy)}</li>
+                </ul>
+                <p class="mt-2 text-emerald-800 bg-emerald-100/50 p-2 rounded text-xs">💡 <b>下一步：</b> ${escapeHtml(data.advice)}</p>`;
+            }
+        }
+
+        function allowDrop(e) { e.preventDefault(); }
+        function onDragEnter(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+        function onDragLeave(e) { if (e.target === e.currentTarget) e.currentTarget.classList.remove('drag-over'); }
+        
+        function dropItem(e, targetType) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('drag-over');
+            const id = e.dataTransfer.getData('text/plain');
+            
+            const itemIndex = appState.items.findIndex(item => item.id === id);
+            if (itemIndex > -1 && appState.items[itemIndex].type !== targetType) {
+                appState.items[itemIndex].type = targetType;
+                appState.items[itemIndex].reason = targetType === 'influence' 
+                    ? '你已手動將其移至影響圈，代表你決定拿回主導權、主動應對。' 
+                    : '你已手動將其移至關注圈，代表你意識到目前它主要是外在決定的。';
+                saveState();
+            }
+        }
+
+        function openModal() {
+            const modal = document.getElementById('circle-modal');
+            const content = modal.querySelector('div');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+            }, 10);
+            updateModalVisualization();
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('circle-modal');
+            const content = modal.querySelector('div');
+            modal.classList.add('opacity-0');
+            content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        function updateModalVisualization() {
+            const total = appState.items.length;
+            const influenceCount = appState.items.filter(i => i.type === 'influence').length;
+            const concernCount = total - influenceCount;
+            
+            const innerCircle = document.getElementById('inner-circle');
+            const title = document.getElementById('analysis-title');
+            const desc = document.getElementById('analysis-desc');
+
+            if (total === 0) {
+                innerCircle.style.width = '25%'; innerCircle.style.height = '25%';
+                title.textContent = "目前空空如也！";
+                title.className = "text-lg font-bold text-slate-800 mb-2";
+                desc.textContent = "請先在主畫面輸入一些讓你煩惱或在意的事項。";
+                return;
+            }
+
+            const ratio = influenceCount / total;
+            const percentage = 25 + (ratio * 70); 
+            innerCircle.style.width = `${percentage}%`;
+            innerCircle.style.height = `${percentage}%`;
+
+            if (ratio >= 0.7) {
+                title.textContent = "🌟 高度主動！影響力爆發";
+                title.className = "text-lg font-bold text-emerald-600 mb-2";
+                desc.innerHTML = `你擁有 <b>${influenceCount}</b> 項影響圈與 <b>${concernCount}</b> 項關注圈。<br>你非常聚焦在自己能控制的事物上，這會讓你的內心充滿力量與掌控感。`;
+            } else if (ratio >= 0.4) {
+                title.textContent = "⚖️ 尋求平衡，穩紮穩打";
+                title.className = "text-lg font-bold text-indigo-600 mb-2";
+                desc.innerHTML = `你有 <b>${influenceCount}</b> 項影響圈與 <b>${concernCount}</b> 項關注圈。<br>試著從關注圈挑選一件事，思考「我能為此做點什麼？」來進一步擴大中間的綠色圓圈！`;
+            } else {
+                title.textContent = "⚠️ 注意能量消耗！";
+                title.className = "text-lg font-bold text-amber-600 mb-2";
+                desc.innerHTML = `你目前有高達 <b>${concernCount}</b> 項關注圈，但只有 <b>${influenceCount}</b> 項影響圈。<br>請練習放下無法改變的，將精力集中在中間綠色的圓圈（自己能決定的行動）上。`;
+            }
+        }
+
+        function openApiModal() {
+            document.getElementById('api-key-input').value = geminiApiKey;
+            document.getElementById('api-modal').classList.remove('hidden');
+        }
+
+        function closeApiModal() {
+            document.getElementById('api-modal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if (key) {
+                geminiApiKey = key;
+                localStorage.setItem('covey_api_key', key);
+                closeApiModal();
+                showStatus('✅ API Key 儲存成功！', false);
+            } else {
+                alert("請輸入 API Key");
+            }
+        }
+
+        async function exportToJPG(elementId, filename = '關注與影響圈分析.jpg') {
+            const element = document.getElementById(elementId);
+            try {
+                const canvas = await html2canvas(element, { 
+                    scale: 2, // 提高解析度
+                    useCORS: true,
+                    backgroundColor: '#f8fafc' // 配合背景色
+                });
+                const link = document.createElement('a');
+                link.download = filename;
+                link.href = canvas.toDataURL('image/jpeg', 0.9);
+                link.click();
+            } catch (err) {
+                console.error("匯出圖片失敗", err);
+                showStatus('匯出圖片失敗，請稍後再試。');
+            }
+        }
+
+        async function exportToPDF() {
+            const element = document.getElementById('main-board');
+            try {
+                showStatus('正在產生 PDF，請稍候...', false);
+                const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#f8fafc' });
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+                    unit: 'mm',
+                    format: 'a4'
+                });
+
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                
+                pdf.addImage(imgData, 'JPEG', 0, 10, pdfWidth, pdfHeight);
+                pdf.save('關注與影響圈分析.pdf');
+                showStatus('✅ PDF 下載成功！', false);
+            } catch (err) {
+                console.error("匯出 PDF 失敗", err);
+                showStatus('匯出 PDF 失敗，請稍後再試。');
+            }
+        }
+
+        // 啟動程式
+        initApp();
+    </script>
+</body>
+</html>
