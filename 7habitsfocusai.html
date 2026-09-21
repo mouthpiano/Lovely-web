@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>史蒂芬科維：關注圈與影響圈互動分析器</title>
+    
     <!-- 引入 Tailwind CSS 進行美化 -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <!-- 引入 html2canvas 與 jsPDF 用於匯出圖片與 PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -174,16 +176,16 @@
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden p-6">
             <h3 class="text-xl font-bold text-slate-800 mb-2">⚙️ 設定 Gemini API Key</h3>
             <p class="text-sm text-slate-600 mb-4">
-                為了讓網頁能在任何地方 (如 GitHub Pages) 正常進行 AI 分析，請輸入您的免費 Gemini API Key。這只會儲存在您的本機瀏覽器中。
+                為了讓網頁能在任何地方正常進行 AI 分析，請輸入您的 Gemini API Key。這只會安全地儲存在您目前的設備中。
             </p>
-            <input type="password" id="api-key-input" placeholder="輸入 API Key (AIzaSy...)" 
+            <input type="password" id="api-key-input" placeholder="輸入 API Key (通常以 AIza 開頭...)" 
                    class="w-full border border-slate-300 rounded-lg px-4 py-2.5 mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <div class="flex justify-end gap-3">
                 <button onclick="closeApiModal()" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition">取消</button>
                 <button onclick="saveApiKey()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg transition shadow-sm">儲存設定</button>
             </div>
             <div class="mt-4 text-xs text-slate-500">
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-500 underline hover:text-indigo-600">點此前往 Google AI Studio 獲取免費 Key</a>
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-indigo-500 underline hover:text-indigo-600">不知道去哪申請？點此前往 Google AI Studio 獲取免費 Key</a>
             </div>
         </div>
     </div>
@@ -191,7 +193,7 @@
     <script>
         // --- 狀態管理 (儲存在瀏覽器 LocalStorage 中) ---
         let appState = {
-            items: [] // 儲存所有的卡片 {id, text, type, reason, aiData}
+            items: [] // 儲存所有的卡片
         };
         let geminiApiKey = "";
 
@@ -266,8 +268,16 @@
             li.innerHTML = `
                 <div class="flex justify-between items-start gap-2">
                     <span class="font-semibold text-slate-800 text-base pointer-events-none break-all">${escapeHtml(item.text)}</span>
-                    <button onclick="event.stopPropagation(); deleteItem('${item.id}')" 
-                            class="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition shrink-0" title="刪除此項目">✕</button>
+                    <div class="flex items-center shrink-0">
+                        <!-- 手機版也超好用的「一鍵換圈」按鈕 -->
+                        <button onclick="event.stopPropagation(); switchItemType('${item.id}')" 
+                                class="text-blue-400 hover:text-blue-600 hover:bg-blue-50 p-1.5 rounded transition shrink-0" 
+                                title="切換到另一個圈圈">🔄</button>
+                        <!-- 刪除按鈕 -->
+                        <button onclick="event.stopPropagation(); deleteItem('${item.id}')" 
+                                class="text-slate-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded transition shrink-0" 
+                                title="刪除此項目">✕</button>
+                    </div>
                 </div>
                 <div class="text-[13px] text-slate-500 bg-slate-50 p-2.5 rounded-lg pointer-events-none">
                     <span class="font-bold text-slate-600">AI 評估：</span> ${item.reason}
@@ -281,7 +291,7 @@
                 </div>
                 
                 <div class="text-[11px] text-indigo-400 text-right mt-1 font-medium pointer-events-none">
-                    👆 點擊卡片看詳細分析 | ↔️ 左右拖曳換圈
+                    👆 點擊卡片看詳細分析 | 🔄 點擊圖示換圈
                 </div>
             `;
 
@@ -304,18 +314,59 @@
         function showStatus(message, isError = true) {
             const statusEl = document.getElementById('status-msg');
             statusEl.textContent = message;
-            statusEl.className = `text-sm mt-2 font-medium transition-opacity ${isError ? 'text-red-500' : 'text-emerald-600'}`;
+            statusEl.className = `text-sm mt-2 font-bold transition-opacity px-3 py-2 rounded-md ${isError ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-emerald-50 text-emerald-600 border border-emerald-200'}`;
             statusEl.classList.remove('hidden');
-            setTimeout(() => statusEl.classList.add('hidden'), 4000);
+            setTimeout(() => statusEl.classList.add('hidden'), 6000);
         }
 
         function handleKeyPress(event) {
             if (event.key === 'Enter') analyzeItem();
         }
 
+        // 刪除項目
         function deleteItem(id) {
             appState.items = appState.items.filter(item => item.id !== id);
             saveState();
+        }
+
+        // 一鍵切換所屬圈圈 (針對手機版優化)
+        function switchItemType(id) {
+            const itemIndex = appState.items.findIndex(item => item.id === id);
+            if (itemIndex > -1) {
+                const newType = appState.items[itemIndex].type === 'influence' ? 'concern' : 'influence';
+                appState.items[itemIndex].type = newType;
+                appState.items[itemIndex].reason = newType === 'influence' 
+                    ? '你已手動將其移至影響圈，代表你決定拿回主導權、主動應對。' 
+                    : '你已手動將其移至關注圈，代表你意識到目前它主要是外在決定的。';
+                saveState();
+            }
+        }
+
+        // 本地備用分析機制 (當 AI 伺服器滿載時的無縫備案)
+        function fallbackAnalysis(text) {
+            const influenceKeywords = ['我決定', '我的', '我應該', '練習', '準備', '學習', '態度', '規劃', '行動', '改善', '調整', '自己', '心態'];
+            let isInfluence = false;
+            for (let word of influenceKeywords) {
+                if (text.includes(word)) {
+                    isInfluence = true;
+                    break;
+                }
+            }
+            const defaultType = isInfluence ? 'influence' : 'concern';
+            return {
+                defaultType: defaultType,
+                reason: defaultType === 'influence' ? "(AI滿載備用模式) 您的內容包含主動性字眼，聚焦於自主行動。" : "(AI滿載備用模式) 您的內容偏向外在環境，無法完全掌控。",
+                concernImpact: {
+                    psychological: "若過度關注此事，容易感到無奈或焦慮，因為你把控制權交給了外在因素。",
+                    energy: "持續的擔憂或抱怨會消耗精神能量，導致忽略了自己其實能做的事。",
+                    advice: "試著把焦點轉移到「在這種情況下，我能控制自己做什麼」。"
+                },
+                influenceImpact: {
+                    psychological: "展現出積極主動的態度，內心更有掌控感與自信。",
+                    energy: "你的行動會產生正向漣漪，不僅能改善現狀，還會讓影響圈逐漸擴大。",
+                    advice: "立刻為這件事擬定一個具體、微小的下一步，並馬上執行！"
+                }
+            };
         }
 
         async function analyzeItem() {
@@ -341,7 +392,7 @@
             inputField.disabled = true;
 
             try {
-                // 呼叫 AI
+                // 呼叫強化的 AI 函式
                 const aiResult = await fetchAIAnalysis(text);
 
                 const newItem = {
@@ -356,10 +407,31 @@
                 saveState();
                 
                 inputField.value = '';
-                showStatus('✅ 分析完成！', false);
+                showStatus('✅ 分析完成！快點擊卡片看看結果！', false);
             } catch (error) {
-                console.error(error);
-                showStatus('AI 分析失敗，請檢查 API Key 是否正確或稍後再試。');
+                console.error("錯誤發生:", error);
+                
+                // 偵測是否為伺服器滿載或模型遺失等網路錯誤
+                if (error.message.includes("high demand") || error.message.includes("503") || error.message.includes("429") || error.message.includes("Failed to fetch")) {
+                    // 自動啟動降級備用模式
+                    showStatus(`⚠️ AI 伺服器忙碌中，自動啟用「備用分析模式」完成分類！`, false);
+                    
+                    const fallbackResult = fallbackAnalysis(text);
+                    const newItem = {
+                        id: 'item-' + Date.now(),
+                        text: text,
+                        type: fallbackResult.defaultType,
+                        reason: fallbackResult.reason,
+                        aiData: fallbackResult 
+                    };
+
+                    appState.items.unshift(newItem);
+                    saveState();
+                    inputField.value = '';
+                } else {
+                    // 顯示真實錯誤 (API Key 錯誤等)
+                    showStatus(`❌ ${error.message}`);
+                }
             } finally {
                 analyzeBtn.innerHTML = originalBtnText;
                 analyzeBtn.disabled = false;
@@ -368,13 +440,24 @@
             }
         }
 
+        // 強化的 AI 呼叫與解析函式 (使用最新 3.6 模型)
         async function fetchAIAnalysis(text) {
-            const prompt = `你是一位心理教練。使用者遇到煩惱：「${text}」。請判斷預設應屬於「關注圈(無法控制)」還是「影響圈(可掌控)」。
-請回傳嚴格的 JSON 格式 (不要有額外文字或 markdown)，包含以下欄位：
-- defaultType: "concern" 或是 "influence"
-- reason: 為什麼歸類在此(約30字)
-- concernImpact: { psychological: "若放關注圈的心理影響", energy: "能量消耗狀況", advice: "轉向影響圈的建議" }
-- influenceImpact: { psychological: "若放影響圈的心理影響", energy: "能量擴大狀況", advice: "具體下一步行動建議" }`;
+            const prompt = `你是一位心理教練。使用者遇到煩惱：「${text}」。請判斷這件事預設屬於「關注圈(無法完全控制)」還是「影響圈(可完全掌控)」。
+請回傳嚴格的 JSON 格式 (必須只有 JSON，不要有其他廢話)，包含以下欄位：
+{
+  "defaultType": "concern" 或是 "influence",
+  "reason": "為什麼歸類在此(約30字)",
+  "concernImpact": {
+    "psychological": "若把此事放在關注圈的心理影響",
+    "energy": "能量消耗狀況",
+    "advice": "將心態轉向影響圈的建議"
+  },
+  "influenceImpact": {
+    "psychological": "若把此事放在影響圈的心理影響",
+    "energy": "能量擴大狀況",
+    "advice": "具體下一步行動建議"
+  }
+}`;
             
             const payload = {
                 contents: [{ parts: [{ text: prompt }] }],
@@ -383,7 +466,8 @@
                 }
             };
 
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`;
+            // 使用最新的模型版本
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiApiKey}`;
             
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -391,15 +475,33 @@
                 body: JSON.stringify(payload)
             });
 
-            if (!response.ok) throw new Error('API Request Failed');
+            // 捕捉 API 錯誤
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errMsg = errorData.error?.message || `HTTP 狀態碼: ${response.status}`;
+                throw new Error(`API 請求異常: ${errMsg}`);
+            }
+            
             const result = await response.json();
             
-            let jsonText = result.candidates[0].content.parts[0].text;
-            // 處理可能有 markdown 的情況
-            if (jsonText.startsWith('```json')) {
-                jsonText = jsonText.replace(/^```json\n|\n```$/g, '');
+            if (!result.candidates || result.candidates.length === 0) {
+                throw new Error('AI 沒有回傳任何內容');
             }
-            return JSON.parse(jsonText);
+
+            let jsonText = result.candidates[0].content.parts[0].text;
+            
+            // 強力過濾法：尋找第一組大括號，無視 markdown 標記
+            try {
+                const match = jsonText.match(/\{[\s\S]*\}/);
+                if (match) {
+                    return JSON.parse(match[0]);
+                } else {
+                    return JSON.parse(jsonText);
+                }
+            } catch (e) {
+                console.error("原始 AI 回覆:", jsonText);
+                throw new Error('AI 回傳的資料格式無法辨識');
+            }
         }
 
         function getImpactDetails(item) {
@@ -413,7 +515,7 @@
                     <li><b>心理狀態：</b> ${escapeHtml(data.psychological)}</li>
                     <li><b>能量消耗：</b> ${escapeHtml(data.energy)}</li>
                 </ul>
-                <p class="mt-2 text-amber-800 bg-amber-100/50 p-2 rounded text-xs">💡 <b>建議：</b> ${escapeHtml(data.advice)}</p>`;
+                <p class="mt-2 text-amber-800 bg-amber-100/50 p-2 rounded text-xs leading-relaxed">💡 <b>教練建議：</b> ${escapeHtml(data.advice)}</p>`;
             } else {
                 const data = item.aiData.influenceImpact;
                 return `
@@ -421,10 +523,11 @@
                     <li><b>心理狀態：</b> ${escapeHtml(data.psychological)}</li>
                     <li><b>能量擴大：</b> ${escapeHtml(data.energy)}</li>
                 </ul>
-                <p class="mt-2 text-emerald-800 bg-emerald-100/50 p-2 rounded text-xs">💡 <b>下一步：</b> ${escapeHtml(data.advice)}</p>`;
+                <p class="mt-2 text-emerald-800 bg-emerald-100/50 p-2 rounded text-xs leading-relaxed">💡 <b>教練建議：</b> ${escapeHtml(data.advice)}</p>`;
             }
         }
 
+        // --- 拖曳事件處理 (電腦版) ---
         function allowDrop(e) { e.preventDefault(); }
         function onDragEnter(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
         function onDragLeave(e) { if (e.target === e.currentTarget) e.currentTarget.classList.remove('drag-over'); }
@@ -444,6 +547,7 @@
             }
         }
 
+        // --- Modal 面板邏輯 ---
         function openModal() {
             const modal = document.getElementById('circle-modal');
             const content = modal.querySelector('div');
@@ -481,6 +585,7 @@
             }
 
             const ratio = influenceCount / total;
+            // 計算內圈大小 (最少 25%，最多 95%)
             const percentage = 25 + (ratio * 70); 
             innerCircle.style.width = `${percentage}%`;
             innerCircle.style.height = `${percentage}%`;
@@ -500,6 +605,7 @@
             }
         }
 
+        // --- API Key 設定邏輯 ---
         function openApiModal() {
             document.getElementById('api-key-input').value = geminiApiKey;
             document.getElementById('api-modal').classList.remove('hidden');
@@ -521,28 +627,34 @@
             }
         }
 
+        // --- 匯出功能 (JPG / PDF) ---
         async function exportToJPG(elementId, filename = '關注與影響圈分析.jpg') {
             const element = document.getElementById(elementId);
             try {
+                const originalBg = element.style.backgroundColor;
+                element.style.backgroundColor = '#f8fafc'; // 確保背景不是透明的
+                
                 const canvas = await html2canvas(element, { 
                     scale: 2, // 提高解析度
                     useCORS: true,
-                    backgroundColor: '#f8fafc' // 配合背景色
                 });
+                
+                element.style.backgroundColor = originalBg; // 恢復背景
+
                 const link = document.createElement('a');
                 link.download = filename;
                 link.href = canvas.toDataURL('image/jpeg', 0.9);
                 link.click();
             } catch (err) {
                 console.error("匯出圖片失敗", err);
-                showStatus('匯出圖片失敗，請稍後再試。');
+                showStatus('❌ 匯出圖片失敗，請稍後再試。');
             }
         }
 
         async function exportToPDF() {
             const element = document.getElementById('main-board');
             try {
-                showStatus('正在產生 PDF，請稍候...', false);
+                showStatus('⏳ 正在產生 PDF，請稍候...', false);
                 const canvas = await html2canvas(element, { scale: 2, useCORS: true, backgroundColor: '#f8fafc' });
                 const imgData = canvas.toDataURL('image/jpeg', 0.9);
                 
@@ -561,7 +673,7 @@
                 showStatus('✅ PDF 下載成功！', false);
             } catch (err) {
                 console.error("匯出 PDF 失敗", err);
-                showStatus('匯出 PDF 失敗，請稍後再試。');
+                showStatus('❌ 匯出 PDF 失敗，請稍後再試。');
             }
         }
 
