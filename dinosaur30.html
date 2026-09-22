@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>親師溝通實戰模擬：恐龍家長篇</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+            overflow-x: hidden;
+        }
+
+        /* 隱藏捲軸但保留功能 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse-btn { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        /* 對話框樣式 */
+        .speech-bubble {
+            position: relative;
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .speech-bubble-left::before {
+            content: '';
+            position: absolute;
+            left: -15px;
+            top: 20px;
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-right: 15px solid white;
+        }
+
+        .speech-bubble-right::before {
+            content: '';
+            position: absolute;
+            right: -15px;
+            top: 20px;
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-left: 15px solid white;
+        }
+
+        /* 老師OS內心戲爆炸樣式 */
+        .os-bubble {
+            background: #1e293b;
+            color: white;
+            border: 4px solid #ef4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .scenario-card {
+            transition: all 0.3s ease;
+        }
+        .scenario-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border-color: #3b82f6; /* Tailwind blue-500 */
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <header class="bg-blue-600 text-white p-4 shadow-md z-10 sticky top-0">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i class="fas fa-school"></i> 親師溝通實戰模擬：恐龍家長篇
+            </h1>
+            <div id="status-indicator" class="text-sm bg-green-700 px-3 py-1 rounded-full flex items-center gap-2 shadow-inner">
+                <i class="fas fa-check-circle text-green-300"></i> 內建 30 個真實情境
+            </div>
+        </div>
+    </header>
+
+    <!-- 畫面 1: 情境選擇區 -->
+    <main id="selection-view" class="flex-grow container mx-auto p-4 md:p-8 overflow-y-auto">
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-8 text-center border border-gray-100">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">歡迎來到教育最前線</h2>
+            <p class="text-gray-600 text-lg">選擇下方任一情境，體驗老師們每日面對的崩潰瞬間，挑戰你的情緒管理極限！</p>
+        </div>
+        
+        <div id="scenario-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-10">
+            <!-- 情境按鈕會由 JS 動態生成在這裡 -->
+        </div>
+    </main>
+
+    <!-- 畫面 2: 互動對話區 (預設隱藏) -->
+    <main id="interaction-view" class="flex-grow bg-gray-100 hidden flex-col relative h-full">
+        
+        <!-- 頂部導航 -->
+        <div class="absolute top-4 left-4 z-20">
+            <button onclick="returnToSelection()" class="bg-white text-gray-700 font-medium px-4 py-2 rounded-lg shadow hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-all">
+                <i class="fas fa-arrow-left"></i> 返回列表
+            </button>
+        </div>
+
+        <!-- 進度提示 -->
+        <div id="progress-hint" class="absolute top-4 right-4 z-20 bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold shadow-sm animate-pulse">
+            點擊畫面任何地方繼續...
+        </div>
+
+        <div class="container mx-auto p-4 md:p-8 flex-grow flex flex-col items-center justify-center min-h-[calc(100vh-80px)]">
+            
+            <h2 id="current-scenario-title" class="text-2xl md:text-3xl font-black text-gray-800 mb-12 text-center bg-yellow-300 px-8 py-3 rounded-full shadow-md inline-block border-4 border-yellow-400 transform -rotate-1">
+                情境標題
+            </h2>
+
+            <div class="w-full max-w-5xl relative pb-20">
+                
+                <!-- 老師發言區 (左側) -->
+                <div id="teacher-step" class="flex items-start gap-4 w-full md:w-3/4 hidden opacity-0 transition-opacity duration-700 ease-in-out">
+                    <div class="flex-shrink-0 flex flex-col items-center">
+                        <div class="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center border-4 border-blue-500 shadow-lg z-10 relative">
+                            <i class="fas fa-chalkboard-teacher text-5xl text-blue-600"></i>
+                            <div class="absolute -bottom-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">苦命老師</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow pt-4">
+                        <div class="speech-bubble speech-bubble-left border-l-8 border-blue-500 text-xl text-gray-800 font-medium leading-relaxed">
+                            <i class="fas fa-quote-left text-blue-200 text-3xl absolute top-2 left-2 opacity-50"></i>
+                            <p id="teacher-text" class="relative z-10 px-4">老師說的話...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 家長回應區 (右側) -->
+                <div id="parent-step" class="flex items-start justify-end gap-4 w-full md:w-3/4 ml-auto hidden opacity-0 transition-opacity duration-700 ease-in-out mt-12">
+                    <div class="flex-grow pt-4 text-right">
+                        <div class="speech-bubble speech-bubble-right border-r-8 border-purple-500 text-xl text-gray-800 font-medium text-left inline-block leading-relaxed">
+                            <p id="parent-text" class="relative z-10 px-4">家長回應的話...</p>
+                            <i class="fas fa-quote-right text-purple-200 text-3xl absolute bottom-2 right-2 opacity-50"></i>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 flex flex-col items-center">
+                        <div class="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center border-4 border-purple-500 shadow-lg z-10 relative">
+                            <i class="fas fa-user-tie text-5xl text-purple-600"></i>
+                            <div class="absolute -bottom-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">理直氣壯家長</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 老師內心OS (正中央覆蓋) -->
+                <div id="os-step" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl hidden opacity-0 transition-opacity duration-500 z-30 mt-10">
+                    <div class="flex flex-col items-center">
+                        <!-- 爆氣老師圖標 -->
+                        <div class="w-36 h-36 bg-red-100 rounded-full flex items-center justify-center border-8 border-red-600 shadow-2xl z-20 mb-[-2.5rem] shake relative">
+                            <i class="fas fa-fire-alt text-7xl text-red-600"></i>
+                            <i class="fas fa-bolt text-yellow-400 text-3xl absolute top-0 right-0 animate-ping"></i>
+                        </div>
+                        <!-- OS 對話框蓋在身體上 -->
+                        <div class="speech-bubble os-bubble p-8 text-center w-full relative z-10 rounded-3xl">
+                            <div class="absolute -top-5 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-1 rounded-full text-sm font-black tracking-widest shadow-md">【 老師內心核爆 OS 】</div>
+                            <p id="os-text" class="mt-4 text-2xl leading-relaxed text-yellow-100 drop-shadow-md">老師心中的OS...</p>
+                        </div>
+                        
+                        <button onclick="returnToSelection()" class="mt-10 bg-gray-800 text-white font-bold text-lg px-8 py-4 rounded-full shadow-2xl hover:bg-gray-700 transition pulse-btn flex items-center gap-2 border-2 border-gray-600">
+                            <i class="fas fa-sync-alt"></i> 呼~ 深呼吸，換個情境
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- 全螢幕點擊遮罩，用於推進進度 -->
+            <div id="click-overlay" class="absolute inset-0 z-0 cursor-pointer hidden" onclick="advanceStep()"></div>
+        </div>
+    </main>
+
+    <script>
+        // 將 30 個情境資料直接內建，確保網頁 100% 運作順暢
+        const scenariosData = [
+            { id: 1, title: "小華在學校亂打人", teacherSays: "小華媽媽/爸爸，你小孩今天在學校又打人了！", parentReplies: "講也講不聽！我也拿他沒辦法！老師你幫我管管他啦！", teacherThoughts: "是你小孩還是我小孩呀？！生下來不用教的嗎？" },
+            { id: 2, title: "作業連續多天沒交", teacherSays: "媽媽，小明這禮拜的作業已經連續三天沒交了喔。", parentReplies: "哎呀，他回家都在上才藝班太累了。而且老師你作業是不是出太多了？小孩壓力很大耶。", teacherThoughts: "這三天總共才兩張學習單，你家『快樂學習』的標準是零作業嗎？" },
+            { id: 3, title: "考試作弊被抓到", teacherSays: "爸爸，今天小考時，我們發現小智偷看隔壁同學的答案。", parentReplies: "怎麼可能！小智在家很乖的！一定是他同學故意把考卷靠過來讓他看到的！你們不要隨便冤枉小孩。", teacherThoughts: "千錯萬錯都是別人的錯，你兒子的眼睛自帶自動尋標系統嗎？" },
+            { id: 4, title: "沒經過同意拿同學文具", teacherSays: "媽媽，小美今天沒問過同學，就直接把別人的新筆拿去用不還。", parentReplies: "小孩就是覺得新鮮好玩嘛！這算什麼偷，等一下我買一打賠給那個同學就是了，老師你小題大作了吧？", teacherThoughts: "這叫『偷竊』好嗎？有錢就是大爺嗎？買得到人品嗎？" },
+            { id: 5, title: "上課一直跟同學講話", teacherSays: "爸爸，小強上課一直找旁邊同學聊天，影響到班上秩序了。", parentReplies: "他就是比較活潑外向、有領導能力啊！老師你上課要生動一點才能吸引他的注意力嘛！", teacherThoughts: "你管這叫領導能力？所以我不夠像小丑逗不了你兒子開心是我的錯？" },
+            { id: 6, title: "每天上學都遲到", teacherSays: "媽媽，小萱這學期幾乎每天都遲到，會影響到早自習。", parentReplies: "沒辦法啊，我們家住比較遠，而且小孩早上就是起不來。學校幹嘛規定那麼早到？晚半小時上課不行嗎？", teacherThoughts: "全班就你家住遠嗎？不會早點出門喔！當學校是你家開的？" },
+            { id: 7, title: "營養午餐嚴重挑食", teacherSays: "爸爸，小安中午幾乎不吃青菜，整碗倒掉，這樣營養會不均衡。", parentReplies: "他在家都不吃青菜我們也沒逼他啊！老師你們不會煮他喜歡吃的嗎？或是讓他吃白飯配肉鬆就好。", teacherThoughts: "學校是五星級客製化餐廳嗎？要不要專門請個米其林大廚來伺候你少爺？" },
+            { id: 8, title: "聯合其他同學搞小團體", teacherSays: "媽媽，我們發現小彤在班上會帶頭叫大家不要跟某位同學講話。", parentReplies: "小女生本來就會有自己的小圈圈啊，一定那個同學也有問題不討喜吧！我們小彤人緣很好的。", teacherThoughts: "帶頭霸凌還說得這麼理直氣壯，原來這就是『人緣好』？" },
+            { id: 9, title: "破壞學校的公物", teacherSays: "爸爸，小傑今天把圖書館的書撕破了好幾頁，還在桌上亂畫。", parentReplies: "小孩子在探索世界嘛，創造力很強！破掉的書多少錢我賠嘛，學校東西本來就容易壞啊。", teacherThoughts: "『探索世界』？你乾脆讓他去拆房子好了！" },
+            { id: 10, title: "對同學罵髒話", teacherSays: "媽媽，小宇今天跟同學吵架，罵了很難聽的髒話。", parentReplies: "啊？怎麼會？他在家從來不講髒話的，一定是來學校跟其他壞同學學的！老師你要注意一下班風！", teacherThoughts: "他在學校罵的那些三字經熟練到不行，聽就知道是家學淵源好嗎！" },
+            { id: 11, title: "每天忘記帶課本跟學用品", teacherSays: "爸爸，小弘這禮拜每天都忘記帶課本，上課都沒辦法專心。", parentReplies: "他就是少根筋啦！老師你們學校不是有備用課本嗎？借他看一下就好了，幫他準備一套放在學校啊。", teacherThoughts: "所以我是他的專屬書僮兼秘書嗎？幫他帶文具要不要順便幫他寫考卷？" },
+            { id: 12, title: "上課偷滑手機被沒收", teacherSays: "媽媽，小婷上課把手機藏在抽屜下面偷玩遊戲，我先代為保管了。", parentReplies: "現在網路時代，小孩不用3C會跟不上時代啦！而且她沒拿到手機會焦慮，老師你馬上還給她。", teacherThoughts: "這叫網路成癮，不叫跟上時代！這裡是教室不是網咖！" },
+            { id: 13, title: "頂撞老師、態度惡劣", teacherSays: "爸爸，今天提醒小凱要打掃，他竟然大聲對我吼說『我不要，你管我』。", parentReplies: "他現在到了叛逆期嘛，老師你要用愛與包容來感化他，不能用命令的語氣，會傷了他的自尊心。", teacherThoughts: "愛與包容？我看是溺愛與縱容吧！自尊心是建立在沒禮貌上嗎？" },
+            { id: 14, title: "亂丟垃圾在校園", teacherSays: "媽媽，小潔今天把吃完的零食包裝袋直接丟在走廊上。", parentReplies: "學校不是有打掃阿姨嗎？這點小事也要跟家長報告？我們繳學費就是要讓小孩來讀書的，不是來倒垃圾的。", teacherThoughts: "學校是教育機構，不是給你丟垃圾的垃圾場！無言。" },
+            { id: 15, title: "在走廊狂奔撞傷學弟", teacherSays: "爸爸，小威下課在走廊狂奔，不小心把一年級的學弟撞受傷了。", parentReplies: "下課本來就是要讓小孩發洩精力的！走廊那麼窄是學校設計有問題！那個學弟自己也不長眼看路！", teacherThoughts: "撞到人還怪走廊太窄？下次撞到牆是不是要告學校牆壁太硬？" },
+            { id: 16, title: "考試成績全班墊底", teacherSays: "媽媽，小恩這次段考成績不太理想，幾科都不及格。", parentReplies: "哎呀，成績不代表一切！我們家不看重分數的，快樂最重要。倒是老師你考卷是不是出太難打擊小孩信心？", teacherThoughts: "連最基本的加減乘除都不會，這叫快樂無知吧？跟題目難度哪有關係！" },
+            { id: 17, title: "學校重要回條遲遲不交", teacherSays: "爸爸，那份要打疫苗的回條小明已經拖了一個禮拜還沒交了。", parentReplies: "喔，我放在桌上忘記簽了啦。老師你不會每天在聯絡簿上用紅筆多寫幾次提醒我嗎？", teacherThoughts: "我用紅筆寫了三天你都沒看！我是要用刻在石板上寄去你家嗎？" },
+            { id: 18, title: "抓蟲嚇同學欺負小動物", teacherSays: "媽媽，小浩今天抓了一隻大蜘蛛丟在女同學桌上，把人家嚇哭了。", parentReplies: "男生就是調皮嘛！他只是想引起女生注意，沒有惡意啦，老師你叫那個女生不要那麼膽小。", teacherThoughts: "把別人的恐懼當有趣，這叫沒同理心，不叫調皮！" },
+            { id: 19, title: "嘲笑同學穿得舊家裡窮", teacherSays: "爸爸，小君今天當著全班的面嘲笑同學的鞋子很破爛。", parentReplies: "我們家條件本來就比較好，小孩只是實話實說啊。現在社會就是這麼現實，讓他提早知道也沒什麼不好。", teacherThoughts: "把刻薄當直率，難怪教出這種目中無人的小孩！" },
+            { id: 20, title: "衛生習慣極差身上有異味", teacherSays: "媽媽，小宏最近好幾天沒換衣服，身上有些味道，同學都不敢靠近他。", parentReplies: "他在家洗澡都很隨便，我也懶得管他了。老師你在學校可以帶他去洗手台洗洗臉、幫他換個衣服嗎？", teacherThoughts: "請問我是兼任保母還是澡堂老闆娘？你連自己小孩都不管了？" },
+            { id: 21, title: "上課都在睡覺叫不醒", teacherSays: "爸爸，小廷最近上課都在睡覺，完全沒聽課。", parentReplies: "他晚上都在打電動打到半夜，我也管不動。老師你上課講話大聲一點把他叫醒不就好了。", teacherThoughts: "所以我上課要自備大聲公跟銅鑼來給你兒子叫床嗎？你自己不拔網路線？" },
+            { id: 22, title: "不想參加大隊接力", teacherSays: "媽媽，下週運動會大隊接力，小雅說她不想跑，可是全班都要參加。", parentReplies: "她本來就不喜歡流汗啊，而且太陽那麼大曬黑了怎麼辦？老師你就讓她在旁邊休息喝飲料就好啦。", teacherThoughts: "這是團隊活動，不是名媛下午茶時間好嗎！公主病就是這樣養成的。" },
+            { id: 23, title: "要求座位換到最前面中間", teacherSays: "爸爸，你希望把小柏換到第一排中間，但我們座位是輪流的。", parentReplies: "我們小柏有近視，而且坐後面他會分心！我要求給他安排個專心學習的好位子，這是家長的權利！", teacherThoughts: "全班28個小孩，難道我要把第一排中間疊成五層樓高嗎？每個人都說有權利！" },
+            { id: 24, title: "嫌老師管教太嚴格", teacherSays: "媽媽，小玲因為沒交作業被我留下來補寫，她回去一直哭。", parentReplies: "老師，你這樣留她下來會造成她心理創傷！現在不能體罰也不能有壓力，請你以後不要這樣對我女兒！", teacherThoughts: "補寫作業叫心理創傷？那以後出社會工作沒做完被老闆罵是不是要送急診？" },
+            { id: 25, title: "弄壞同學水壺拒絕賠償", teacherSays: "爸爸，小宇今天玩耍時不小心把同學的保溫瓶摔壞了。", parentReplies: "一個水壺能值多少錢？說不定本來就快壞了！小孩子玩鬧難免，對方家長幹嘛這麼計較，我不賠！", teacherThoughts: "弄壞東西賠償是天經地義，你的道德標準比水壺還廉價！" },
+            { id: 26, title: "帶危險玩具刀來學校", teacherSays: "媽媽，小翔今天帶了一把摺疊刀來學校，雖然說是玩具但很危險。", parentReplies: "哎唷，那就是塑膠的啊，他在家都在玩切水果，不會傷人啦！老師你們神經太緊繃了吧！", teacherThoughts: "等切到別人的眼睛再來喊神經緊繃就來不及了好嗎！" },
+            { id: 27, title: "打掃時間都在旁邊玩", teacherSays: "爸爸，小俊負責掃走廊，但他每次都在旁邊玩掃把不幫忙。", parentReplies: "我們家小俊在家從來不用做家事的，掃地這種事讓其他人做就好了嘛，何必逼他？", teacherThoughts: "學校是教生活自理跟責任感的地方，不是請少爺來當大老爺的！" },
+            { id: 28, title: "沒被選上模範生而生氣", teacherSays: "媽媽，小花因為沒被同學選上模範生，今天一整天都在生悶氣。", parentReplies: "我們小花那麼優秀，怎麼會沒選上？一定是同學有偏見！老師你應該直接指定她當模範生才對啊！", teacherThoughts: "模範生是同學票選出來的，不是世襲制也不是花錢買的，好嗎！" },
+            { id: 29, title: "說謊騙老師跟家長", teacherSays: "爸爸，小文今天沒去安親班，騙我說你去接他，又騙你說留在學校。", parentReplies: "小孩為了逃避補習說點小謊很正常啦，聰明的小孩都會這樣。老師你幫我盯緊一點就好。", teacherThoughts: "把說謊當作聰明？以後他把你們家產騙光你再誇他聰明吧！" },
+            { id: 30, title: "要求老師每天單獨輔導", teacherSays: "媽媽，你說希望我每天下課後單獨幫小安複習當天的功課？", parentReplies: "對啊，老師你比較專業，而且下課後不是也沒事嗎？順便幫他輔導一下，這也是老師的責任啊！", teacherThoughts: "下課後沒事？我還要備課、改作業、聯絡你這種家長！我是不用下班嗎？" }
+        ];
+
+        let currentScenario = null;
+        let currentStep = 0; 
+        /* 步驟說明:
+           0: 初始狀態，等待點擊顯示老師說話
+           1: 顯示老師說話，等待點擊顯示家長回應
+           2: 顯示家長回應，等待點擊顯示內心OS
+           3: 顯示內心OS，等待返回列表
+        */
+
+        // 初始化：渲染情境網格
+        window.onload = () => {
+            renderScenariosGrid();
+        };
+
+        // 渲染 30 個情境方塊
+        function renderScenariosGrid() {
+            const grid = document.getElementById('scenario-grid');
+            grid.innerHTML = ''; 
+
+            scenariosData.forEach((scenario, index) => {
+                const button = document.createElement('button');
+                button.className = 'scenario-card bg-white p-6 rounded-xl shadow-md border-t-4 border-gray-300 text-left flex flex-col h-full fade-in relative overflow-hidden group';
+                // 創造微小的延遲動畫效果
+                button.style.animationDelay = `${(index % 10) * 0.05}s`;
+                
+                button.innerHTML = `
+                    <div class="absolute -right-4 -top-4 w-16 h-16 bg-gray-50 rounded-full group-hover:bg-blue-50 transition-colors z-0"></div>
+                    <div class="flex justify-between items-start mb-4 relative z-10">
+                        <span class="bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-800 text-xs font-bold px-3 py-1 rounded-full transition-colors">Case ${index + 1}</span>
+                        <i class="fas fa-bolt text-gray-300 group-hover:text-yellow-400 transition-colors"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 flex-grow relative z-10 leading-snug group-hover:text-blue-700 transition-colors">${scenario.title}</h3>
+                `;
+                
+                button.onclick = () => startScenario(scenario);
+                grid.appendChild(button);
+            });
+        }
+
+        // 點擊情境卡片，進入互動對話畫面
+        function startScenario(scenario) {
+            currentScenario = scenario;
+            currentStep = 0;
+            
+            // 隱藏列表，顯示對話區
+            document.getElementById('selection-view').classList.add('hidden');
+            document.getElementById('interaction-view').classList.remove('hidden');
+            
+            // 填入該情境的文字資料
+            document.getElementById('current-scenario-title').innerText = `情境：${scenario.title}`;
+            document.getElementById('teacher-text').innerText = scenario.teacherSays;
+            document.getElementById('parent-text').innerText = scenario.parentReplies;
+            document.getElementById('os-text').innerText = scenario.teacherThoughts;
+            
+            // 確保所有對話框初始為隱藏且透明
+            hideElement('teacher-step');
+            hideElement('parent-step');
+            hideElement('os-step');
+            
+            // 顯示點擊提示與遮罩
+            document.getElementById('progress-hint').innerText = "點擊畫面開始對話...";
+            document.getElementById('progress-hint').classList.remove('hidden');
+            const overlay = document.getElementById('click-overlay');
+            overlay.classList.remove('hidden');
+        }
+
+        // 控制點擊推進的邏輯
+        function advanceStep() {
+            currentStep++;
+            const hint = document.getElementById('progress-hint');
+            
+            if (currentStep === 1) {
+                // 第一點：出現左側老師發言
+                showElement('teacher-step');
+                hint.innerText = "點擊畫面查看家長回應...";
+                
+            } else if (currentStep === 2) {
+                // 第二點：出現右側家長回應
+                showElement('parent-step');
+                hint.innerText = "點擊畫面偷聽老師心聲...";
+                
+            } else if (currentStep === 3) {
+                // 第三點：出現正中央老師爆炸 OS
+                showElement('os-step');
+                hint.classList.add('hidden'); // 隱藏提示
+                
+                // 觸發震動動畫
+                const osBubble = document.querySelector('.os-bubble').parentElement;
+                osBubble.classList.remove('shake');
+                void osBubble.offsetWidth; // 強制重繪以重啟動畫
+                osBubble.classList.add('shake');
+
+                // 移除全螢幕遮罩，讓使用者點擊返回按鈕
+                document.getElementById('click-overlay').classList.add('hidden');
+            }
+        }
+
+        // 返回上一頁的按鈕邏輯
+        function returnToSelection() {
+            document.getElementById('interaction-view').classList.add('hidden');
+            document.getElementById('selection-view').classList.remove('hidden');
+            currentScenario = null;
+        }
+
+        // 輔助函數：顯示元素並加入淡入效果
+        function showElement(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('hidden');
+            // 極短暫的延遲，確保 display:block 生效後，opacity 漸變才開始
+            setTimeout(() => {
+                el.classList.remove('opacity-0');
+            }, 50);
+        }
+
+        // 輔助函數：隱藏元素並重置透明度
+        function hideElement(id) {
+            const el = document.getElementById(id);
+            el.classList.add('hidden');
+            el.classList.add('opacity-0');
+        }
+    </script>
+</body>
+</html>

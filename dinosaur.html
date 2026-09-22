@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>親師溝通實戰模擬：恐龍家長篇</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f3f4f6;
+            overflow-x: hidden;
+        }
+
+        /* 隱藏捲軸但保留功能 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .pulse-btn { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        /* 對話框樣式 */
+        .speech-bubble {
+            position: relative;
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .speech-bubble-left::before {
+            content: '';
+            position: absolute;
+            left: -15px;
+            top: 20px;
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-right: 15px solid white;
+        }
+
+        .speech-bubble-right::before {
+            content: '';
+            position: absolute;
+            right: -15px;
+            top: 20px;
+            border-top: 15px solid transparent;
+            border-bottom: 15px solid transparent;
+            border-left: 15px solid white;
+        }
+
+        /* 老師OS內心戲爆炸樣式 */
+        .os-bubble {
+            background: #1e293b;
+            color: white;
+            border: 4px solid #ef4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        
+        .shake { animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        .scenario-card {
+            transition: all 0.3s ease;
+        }
+        .scenario-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+            border-color: #3b82f6; /* Tailwind blue-500 */
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col">
+
+    <header class="bg-blue-600 text-white p-4 shadow-md z-10 sticky top-0">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold flex items-center gap-2">
+                <i class="fas fa-school"></i> 親師溝通實戰模擬：恐龍家長篇
+            </h1>
+            <div id="status-indicator" class="text-sm bg-green-700 px-3 py-1 rounded-full flex items-center gap-2 shadow-inner">
+                <i class="fas fa-check-circle text-green-300"></i> 內建 30 個真實情境
+            </div>
+        </div>
+    </header>
+
+    <!-- 畫面 1: 情境選擇區 -->
+    <main id="selection-view" class="flex-grow container mx-auto p-4 md:p-8 overflow-y-auto">
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-8 text-center border border-gray-100">
+            <h2 class="text-xl font-bold text-gray-800 mb-2">歡迎來到教育最前線</h2>
+            <p class="text-gray-600 text-lg">選擇下方任一情境，體驗老師們每日面對的崩潰瞬間，挑戰你的情緒管理極限！</p>
+        </div>
+        
+        <!-- 加入載入中提示 -->
+        <div id="loading-spinner" class="text-center py-10 flex flex-col items-center justify-center">
+            <i class="fas fa-circle-notch fa-spin text-5xl text-blue-500 mb-4"></i>
+            <p class="text-gray-600 font-bold text-lg">正在從 Google Sheets 載入最新情境資料...</p>
+        </div>
+
+        <div id="scenario-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-10 hidden">
+            <!-- 情境按鈕會由 JS 動態生成在這裡 -->
+        </div>
+    </main>
+
+    <!-- 畫面 2: 互動對話區 (預設隱藏) -->
+    <main id="interaction-view" class="flex-grow bg-gray-100 hidden flex-col relative h-full">
+        
+        <!-- 頂部導航 -->
+        <div class="absolute top-4 left-4 z-20">
+            <button onclick="returnToSelection()" class="bg-white text-gray-700 font-medium px-4 py-2 rounded-lg shadow hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2 transition-all">
+                <i class="fas fa-arrow-left"></i> 返回列表
+            </button>
+        </div>
+
+        <!-- 進度提示 -->
+        <div id="progress-hint" class="absolute top-4 right-4 z-20 bg-blue-100 text-blue-800 px-4 py-2 rounded-full font-bold shadow-sm animate-pulse">
+            點擊畫面任何地方繼續...
+        </div>
+
+        <div class="container mx-auto p-4 md:p-8 flex-grow flex flex-col items-center justify-center min-h-[calc(100vh-80px)]">
+            
+            <h2 id="current-scenario-title" class="text-2xl md:text-3xl font-black text-gray-800 mb-12 text-center bg-yellow-300 px-8 py-3 rounded-full shadow-md inline-block border-4 border-yellow-400 transform -rotate-1">
+                情境標題
+            </h2>
+
+            <div class="w-full max-w-5xl relative pb-20">
+                
+                <!-- 老師發言區 (左側) -->
+                <div id="teacher-step" class="flex items-start gap-4 w-full md:w-3/4 hidden opacity-0 transition-opacity duration-700 ease-in-out">
+                    <div class="flex-shrink-0 flex flex-col items-center">
+                        <div class="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center border-4 border-blue-500 shadow-lg z-10 relative">
+                            <i class="fas fa-chalkboard-teacher text-5xl text-blue-600"></i>
+                            <div class="absolute -bottom-2 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">苦命老師</div>
+                        </div>
+                    </div>
+                    <div class="flex-grow pt-4">
+                        <div class="speech-bubble speech-bubble-left border-l-8 border-blue-500 text-xl text-gray-800 font-medium leading-relaxed">
+                            <i class="fas fa-quote-left text-blue-200 text-3xl absolute top-2 left-2 opacity-50"></i>
+                            <p id="teacher-text" class="relative z-10 px-4">老師說的話...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 家長回應區 (右側) -->
+                <div id="parent-step" class="flex items-start justify-end gap-4 w-full md:w-3/4 ml-auto hidden opacity-0 transition-opacity duration-700 ease-in-out mt-12">
+                    <div class="flex-grow pt-4 text-right">
+                        <div class="speech-bubble speech-bubble-right border-r-8 border-purple-500 text-xl text-gray-800 font-medium text-left inline-block leading-relaxed">
+                            <p id="parent-text" class="relative z-10 px-4">家長回應的話...</p>
+                            <i class="fas fa-quote-right text-purple-200 text-3xl absolute bottom-2 right-2 opacity-50"></i>
+                        </div>
+                    </div>
+                    <div class="flex-shrink-0 flex flex-col items-center">
+                        <div class="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center border-4 border-purple-500 shadow-lg z-10 relative">
+                            <i class="fas fa-user-tie text-5xl text-purple-600"></i>
+                            <div class="absolute -bottom-2 bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-full">理直氣壯家長</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 老師內心OS (正中央覆蓋) -->
+                <div id="os-step" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl hidden opacity-0 transition-opacity duration-500 z-30 mt-10">
+                    <div class="flex flex-col items-center">
+                        <!-- 爆氣老師圖標 -->
+                        <div class="w-36 h-36 bg-red-100 rounded-full flex items-center justify-center border-8 border-red-600 shadow-2xl z-20 mb-[-2.5rem] shake relative">
+                            <i class="fas fa-fire-alt text-7xl text-red-600"></i>
+                            <i class="fas fa-bolt text-yellow-400 text-3xl absolute top-0 right-0 animate-ping"></i>
+                        </div>
+                        <!-- OS 對話框蓋在身體上 -->
+                        <div class="speech-bubble os-bubble p-8 text-center w-full relative z-10 rounded-3xl">
+                            <div class="absolute -top-5 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-1 rounded-full text-sm font-black tracking-widest shadow-md">【 老師內心核爆 OS 】</div>
+                            <p id="os-text" class="mt-4 text-2xl leading-relaxed text-yellow-100 drop-shadow-md">老師心中的OS...</p>
+                        </div>
+                        
+                        <button onclick="returnToSelection()" class="mt-10 bg-gray-800 text-white font-bold text-lg px-8 py-4 rounded-full shadow-2xl hover:bg-gray-700 transition pulse-btn flex items-center gap-2 border-2 border-gray-600">
+                            <i class="fas fa-sync-alt"></i> 呼~ 深呼吸，換個情境
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+            
+            <!-- 全螢幕點擊遮罩，用於推進進度 -->
+            <div id="click-overlay" class="absolute inset-0 z-0 cursor-pointer hidden" onclick="advanceStep()"></div>
+        </div>
+    </main>
+
+    <script>
+        // =================================================================
+        // 請將下方引號內的網址，替換成你新部署的 GAS 網頁應用程式網址 (Web App URL)
+        // =================================================================
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbyiA8eq5ZoSY_rTiBF1amebDY33azSk1P4nV2vtwTjt4mAFBt7SVKu_6lWi3oMzy0A/exec'; 
+
+        let scenariosData = [];
+        let currentScenario = null;
+        let currentStep = 0; 
+        /* 步驟說明:
+           0: 初始狀態，等待點擊顯示老師說話
+           1: 顯示老師說話，等待點擊顯示家長回應
+           2: 顯示家長回應，等待點擊顯示內心OS
+           3: 顯示內心OS，等待返回列表
+        */
+
+        // 初始化：載入資料
+        window.onload = () => {
+            fetchScenariosData();
+        };
+
+        // 從 Google Sheets (GAS) 獲取資料
+        async function fetchScenariosData() {
+            try {
+                if (GAS_URL === '請貼上您的GAS網址' || GAS_URL.trim() === '') {
+                    document.getElementById('loading-spinner').innerHTML = `
+                        <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
+                        <p class="text-red-600 font-bold text-lg">請先設定 GAS_URL</p>
+                        <p class="text-gray-500 mt-2">請在右側程式碼中找到 <code>GAS_URL</code> 並貼上您的網址。</p>
+                    `;
+                    return;
+                }
+
+                // 加入 redirect: 'follow' 確保能正確跟隨 Google Apps Script 的轉址
+                const response = await fetch(GAS_URL, { redirect: 'follow' });
+                if (!response.ok) throw new Error(`HTTP 錯誤: ${response.status}`);
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                scenariosData = data;
+                
+                // 隱藏載入中，顯示網格
+                document.getElementById('loading-spinner').classList.add('hidden');
+                document.getElementById('scenario-grid').classList.remove('hidden');
+                
+                // 更新左上角狀態列數量
+                const statusIndicator = document.getElementById('status-indicator');
+                statusIndicator.innerHTML = `<i class="fas fa-cloud-download-alt text-green-300"></i> 雲端載入 ${scenariosData.length} 個情境`;
+                statusIndicator.classList.remove('bg-green-700');
+                statusIndicator.classList.add('bg-blue-700');
+                
+                renderScenariosGrid();
+
+            } catch (error) {
+                console.error("載入失敗:", error);
+                document.getElementById('loading-spinner').innerHTML = `
+                    <i class="fas fa-times-circle text-red-500 text-5xl mb-4"></i>
+                    <p class="text-red-600 font-bold text-lg">資料載入失敗</p>
+                    <p class="text-gray-500 mt-2">1. 請確定 GAS 有發布為「新版本」且權限為「所有人」。</p>
+                    <p class="text-gray-500">2. 請確定貼上的網址正確無誤。</p>
+                    <p class="text-gray-400 text-sm mt-4 bg-gray-100 p-2 rounded max-w-lg overflow-auto text-left inline-block">錯誤詳情: ${error.message}</p>
+                `;
+            }
+        }
+
+        // 渲染情境方塊
+        function renderScenariosGrid() {
+            const grid = document.getElementById('scenario-grid');
+            grid.innerHTML = ''; 
+
+            scenariosData.forEach((scenario, index) => {
+                const button = document.createElement('button');
+                button.className = 'scenario-card bg-white p-6 rounded-xl shadow-md border-t-4 border-gray-300 text-left flex flex-col h-full fade-in relative overflow-hidden group';
+                // 創造微小的延遲動畫效果
+                button.style.animationDelay = `${(index % 10) * 0.05}s`;
+                
+                button.innerHTML = `
+                    <div class="absolute -right-4 -top-4 w-16 h-16 bg-gray-50 rounded-full group-hover:bg-blue-50 transition-colors z-0"></div>
+                    <div class="flex justify-between items-start mb-4 relative z-10">
+                        <span class="bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-800 text-xs font-bold px-3 py-1 rounded-full transition-colors">Case ${index + 1}</span>
+                        <i class="fas fa-bolt text-gray-300 group-hover:text-yellow-400 transition-colors"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 flex-grow relative z-10 leading-snug group-hover:text-blue-700 transition-colors">${scenario.title}</h3>
+                `;
+                
+                button.onclick = () => startScenario(scenario);
+                grid.appendChild(button);
+            });
+        }
+
+        // 點擊情境卡片，進入互動對話畫面
+        function startScenario(scenario) {
+            currentScenario = scenario;
+            currentStep = 0;
+            
+            // 隱藏列表，顯示對話區
+            document.getElementById('selection-view').classList.add('hidden');
+            document.getElementById('interaction-view').classList.remove('hidden');
+            
+            // 填入該情境的文字資料
+            document.getElementById('current-scenario-title').innerText = `情境：${scenario.title}`;
+            document.getElementById('teacher-text').innerText = scenario.teacherSays;
+            document.getElementById('parent-text').innerText = scenario.parentReplies;
+            document.getElementById('os-text').innerText = scenario.teacherThoughts;
+            
+            // 確保所有對話框初始為隱藏且透明
+            hideElement('teacher-step');
+            hideElement('parent-step');
+            hideElement('os-step');
+            
+            // 顯示點擊提示與遮罩
+            document.getElementById('progress-hint').innerText = "點擊畫面開始對話...";
+            document.getElementById('progress-hint').classList.remove('hidden');
+            const overlay = document.getElementById('click-overlay');
+            overlay.classList.remove('hidden');
+        }
+
+        // 控制點擊推進的邏輯
+        function advanceStep() {
+            currentStep++;
+            const hint = document.getElementById('progress-hint');
+            
+            if (currentStep === 1) {
+                // 第一點：出現左側老師發言
+                showElement('teacher-step');
+                hint.innerText = "點擊畫面查看家長回應...";
+                
+            } else if (currentStep === 2) {
+                // 第二點：出現右側家長回應
+                showElement('parent-step');
+                hint.innerText = "點擊畫面偷聽老師心聲...";
+                
+            } else if (currentStep === 3) {
+                // 第三點：出現正中央老師爆炸 OS
+                showElement('os-step');
+                hint.classList.add('hidden'); // 隱藏提示
+                
+                // 觸發震動動畫
+                const osBubble = document.querySelector('.os-bubble').parentElement;
+                osBubble.classList.remove('shake');
+                void osBubble.offsetWidth; // 強制重繪以重啟動畫
+                osBubble.classList.add('shake');
+
+                // 移除全螢幕遮罩，讓使用者點擊返回按鈕
+                document.getElementById('click-overlay').classList.add('hidden');
+            }
+        }
+
+        // 返回上一頁的按鈕邏輯
+        function returnToSelection() {
+            document.getElementById('interaction-view').classList.add('hidden');
+            document.getElementById('selection-view').classList.remove('hidden');
+            currentScenario = null;
+        }
+
+        // 輔助函數：顯示元素並加入淡入效果
+        function showElement(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('hidden');
+            // 極短暫的延遲，確保 display:block 生效後，opacity 漸變才開始
+            setTimeout(() => {
+                el.classList.remove('opacity-0');
+            }, 50);
+        }
+
+        // 輔助函數：隱藏元素並重置透明度
+        function hideElement(id) {
+            const el = document.getElementById(id);
+            el.classList.add('hidden');
+            el.classList.add('opacity-0');
+        }
+    </script>
+</body>
+</html>
