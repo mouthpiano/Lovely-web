@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>互動紙張奇幻之旅</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #f3f4f6; font-family: 'Inter', sans-serif; }
+        .hidden { display: none !important; }
+        .stage-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* 畫布特定樣式，背景改為直條紋白橡木桌面以支援鏤空效果 */
+        #drawing-board-container {
+            background-color: #e5d3b3;
+            background-image: 
+                repeating-linear-gradient(to right, rgba(139, 90, 43, 0.07) 0px, rgba(139, 90, 43, 0.07) 1px, transparent 1px, transparent 3px),
+                repeating-linear-gradient(to right, rgba(139, 90, 43, 0.04) 0px, rgba(139, 90, 43, 0.04) 2px, transparent 2px, transparent 7px),
+                linear-gradient(to bottom, #ebd9be, #d6c09e);
+            box-shadow: inset 0 0 60px rgba(0,0,0,0.25);
+        }
+        #drawing-board { 
+            background-color: transparent; 
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1); 
+            cursor: crosshair; touch-action: none;
+        }
+        
+        .cursor-draw { cursor: crosshair !important; }
+        .cursor-scissors { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><line x1="20" y1="4" x2="8.12" y2="15.88"></line><line x1="14.47" y1="14.48" x2="20" y2="20"></line><line x1="8.12" y1="8.12" x2="12" y2="12"></line></svg>') 12 12, auto !important; }
+        .cursor-knife { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 21L12.5 2l3 3-10 19-3-3z"></path></svg>') 2 21, auto !important; }
+        .cursor-penknife { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21l8-8 3 3-8 8-3-3zM14 10l7-7M19 8l2-2"></path></svg>') 3 21, auto !important; }
+        .cursor-awl { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" y1="22" x2="22" y2="2"></line><line x1="15" y1="2" x2="22" y2="9"></line></svg>') 2 22, auto !important; }
+        .cursor-nail { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v16M9 18h6M10 2h4"></path></svg>') 12 18, auto !important; }
+
+        #webgl-container { width: 100%; height: 100%; flex-grow: 1; }
+
+        @keyframes rollDice {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(1.2); }
+            50% { transform: rotate(180deg) scale(0.8); }
+            75% { transform: rotate(270deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        .rolling { animation: rollDice 0.5s ease-in-out infinite; }
+    </style>
+</head>
+<body>
+
+    <div id="step1" class="stage-container">
+        <div class="bg-white p-4 shadow-md flex flex-wrap items-center justify-between gap-4 z-10 relative">
+            <div class="flex items-center gap-4 flex-wrap">
+                <h1 class="text-xl font-bold text-gray-800">1. 揮灑創意與破壞</h1>
+                
+                <div class="flex items-center gap-2 border-l pl-4 border-gray-300">
+                    <span class="text-sm font-medium">畫筆：</span>
+                    <input type="color" id="color-picker" value="#000000" class="w-8 h-8 rounded cursor-pointer" title="選擇顏色">
+                    <input type="range" id="size-picker" min="1" max="50" value="5" class="w-24 cursor-pointer" title="調整粗細">
+                    <button class="tool-btn bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded shadow text-sm transition font-medium ring-2 ring-blue-500" data-tool="draw">畫筆</button>
+                </div>
+
+                <div class="flex items-center gap-2 border-l pl-4 border-gray-300">
+                    <span class="text-sm font-medium text-red-600">破壞工具 (鏤空效果)：</span>
+                    <button class="tool-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded shadow text-sm transition" data-tool="scissors" title="剪刀">剪刀</button>
+                    <button class="tool-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded shadow text-sm transition" data-tool="knife" title="刀片">刀片</button>
+                    <button class="tool-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded shadow text-sm transition" data-tool="penknife" title="筆刀">筆刀</button>
+                    <button class="tool-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded shadow text-sm transition" data-tool="awl" title="鑽子">鑽子</button>
+                    <button class="tool-btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1 rounded shadow text-sm transition" data-tool="nail" title="釘子">釘子</button>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 flex-wrap">
+                <button id="btn-clear" class="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1 rounded shadow text-sm transition border border-red-200">重置白紙</button>
+                <button id="btn-download-jpg" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded shadow text-sm transition">下載 JPG</button>
+                <button id="btn-finish-draw" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded shadow font-bold transition ml-4 animate-pulse">完成作畫 ➔</button>
+            </div>
+        </div>
+        
+        <div id="drawing-board-container" class="flex-grow p-4 md:p-8 flex justify-center items-center overflow-hidden relative">
+            <canvas id="drawing-board" class="cursor-draw rounded max-w-full max-h-full shadow-lg" width="800" height="600"></canvas>
+        </div>
+    </div>
+
+    <div id="step2" class="stage-container hidden">
+        <div class="bg-white p-4 shadow-md flex flex-wrap justify-between items-center z-10 relative gap-4">
+            <h1 class="text-xl font-bold text-gray-800">2. 將畫作揉成紙球</h1>
+            <div class="flex gap-6 items-center flex-wrap">
+                <div class="flex flex-col">
+                    <label class="text-sm font-medium text-gray-700 mb-1">揉紙力道 (越大越圓): <span id="force-val" class="text-purple-600 font-bold">20</span>%</label>
+                    <input type="range" id="crumple-force" min="0" max="100" value="20" class="w-48 cursor-pointer accent-purple-600">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-sm font-medium text-gray-700 mb-1">皺褶緊密度: <span id="tightness-val" class="text-purple-600 font-bold">50</span>%</label>
+                    <input type="range" id="crumple-tightness" min="0" max="100" value="50" class="w-48 cursor-pointer accent-purple-600">
+                </div>
+            </div>
+            <button id="btn-finish-crumple" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded shadow font-bold transition">下一步 ➔</button>
+        </div>
+        <div id="webgl-container-1" class="flex-grow w-full h-full cursor-grab bg-gray-200"></div>
+    </div>
+
+    <div id="step3" class="stage-container hidden">
+        <div class="bg-white p-4 shadow-md flex flex-wrap justify-between items-center z-10 relative gap-4">
+            <h1 class="text-xl font-bold text-gray-800">3. 挑戰投籃 (投進即獲勝)</h1>
+            
+            <div class="flex items-center gap-4 bg-gray-50 p-2 rounded border border-gray-200">
+                <div class="flex flex-col items-center">
+                    <span class="text-xs text-gray-500 font-bold mb-1">決定位置</span>
+                    <button id="btn-dice" class="w-12 h-12 bg-yellow-400 hover:bg-yellow-500 text-white text-2xl font-bold rounded shadow-lg flex items-center justify-center transition shadow-[0_4px_0_rgb(202,138,4)] hover:translate-y-[2px] hover:shadow-[0_2px_0_rgb(202,138,4)]">🎲</button>
+                </div>
+                <div class="flex flex-col justify-center">
+                    <span class="text-sm font-medium text-gray-700">目前位置：<span id="current-position" class="font-bold text-purple-600 text-lg">-</span> / 6</span>
+                </div>
+            </div>
+
+            <div class="flex gap-4 items-center bg-gray-50 p-2 rounded border border-gray-200 flex-wrap">
+                <div class="flex flex-col">
+                    <label class="text-sm font-medium text-gray-700 mb-1">投擲力道 (<span id="throw-power-val">60</span>)</label>
+                    <input type="range" id="throw-power" min="30" max="100" value="60" class="w-32 cursor-pointer accent-blue-500">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-sm font-medium text-gray-700 mb-1">投擲方向 (左右角度)</label>
+                    <input type="range" id="throw-angle" min="-30" max="30" value="0" class="w-32 cursor-pointer accent-green-500">
+                </div>
+            </div>
+
+            <button id="btn-throw" class="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-full shadow-lg font-bold text-lg transition disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 shadow-[0_4px_0_rgb(185,28,28)]" disabled>請先擲骰子</button>
+        </div>
+        
+        <div id="webgl-container-2" class="flex-grow w-full h-full relative bg-gray-300">
+            <div id="success-message" class="absolute inset-0 bg-black/60 flex items-center justify-center hidden z-50">
+                <div class="bg-white p-8 rounded-2xl shadow-2xl text-center transform scale-0 transition-transform duration-500" id="success-modal">
+                    <div class="text-6xl mb-4 animate-bounce">🎉</div>
+                    <h2 class="text-3xl font-extrabold text-purple-600 mb-2">恭喜挑戰成功！</h2>
+                    <p class="text-xl text-gray-700 font-medium">謝謝你如此努力！</p>
+                    <button onclick="location.reload()" class="mt-6 bg-purple-100 hover:bg-purple-200 text-purple-800 px-6 py-2 rounded-full font-bold transition">再玩一次</button>
+                </div>
+            </div>
+            
+            <div id="toast-message" class="absolute top-1/4 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none z-40 text-lg font-bold">
+                太可惜了，再試一次！
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            currentTool: 'draw',
+            color: '#000000',
+            size: 5,
+            isDrawing: false,
+            lastX: 0,
+            lastY: 0,
+            textureDataUrl: null,
+            positionIndex: 0,
+            throwAttempts: 0
+        };
+
+        // 自訂簡易 3D 雜訊函數，避免外部套件載入失敗導致程式中斷
+        function customNoise3D(x, y, z) {
+            let noise = 0;
+            noise += Math.sin(x * 2.1 + y * 3.2 + z * 1.4) * 0.5;
+            noise += Math.cos(x * 5.1 + y * 1.2 + z * 3.4) * 0.25;
+            noise += Math.sin(x * 1.5 + y * 5.3 + z * 5.1) * 0.125;
+            return noise;
+        }
+
+        const canvas = document.getElementById('drawing-board');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const colorPicker = document.getElementById('color-picker');
+        const sizePicker = document.getElementById('size-picker');
+        const toolBtns = document.querySelectorAll('.tool-btn');
+        
+        function initCanvasBackground() {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+        initCanvasBackground();
+        // 確保在所有資源載入後再次重繪白紙，避免因生命週期問題導致透明
+        window.addEventListener('load', initCanvasBackground);
+
+        toolBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                toolBtns.forEach(b => b.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-100', 'text-blue-800'));
+                toolBtns.forEach(b => b.classList.add('bg-gray-100', 'text-gray-700'));
+                const target = e.currentTarget;
+                target.classList.remove('bg-gray-100', 'text-gray-700');
+                target.classList.add('ring-2', 'ring-blue-500', 'bg-blue-100', 'text-blue-800');
+                
+                state.currentTool = target.dataset.tool;
+                canvas.className = `cursor-${state.currentTool.includes('knife') ? 'knife' : state.currentTool} rounded max-w-full max-h-full shadow-lg`;
+            });
+        });
+
+        colorPicker.addEventListener('input', (e) => state.color = e.target.value);
+        sizePicker.addEventListener('input', (e) => state.size = parseInt(e.target.value));
+
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function startAction(e) {
+            if (e.touches && e.touches.length > 1) return;
+            e.preventDefault();
+            state.isDrawing = true;
+            const pos = getPos(e);
+            state.lastX = pos.x;
+            state.lastY = pos.y;
+
+            if (state.currentTool === 'nail' || state.currentTool === 'awl') {
+                applyHoleDamage(pos.x, pos.y, state.currentTool);
+            }
+        }
+
+        function moveAction(e) {
+            if (!state.isDrawing) return;
+            if (e.touches && e.touches.length > 1) return;
+            e.preventDefault();
+            const pos = getPos(e);
+
+            if (state.currentTool === 'draw') {
+                drawStroke(state.lastX, state.lastY, pos.x, pos.y);
+            } else if (['scissors', 'knife', 'penknife'].includes(state.currentTool)) {
+                applyCuttingDamage(state.lastX, state.lastY, pos.x, pos.y, state.currentTool);
+            }
+
+            state.lastX = pos.x;
+            state.lastY = pos.y;
+        }
+
+        function stopAction() {
+            state.isDrawing = false;
+            ctx.beginPath(); 
+        }
+
+        function drawStroke(x1, y1, x2, y2) {
+            ctx.globalCompositeOperation = 'source-over';
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.strokeStyle = state.color;
+            ctx.lineWidth = state.size;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+        }
+
+        function applyCuttingDamage(x1, y1, x2, y2, tool) {
+            // 使用 destination-out 擦除像素，產生真正的透明鏤空效果
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            
+            let lineWidth = state.size;
+            if (tool === 'scissors') lineWidth = state.size * 1.5;
+            if (tool === 'knife') lineWidth = Math.max(2, state.size * 0.5);
+            
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'butt';
+            ctx.lineJoin = 'miter';
+            ctx.stroke();
+        }
+
+        function applyHoleDamage(x, y, tool) {
+            // 使用 destination-out 擦除像素，產生真實破洞
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.beginPath();
+            
+            let radius = state.size;
+            if (tool === 'nail') radius = Math.max(3, state.size / 1.5);
+            if (tool === 'awl') radius = Math.max(5, state.size * 1.2);
+
+            for (let i = 0; i <= Math.PI * 2; i += 0.2) {
+                const r = radius * (0.8 + Math.random() * 0.4);
+                const dx = x + Math.cos(i) * r;
+                const dy = y + Math.sin(i) * r;
+                if (i === 0) ctx.moveTo(dx, dy);
+                else ctx.lineTo(dx, dy);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        canvas.addEventListener('mousedown', startAction);
+        canvas.addEventListener('mousemove', moveAction);
+        canvas.addEventListener('mouseup', stopAction);
+        canvas.addEventListener('mouseout', stopAction);
+        canvas.addEventListener('touchstart', startAction, {passive: false});
+        canvas.addEventListener('touchmove', moveAction, {passive: false});
+        canvas.addEventListener('touchend', stopAction);
+
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            canvas.width = canvas.width; 
+            initCanvasBackground();
+        });
+
+        document.getElementById('btn-download-jpg').addEventListener('click', () => {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.fillStyle = '#ffffff';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            tempCtx.drawImage(canvas, 0, 0);
+            
+            const link = document.createElement('a');
+            link.download = 'my_destroyed_art.jpg';
+            link.href = tempCanvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        });
+
+        let scene1, camera1, renderer1, paperMesh, originalPositions, originalNormals;
+        let scene2, camera2, renderer2, ballMesh, trashCanMesh, throwAnimationId;
+        
+        document.getElementById('btn-finish-draw').addEventListener('click', () => {
+            // 將 Canvas 轉成帶透明度的 PNG
+            state.textureDataUrl = canvas.toDataURL('image/png');
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('step2').classList.remove('hidden');
+            initStep2ThreeJS();
+        });
+
+        function initStep2ThreeJS() {
+            const container = document.getElementById('webgl-container-1');
+            if(scene1) return;
+
+            scene1 = new THREE.Scene();
+            scene1.background = new THREE.Color(0xe5e7eb);
+
+            camera1 = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera1.position.z = 16;
+
+            renderer1 = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer1.setSize(container.clientWidth, container.clientHeight);
+            renderer1.shadowMap.enabled = true;
+            renderer1.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer1.domElement);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene1.add(ambientLight);
+            
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 15, 10);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            scene1.add(dirLight);
+            
+            const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            backLight.position.set(-10, 10, -10);
+            scene1.add(backLight);
+
+            const textureLoader = new THREE.TextureLoader();
+            const texture = textureLoader.load(state.textureDataUrl, () => {
+                updatePaperShape();
+            });
+            texture.anisotropy = renderer1.capabilities.getMaxAnisotropy();
+
+            const geometry = new THREE.SphereGeometry(5, 128, 128); 
+            
+            originalPositions = [];
+            originalNormals = [];
+            const posAttr = geometry.attributes.position;
+            const normAttr = geometry.attributes.normal;
+            for(let i=0; i<posAttr.count; i++) {
+                originalPositions.push(new THREE.Vector3().fromBufferAttribute(posAttr, i));
+                originalNormals.push(new THREE.Vector3().fromBufferAttribute(normAttr, i));
+            }
+
+            // 開啟透明度 (transparent: true) 讓破壞效果看得見
+            const material = new THREE.MeshStandardMaterial({ 
+                map: texture,
+                color: 0xffffff,
+                roughness: 0.8,
+                metalness: 0.0,
+                side: THREE.DoubleSide,
+                transparent: true,
+                alphaTest: 0.1 
+            });
+
+            paperMesh = new THREE.Mesh(geometry, material);
+            paperMesh.castShadow = true;
+            paperMesh.receiveShadow = true;
+            scene1.add(paperMesh);
+            
+            const planeGeo = new THREE.PlaneGeometry(100, 100);
+            const planeMat = new THREE.ShadowMaterial({ opacity: 0.1 });
+            const plane = new THREE.Mesh(planeGeo, planeMat);
+            plane.rotation.x = -Math.PI / 2;
+            plane.position.y = -6;
+            plane.receiveShadow = true;
+            scene1.add(plane);
+
+            let isDragging = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            const onPointerDown = (e) => {
+                isDragging = true;
+                previousMousePosition = { x: e.clientX || e.touches[0].clientX, y: e.clientY || e.touches[0].clientY };
+            };
+            const onPointerUp = () => isDragging = false;
+            const onPointerMove = (e) => {
+                if (!isDragging || !paperMesh) return;
+                const clientX = e.clientX || e.touches[0].clientX;
+                const clientY = e.clientY || e.touches[0].clientY;
+                const deltaMove = { x: clientX - previousMousePosition.x, y: clientY - previousMousePosition.y };
+                paperMesh.rotation.y += deltaMove.x * 0.005;
+                paperMesh.rotation.x += deltaMove.y * 0.005;
+                previousMousePosition = { x: clientX, y: clientY };
+            };
+            container.addEventListener('mousedown', onPointerDown);
+            container.addEventListener('mouseup', onPointerUp);
+            container.addEventListener('mousemove', onPointerMove);
+            container.addEventListener('touchstart', onPointerDown, {passive: true});
+            container.addEventListener('touchend', onPointerUp);
+            container.addEventListener('touchmove', onPointerMove, {passive: true});
+
+            animateStep1();
+        }
+
+        const forceInput = document.getElementById('crumple-force');
+        const tightnessInput = document.getElementById('crumple-tightness');
+        const forceValText = document.getElementById('force-val');
+        const tightnessValText = document.getElementById('tightness-val');
+
+        function updatePaperShape() {
+            if (!paperMesh || !originalPositions.length) return;
+            
+            let force = parseInt(forceInput.value) / 100;
+            let tightness = parseInt(tightnessInput.value) / 100;
+            
+            forceValText.innerText = forceInput.value;
+            tightnessValText.innerText = tightnessInput.value;
+
+            const posAttr = paperMesh.geometry.attributes.position;
+            const v = new THREE.Vector3();
+            
+            const noiseFrequency = 0.5 + tightness * 1.5; 
+            // 力道越小 -> 振幅越大 (不規則)；力道越大 -> 振幅越小 (接近圓形)
+            const noiseAmplitude = 3.0 * (1.0 - force * 0.85); 
+
+            for(let i=0; i<posAttr.count; i++) {
+                const origPos = originalPositions[i];
+                const origNorm = originalNormals[i];
+                
+                let noiseVal = customNoise3D(
+                    origPos.x * noiseFrequency, 
+                    origPos.y * noiseFrequency, 
+                    origPos.z * noiseFrequency
+                );
+                
+                // 計算位移向量，力道越大，除了噪音變小外，整體也會稍微往內收縮變小
+                const displacement = origNorm.clone().multiplyScalar(noiseVal * noiseAmplitude + (force * -0.5));
+                
+                v.copy(origPos).add(displacement);
+                posAttr.setXYZ(i, v.x, v.y, v.z);
+            }
+            
+            posAttr.needsUpdate = true;
+            paperMesh.geometry.computeVertexNormals(); 
+        }
+
+        forceInput.addEventListener('input', updatePaperShape);
+        tightnessInput.addEventListener('input', updatePaperShape);
+
+        function animateStep1() {
+            requestAnimationFrame(animateStep1);
+            renderer1.render(scene1, camera1);
+        }
+
+        // === 進入階段 3 ===
+        document.getElementById('btn-finish-crumple').addEventListener('click', () => {
+            document.getElementById('step2').classList.add('hidden');
+            document.getElementById('step3').classList.remove('hidden');
+            initStep3ThreeJS();
+        });
+
+        // 垃圾桶目標位置中心
+        const targetPosition = new THREE.Vector3(0, 0, -15);
+        // 垃圾桶口的高度和半徑 (用於碰撞偵測)
+        const targetHeight = 6;
+        const targetRadius = 3.5;
+
+        // 6 個投擲位置的座標 (以垃圾桶為圓心，計算圓弧位置)
+        const throwArcRadius = 40; // ★距離垃圾桶的半徑加大，讓距離更遠
+        const throwAngles = [90, 180, 60, 120, 150, 210]; // 使用者指定的 6 個角度
+        const throwPositions = [null]; // 索引 0 為空，讓骰子 1-6 可以直接對應
+        
+        throwAngles.forEach(deg => {
+            // 轉換為弧度，0度為X軸正向(右)，90度為Z軸正向(朝向攝影機)
+            const rad = THREE.MathUtils.degToRad(deg);
+            throwPositions.push(new THREE.Vector3(
+                targetPosition.x + throwArcRadius * Math.cos(rad),
+                3, // 球的起始高度
+                targetPosition.z + throwArcRadius * Math.sin(rad)
+            ));
+        });
+
+        function initStep3ThreeJS() {
+            const container = document.getElementById('webgl-container-2');
+            if(scene2) return;
+
+            scene2 = new THREE.Scene();
+            scene2.background = new THREE.Color(0xd1d5db);
+            scene2.fog = new THREE.FogExp2(0xd1d5db, 0.003); // ★稍微降低霧氣，配合深色地板
+
+            // ★縮小視角(FOV由60改為50)並將鏡頭大幅拉近，達到全畫面放大1.25倍以上的效果
+            camera2 = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 300); 
+            camera2.position.set(0, 40, 50); 
+            camera2.lookAt(0, 0, -12); 
+
+            renderer2 = new THREE.WebGLRenderer({ antialias: true });
+            renderer2.setSize(container.clientWidth, container.clientHeight);
+            renderer2.shadowMap.enabled = true;
+            renderer2.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer2.domElement);
+
+            const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+            scene2.add(ambient);
+            const dir = new THREE.DirectionalLight(0xffffff, 1.0);
+            dir.position.set(20, 30, 10);
+            dir.castShadow = true;
+            dir.shadow.camera.top = 30; dir.shadow.camera.bottom = -30;
+            dir.shadow.camera.left = -30; dir.shadow.camera.right = 30;
+            dir.shadow.mapSize.set(2048, 2048);
+            scene2.add(dir);
+
+            // ★地板顏色變深 (原 0x9ca3af，改為較深的 0x6b7280)
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.9 });
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene2.add(floor);
+
+            for(let i=1; i<=6; i++) {
+                // ★圈圈變大(半徑0.8~1.2)且顏色換成最亮的純黃色(0xffff00)
+                const mark = new THREE.Mesh(new THREE.RingGeometry(0.8, 1.2, 32), new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide }));
+                mark.rotation.x = -Math.PI / 2;
+                mark.position.copy(throwPositions[i]);
+                mark.position.y = 0.02;
+                scene2.add(mark);
+            }
+
+            const trashMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.6, metalness: 0.2, side: THREE.DoubleSide });
+            trashCanMesh = new THREE.Mesh(new THREE.CylinderGeometry(targetRadius, targetRadius*0.8, targetHeight, 32, 1, true), trashMat);
+            trashCanMesh.position.copy(targetPosition);
+            trashCanMesh.position.y = targetHeight / 2;
+            trashCanMesh.castShadow = true;
+            trashCanMesh.receiveShadow = true;
+            scene2.add(trashCanMesh); 
+            
+            // 垃圾桶底
+            const base = new THREE.Mesh(new THREE.CircleGeometry(targetRadius*0.8, 32), trashMat);
+            base.rotation.x = -Math.PI / 2;
+            base.position.copy(targetPosition);
+            base.position.y = 0.05;
+            scene2.add(base);
+
+            // 複製紙球
+            if(paperMesh) {
+                ballMesh = paperMesh.clone();
+                // ★稍微調大紙球比例讓它在畫面上更清楚 (原 0.25 -> 改為 0.35)
+                ballMesh.scale.setScalar(0.35); 
+                ballMesh.visible = false;
+                // 確保紙球也有陰影
+                ballMesh.castShadow = true;
+                ballMesh.receiveShadow = true;
+                scene2.add(ballMesh);
+            }
+
+            renderStep3();
+        }
+
+        function renderStep3() {
+            if(!throwAnimationId) {
+                requestAnimationFrame(renderStep3);
+                renderer2.render(scene2, camera2);
+            }
+        }
+
+        const btnDice = document.getElementById('btn-dice');
+        const posText = document.getElementById('current-position');
+        const btnThrow = document.getElementById('btn-throw');
+        const throwPowerInput = document.getElementById('throw-power');
+        const throwAngleInput = document.getElementById('throw-angle');
+        
+        btnDice.addEventListener('click', () => {
+            btnDice.classList.add('rolling');
+            btnDice.disabled = true;
+            btnThrow.disabled = true;
+            btnThrow.textContent = "準備中...";
+            btnThrow.classList.remove('bg-red-500', 'hover:bg-red-600');
+            btnThrow.classList.add('bg-gray-400');
+            
+            setTimeout(() => {
+                state.positionIndex = Math.floor(Math.random() * 6) + 1;
+                posText.innerText = state.positionIndex;
+                btnDice.classList.remove('rolling');
+                btnDice.disabled = false;
+                btnThrow.disabled = false;
+                btnThrow.textContent = "丟出！";
+                btnThrow.classList.remove('bg-gray-400');
+                btnThrow.classList.add('bg-red-500', 'hover:bg-red-600');
+                
+                if(ballMesh) {
+                    ballMesh.position.copy(throwPositions[state.positionIndex]);
+                    ballMesh.visible = true;
+                    ballMesh.rotation.set(Math.random(), Math.random(), Math.random()); 
+                }
+            }, 600);
+        });
+
+        throwPowerInput.addEventListener('input', e => document.getElementById('throw-power-val').innerText = e.target.value);
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast-message');
+            toast.innerText = msg;
+            toast.style.opacity = '1';
+            setTimeout(() => toast.style.opacity = '0', 2500);
+        }
+
+        btnThrow.addEventListener('click', () => {
+            if(state.positionIndex === 0) return;
+            
+            btnThrow.disabled = true;
+            btnDice.disabled = true;
+            state.throwAttempts++;
+            
+            const startPos = ballMesh.position.clone();
+            const targetCenter = targetPosition.clone();
+            targetCenter.y = targetHeight;
+
+            const power = parseInt(throwPowerInput.value);
+            const angleDeg = parseInt(throwAngleInput.value);
+            const gravity = -50; 
+            
+            const direction = new THREE.Vector3().subVectors(targetCenter, startPos);
+            direction.y = 0; 
+            direction.normalize();
+
+            const angleRad = THREE.MathUtils.degToRad(angleDeg);
+            direction.applyAxisAngle(new THREE.Vector3(0, 1, 0), -angleRad);
+
+            const speed = power * 0.9; // ★因為距離變遠，適度提升基礎力道轉換係數，維持好手感
+            const launchAngle = THREE.MathUtils.degToRad(45);
+            
+            const velocity = new THREE.Vector3(
+                direction.x * speed * Math.cos(launchAngle),
+                speed * Math.sin(launchAngle), 
+                direction.z * speed * Math.cos(launchAngle)
+            );
+
+            // 加入隨機擾動，次數越多擾動越小，讓你越來越好投
+            let noiseFactor = Math.max(0.1, 1.0 - (state.throwAttempts - 1) * 0.15);
+            velocity.x += (Math.random() - 0.5) * 8 * noiseFactor;
+            velocity.z += (Math.random() - 0.5) * 8 * noiseFactor;
+            velocity.multiplyScalar(1 + (Math.random() - 0.5) * 0.1 * noiseFactor);
+            
+            let lastTime = performance.now();
+            const angularVelocity = new THREE.Vector3(Math.random()*5, Math.random()*5, Math.random()*5);
+
+            function animateThrow(currentTime) {
+                const deltaTime = (currentTime - lastTime) / 1000;
+                lastTime = currentTime;
+
+                velocity.y += gravity * deltaTime;
+                ballMesh.position.addScaledVector(velocity, deltaTime);
+                
+                ballMesh.rotation.x += angularVelocity.x * deltaTime;
+                ballMesh.rotation.y += angularVelocity.y * deltaTime;
+                ballMesh.rotation.z += angularVelocity.z * deltaTime;
+                
+                renderer2.render(scene2, camera2);
+                
+                const ballPos = ballMesh.position;
+
+                // 1. 檢查是否進入垃圾桶口平面
+                if (ballPos.y < targetHeight + 1 && ballPos.y > targetHeight - 1 && velocity.y < 0) {
+                    const distToCenter = Math.sqrt(Math.pow(ballPos.x - targetPosition.x, 2) + Math.pow(ballPos.z - targetPosition.z, 2));
+                    
+                    // 真實物理判定：落點距離小於桶口半徑即算成功
+                    if (distToCenter < targetRadius * 0.9) {
+                        finishThrow(true);
+                        return;
+                    }
+                }
+
+                // 2. 檢查是否落地
+                if (ballPos.y <= 1.5) { 
+                    ballPos.y = 1.5;
+                    finishThrow(false);
+                    return;
+                }
+                
+                throwAnimationId = requestAnimationFrame(animateThrow);
+            }
+            
+            function finishThrow(isSuccess) {
+                cancelAnimationFrame(throwAnimationId);
+                throwAnimationId = null;
+                
+                if (isSuccess) {
+                    ballMesh.position.set(targetPosition.x, 1.5, targetPosition.z);
+                    renderer2.render(scene2, camera2);
+                    document.getElementById('success-message').classList.remove('hidden');
+                    setTimeout(() => document.getElementById('success-modal').classList.replace('scale-0', 'scale-100'), 50);
+                } else {
+                    showToast(state.throwAttempts > 3 ? "差一點點！再試試調整角度" : "沒關係，調整力道再試一次！");
+                    btnThrow.textContent = "重置中...";
+                    setTimeout(() => {
+                        btnThrow.disabled = false;
+                        btnDice.disabled = false;
+                        btnThrow.textContent = "丟出！";
+                        ballMesh.position.copy(throwPositions[state.positionIndex]);
+                        ballMesh.rotation.set(0,0,0);
+                        renderStep3();
+                    }, 1500);
+                }
+            }
+
+            if(throwAnimationId) cancelAnimationFrame(throwAnimationId);
+            throwAnimationId = requestAnimationFrame(animateThrow);
+        });
+
+        window.addEventListener('resize', () => {
+            if (camera1 && renderer1) {
+                const c1 = document.getElementById('webgl-container-1');
+                camera1.aspect = c1.clientWidth / c1.clientHeight;
+                camera1.updateProjectionMatrix();
+                renderer1.setSize(c1.clientWidth, c1.clientHeight);
+            }
+            if (camera2 && renderer2) {
+                const c2 = document.getElementById('webgl-container-2');
+                camera2.aspect = c2.clientWidth / c2.clientHeight;
+                camera2.updateProjectionMatrix();
+                renderer2.setSize(c2.clientWidth, c2.clientHeight);
+            }
+        });
+
+    </script>
+</body>
+</html>
