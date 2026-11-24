@@ -69,7 +69,7 @@
                         <img id="header-avatar" src="" alt="講師個人 IP 照片" class="hidden w-full h-full object-contain">
                         <div id="header-avatar-svg" class="w-full h-full flex items-center justify-center"></div>
                     </div>
-                    <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" title="即時同步中"></span>
+                    <span id="sync-status-dot" class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" title="連線中"></span>
                 </div>
                 <div>
                     <h1 id="header-name" class="text-base sm:text-lg font-bold text-slate-800 leading-tight">Google AI 認證講師</h1>
@@ -645,8 +645,23 @@
 
         // Environment Config
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'google-ai-instructor-platform';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
 
+        // 【跨裝置雲端即時同步設定區（已綁定您的 Firebase 專案）】
+        const CUSTOM_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyAohKE8fWJT_dv8KhMliD3eQv6YD9hrHVQ",
+            authDomain: "my-ai-instructor-platform.firebaseapp.com",
+            projectId: "my-ai-instructor-platform",
+            storageBucket: "my-ai-instructor-platform.firebasestorage.app",
+            messagingSenderId: "697213128737",
+            appId: "1:697213128737:web:3d8fff157aedac5dd29360"
+        };
+
+        const firebaseConfig = (typeof __firebase_config !== 'undefined' && __firebase_config)
+            ? JSON.parse(__firebase_config)
+            : CUSTOM_FIREBASE_CONFIG;
+
+        const LOCAL_STORAGE_KEY = 'google_ai_instructor_platform_data_v1';
+        let isCloudMode = false;
         let app, auth, db;
         let currentUser = null;
 
@@ -759,11 +774,58 @@
         `;
 
         // ==================== INITIALIZATION ====================
+        function updateSyncStatusUI() {
+            const dot = document.getElementById('sync-status-dot');
+            if (!dot) return;
+            if (isCloudMode) {
+                dot.className = 'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full';
+                dot.title = '雲端即時同步中';
+            } else {
+                dot.className = 'absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-amber-400 border-2 border-white rounded-full';
+                dot.title = '本機儲存模式（資料保存於此瀏覽器）';
+            }
+        }
+
+        function saveLocalState() {
+            try {
+                const payload = {
+                    resources: state.resources,
+                    sessions: state.sessions,
+                    feedbacks: state.feedbacks,
+                    profile: state.profile
+                };
+                localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+                return true;
+            } catch (err) {
+                console.error("LocalStorage save error:", err);
+                showToast('儲存空間不足（檔案過大），建議改貼雲端硬碟網址', 'error');
+                return false;
+            }
+        }
+
+        function loadLocalState() {
+            try {
+                const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+                if (!raw) return false;
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed.resources)) state.resources = parsed.resources;
+                if (Array.isArray(parsed.sessions)) state.sessions = parsed.sessions;
+                if (Array.isArray(parsed.feedbacks)) state.feedbacks = parsed.feedbacks;
+                if (parsed.profile) state.profile = { ...state.profile, ...parsed.profile };
+                return true;
+            } catch (err) {
+                console.warn("LocalStorage load error:", err);
+                return false;
+            }
+        }
+
         async function initApp() {
             try {
                 if (!firebaseConfig) {
-                    showToast('未偵測到雲端設定，將以本機示範模式運行', 'warning');
+                    isCloudMode = false;
+                    updateSyncStatusUI();
                     loadDemoFallback();
+                    showToast('已啟用本機儲存模式，所有新增與設定皆可正常保存', 'warning');
                     return;
                 }
 
@@ -780,10 +842,15 @@
                     currentUser = cred.user;
                 }
 
+                isCloudMode = true;
+                updateSyncStatusUI();
                 setupRealtimeListeners();
             } catch (err) {
                 console.error("Initialization error:", err);
-                showToast('連線初始化發生錯誤，請重新整理頁面', 'error');
+                isCloudMode = false;
+                updateSyncStatusUI();
+                loadDemoFallback();
+                showToast('雲端連線失敗，已自動切換為本機儲存模式', 'warning');
             }
         }
 
@@ -876,18 +943,26 @@
 
         function loadDemoFallback() {
             document.getElementById('global-loading').classList.add('hidden');
-            state.resources = [{
-                id: 'demo1',
-                title: '【固定講義】Gemini 備課核心提示詞',
-                promptText: '請幫我設計一份適合國小五年級的「太陽系」互動教案，包含分組討論問題與評量單。',
-                urlLabel: '開啟 Google Gemini',
-                url: 'https://gemini.google.com/',
-                isVisible: true,
-                createdAt: Date.now()
-            }];
-            window.switchTab('resources');
+            const hasSavedData = loadLocalState();
+            if (!hasSavedData && state.resources.length === 0) {
+                state.resources = [{
+                    id: 'default_handout_main',
+                    title: '【固定講義】Gemini & NotebookLM 教學應用核心提示詞',
+                    promptText: '你現在是一位擁有 15 年經驗的臺灣國中/國小教師。請針對「【輸入單元主題】」，設計一份 45 分鐘的差異化教學活動：\n1. 引起動機（5分鐘）：結合學生生活經驗的提問\n2. 核心探究（25分鐘）：設計 3 個由淺入深的思考問題\n3. 評量與總結（15分鐘）：產出 3 題素養導向選擇題並附詳解。',
+                    urlLabel: '前往 NotebookLM 打造個人化教學知識庫',
+                    url: 'https://notebooklm.google.com/',
+                    fileName: '',
+                    fileData: '',
+                    fileType: '',
+                    isVisible: true,
+                    createdAt: Date.now()
+                }];
+                saveLocalState();
+            }
+            window.switchTab(state.activeTab);
             renderProfile();
             renderResources();
+            updateYearMonthFilters();
             renderSessions();
         }
 
@@ -1133,7 +1208,6 @@
 
         window.saveResource = async function(event) {
             event.preventDefault();
-            if (!currentUser) return;
 
             const id = document.getElementById('res-id').value;
             const payload = {
@@ -1146,6 +1220,21 @@
                 fileType: state.tempResourceFile ? state.tempResourceFile.type : '',
                 isVisible: document.getElementById('res-visible').checked
             };
+
+            if (!isCloudMode || !currentUser) {
+                if (id) {
+                    const idx = state.resources.findIndex(r => r.id === id);
+                    if (idx !== -1) state.resources[idx] = { ...state.resources[idx], ...payload };
+                } else {
+                    state.resources.push({ id: 'res_' + Date.now(), ...payload, createdAt: Date.now() });
+                }
+                if (saveLocalState()) {
+                    renderResources();
+                    closeModal('modal-resource');
+                    showToast(id ? '已更新研習資源！' : '已新增研習資源！');
+                }
+                return;
+            }
 
             try {
                 if (id) {
@@ -1164,7 +1253,16 @@
         };
 
         window.toggleResourceVisibility = async function(id, currentlyHidden) {
-            if (!currentUser) return;
+            if (!isCloudMode || !currentUser) {
+                const item = state.resources.find(r => r.id === id);
+                if (item) {
+                    item.isVisible = currentlyHidden;
+                    saveLocalState();
+                    renderResources();
+                    showToast(currentlyHidden ? '已設為學員可見' : '已對學員隱藏此資料');
+                }
+                return;
+            }
             try {
                 await updateDoc(getPublicDoc('resources', id), { isVisible: currentlyHidden });
                 showToast(currentlyHidden ? '已設為學員可見' : '已對學員隱藏此資料');
@@ -1488,7 +1586,6 @@
 
         window.saveSession = async function(event) {
             event.preventDefault();
-            if (!currentUser) return;
             const id = document.getElementById('sess-id').value;
             const payload = {
                 date: document.getElementById('sess-date').value,
@@ -1500,6 +1597,24 @@
                 isVisible: document.getElementById('sess-visible').checked,
                 reflectionVisible: document.getElementById('sess-reflection-visible').checked
             };
+
+            if (!isCloudMode || !currentUser) {
+                if (id) {
+                    const idx = state.sessions.findIndex(s => s.id === id);
+                    if (idx !== -1) state.sessions[idx] = { ...state.sessions[idx], ...payload };
+                } else {
+                    state.sessions.push({ id: 'sess_' + Date.now(), ...payload, createdAt: Date.now() });
+                }
+                state.sessions.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
+                if (saveLocalState()) {
+                    updateYearMonthFilters();
+                    renderSessions();
+                    closeModal('modal-session');
+                    showToast(id ? '已更新研習場次！' : '已建立新研習場次！');
+                }
+                return;
+            }
+
             try {
                 if (id) {
                     await updateDoc(getPublicDoc('sessions', id), payload);
@@ -1516,13 +1631,31 @@
         };
 
         window.toggleSessionVisibility = async function(id, currentlyHidden) {
-            if (!currentUser) return;
+            if (!isCloudMode || !currentUser) {
+                const s = state.sessions.find(x => x.id === id);
+                if (s) {
+                    s.isVisible = currentlyHidden;
+                    saveLocalState();
+                    renderSessions();
+                    showToast(currentlyHidden ? '場次已公開' : '場次已對學員隱藏');
+                }
+                return;
+            }
             await updateDoc(getPublicDoc('sessions', id), { isVisible: currentlyHidden });
             showToast(currentlyHidden ? '場次已公開' : '場次已對學員隱藏');
         };
 
         window.toggleReflectionVisibility = async function(id, currentlyHidden) {
-            if (!currentUser) return;
+            if (!isCloudMode || !currentUser) {
+                const s = state.sessions.find(x => x.id === id);
+                if (s) {
+                    s.reflectionVisible = currentlyHidden;
+                    saveLocalState();
+                    renderSessions();
+                    showToast(currentlyHidden ? '講師省思已公開' : '講師省思已隱藏');
+                }
+                return;
+            }
             await updateDoc(getPublicDoc('sessions', id), { reflectionVisible: currentlyHidden });
             showToast(currentlyHidden ? '講師省思已公開' : '講師省思已隱藏');
         };
@@ -1542,7 +1675,6 @@
 
         window.saveFeedback = async function(event) {
             event.preventDefault();
-            if (!currentUser) return;
             const isAnon = document.querySelector('input[name="fb-anon"]:checked').value === 'true';
             const authorName = document.getElementById('fb-author').value.trim();
             if (!isAnon && !authorName) {
@@ -1558,6 +1690,17 @@
                 isVisible: true,
                 createdAt: Date.now()
             };
+
+            if (!isCloudMode || !currentUser) {
+                state.feedbacks.unshift({ id: 'fb_' + Date.now(), ...payload });
+                if (saveLocalState()) {
+                    renderSessions();
+                    closeModal('modal-feedback');
+                    showToast('感謝您的回饋！心得已成功送出。');
+                }
+                return;
+            }
+
             try {
                 await addDoc(getPublicCol('feedbacks'), payload);
                 closeModal('modal-feedback');
@@ -1568,7 +1711,16 @@
         };
 
         window.toggleFeedbackVisibility = async function(id, currentlyHidden) {
-            if (!currentUser) return;
+            if (!isCloudMode || !currentUser) {
+                const fb = state.feedbacks.find(x => x.id === id);
+                if (fb) {
+                    fb.isVisible = currentlyHidden;
+                    saveLocalState();
+                    renderSessions();
+                    showToast(currentlyHidden ? '回饋已公開顯示' : '回饋已對學員隱藏');
+                }
+                return;
+            }
             await updateDoc(getPublicDoc('feedbacks', id), { isVisible: currentlyHidden });
             showToast(currentlyHidden ? '回饋已公開顯示' : '回饋已對學員隱藏');
         };
@@ -1889,7 +2041,6 @@
 
         window.saveProfile = async function(event) {
             event.preventDefault();
-            if (!currentUser) return;
             const updated = {
                 ...state.profile,
                 name: document.getElementById('edit-prof-name').value.trim(),
@@ -1898,10 +2049,21 @@
                 pin: document.getElementById('edit-prof-pin').value.trim() || '8888',
                 avatarUrl: state.tempAvatarData !== null ? state.tempAvatarData : state.profile.avatarUrl
             };
+
+            if (!isCloudMode || !currentUser) {
+                state.profile = updated;
+                if (saveLocalState()) {
+                    renderProfile();
+                    closeModal('modal-profile');
+                    showToast('講師個人資料、密碼與去背 IP 照片已更新！');
+                }
+                return;
+            }
+
             try {
                 await setDoc(getPublicDoc('profile', 'main'), updated);
                 closeModal('modal-profile');
-                showToast('講師個人資料與去背 IP 照片已更新！');
+                showToast('講師個人資料、密碼與去背 IP 照片已更新！');
             } catch (err) {
                 showToast('儲存個人資料失敗', 'error');
             }
@@ -1912,7 +2074,6 @@
 
         window.addCertificate = async function(event) {
             event.preventDefault();
-            if (!currentUser) return;
             const newCert = {
                 id: 'c_' + Date.now(),
                 name: document.getElementById('cert-name').value.trim(),
@@ -1920,21 +2081,42 @@
                 year: document.getElementById('cert-year').value.trim()
             };
             const certs = [...(state.profile.certificates || []), newCert];
-            await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, certificates: certs });
-            closeModal('modal-cert');
-            showToast('已新增專業證書！');
+
+            if (!isCloudMode || !currentUser) {
+                state.profile = { ...state.profile, certificates: certs };
+                if (saveLocalState()) {
+                    renderProfile();
+                    closeModal('modal-cert');
+                    showToast('已新增專業證書！');
+                }
+                return;
+            }
+
+            try {
+                await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, certificates: certs });
+                closeModal('modal-cert');
+                showToast('已新增專業證書！');
+            } catch (err) {
+                showToast('新增證書失敗', 'error');
+            }
         };
 
         window.deleteCert = async function(id) {
-            if (!currentUser) return;
             const certs = (state.profile.certificates || []).filter(c => c.id !== id);
+            if (!isCloudMode || !currentUser) {
+                state.profile = { ...state.profile, certificates: certs };
+                if (saveLocalState()) {
+                    renderProfile();
+                    showToast('已刪除證書');
+                }
+                return;
+            }
             await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, certificates: certs });
             showToast('已刪除證書');
         };
 
         window.addExperience = async function(event) {
             event.preventDefault();
-            if (!currentUser) return;
             const newExp = {
                 id: 'e_' + Date.now(),
                 role: document.getElementById('exp-role').value.trim(),
@@ -1942,14 +2124,36 @@
                 period: document.getElementById('exp-period').value.trim()
             };
             const exps = [newExp, ...(state.profile.experiences || [])];
-            await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, experiences: exps });
-            closeModal('modal-exp');
-            showToast('已新增教學經歷！');
+
+            if (!isCloudMode || !currentUser) {
+                state.profile = { ...state.profile, experiences: exps };
+                if (saveLocalState()) {
+                    renderProfile();
+                    closeModal('modal-exp');
+                    showToast('已新增教學經歷！');
+                }
+                return;
+            }
+
+            try {
+                await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, experiences: exps });
+                closeModal('modal-exp');
+                showToast('已新增教學經歷！');
+            } catch (err) {
+                showToast('新增經歷失敗', 'error');
+            }
         };
 
         window.deleteExp = async function(id) {
-            if (!currentUser) return;
             const exps = (state.profile.experiences || []).filter(e => e.id !== id);
+            if (!isCloudMode || !currentUser) {
+                state.profile = { ...state.profile, experiences: exps };
+                if (saveLocalState()) {
+                    renderProfile();
+                    showToast('已刪除經歷');
+                }
+                return;
+            }
             await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, experiences: exps });
             showToast('已刪除經歷');
         };
@@ -1959,7 +2163,26 @@
             document.getElementById('confirm-message').textContent = `確定要永久刪除「${label}」嗎？此動作無法復原。`;
             const okBtn = document.getElementById('confirm-ok-btn');
             okBtn.onclick = async () => {
-                if (!currentUser) return;
+                if (!isCloudMode || !currentUser) {
+                    if (type === 'resource') {
+                        state.resources = state.resources.filter(r => r.id !== id);
+                        saveLocalState();
+                        renderResources();
+                    } else if (type === 'session') {
+                        state.sessions = state.sessions.filter(s => s.id !== id);
+                        state.feedbacks = state.feedbacks.filter(f => f.sessionId !== id);
+                        saveLocalState();
+                        updateYearMonthFilters();
+                        renderSessions();
+                    } else if (type === 'feedback') {
+                        state.feedbacks = state.feedbacks.filter(f => f.id !== id);
+                        saveLocalState();
+                        renderSessions();
+                    }
+                    closeModal('modal-confirm');
+                    showToast('已刪除該筆資料');
+                    return;
+                }
                 try {
                     const colMap = { resource: 'resources', session: 'sessions', feedback: 'feedbacks' };
                     await deleteDoc(getPublicDoc(colMap[type], id));
