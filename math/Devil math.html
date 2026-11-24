@@ -1,0 +1,2547 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>魔鬼的計謀 × 108課綱 數學素養互動教具</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js CDN for 3D Block Counting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+            color: #f3f4f6;
+        }
+        .card-bg {
+            background-color: #131b2e;
+            border: 1px solid #1e293b;
+        }
+        .accent-amber {
+            color: #f59e0b;
+        }
+        .bg-accent-amber {
+            background-color: #f59e0b;
+        }
+        .accent-cyan {
+            color: #38bdf8;
+        }
+        .bg-accent-cyan {
+            background-color: #38bdf8;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #f59e0b;
+        }
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between">
+
+    <!-- Header Section -->
+    <header class="card-bg border-b border-slate-800 sticky top-0 z-50 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 text-xl font-black shadow-inner">
+                    <i class="fa-solid fa-brain"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
+                        魔鬼的計謀 <span class="text-amber-500 text-xs px-2 py-0.5 rounded bg-amber-500/10 border border-amber-500/20">108課綱素養</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">數學邏輯與策略競技互動教具集</p>
+                </div>
+            </div>
+            <div class="text-xs text-slate-400 bg-slate-900/60 px-3 py-1.5 rounded-lg border border-slate-800 flex items-center gap-2">
+                <i class="fa-solid fa-code text-amber-400"></i>
+                <span>Designed by 黃鈺心, Gemini Canvas輔助生成</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto w-full px-4 py-6 flex-grow flex flex-col gap-6">
+
+        <!-- Tier 1: Grade Level Tabs -->
+        <nav class="grid grid-cols-3 gap-3 p-1.5 bg-slate-900/80 rounded-2xl border border-slate-800">
+            <button onclick="switchGrade('junior')" id="tab-junior" class="py-3 px-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-amber-500 text-slate-950 shadow-md">
+                <i class="fa-solid fa-shapes"></i> 國中 (7-9年級)
+            </button>
+            <button onclick="switchGrade('senior')" id="tab-senior" class="py-3 px-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <i class="fa-solid fa-square-root-variable"></i> 高中 (10-12年級)
+            </button>
+            <button onclick="switchGrade('all')" id="tab-all" class="py-3 px-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/60">
+                <i class="fa-solid fa-chess-king"></i> 國高中皆宜
+            </button>
+        </nav>
+
+        <!-- Tier 2: Game Selector Cards -->
+        <div id="game-cards-container" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Cards rendered dynamically via JS based on active Grade -->
+        </div>
+
+        <!-- Tier 3: Active Game Stage -->
+        <div id="game-stage" class="card-bg rounded-2xl p-4 md:p-6 shadow-2xl relative min-h-[550px] flex flex-col justify-between">
+            <!-- Dynamic Game Stage content -->
+        </div>
+
+    </main>
+
+    <!-- Footer Section -->
+    <footer class="card-bg border-t border-slate-800 py-4 px-4 text-center text-xs text-slate-400 mt-6">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+            <div>
+                Designed by 黃鈺心, Gemini Canvas輔助生成
+            </div>
+            <div class="text-slate-500">
+                對應教育部 108 課綱：數論、幾何空間、線性聯立方程、條件機率、邏輯推理與遊戲對弈策略
+            </div>
+        </div>
+    </footer>
+
+    <!-- Game Implementations JavaScript -->
+    <script>
+        // Global State Management
+        let currentGrade = 'junior';
+        let currentGameId = 'blocks';
+
+        const gameCatalog = {
+            junior: [
+                { id: 'blocks', title: '數方塊 (3D空間體積)', icon: 'fa-cube', desc: '3D正立視角與多角度旋轉，比對上視圖高度矩陣。' },
+                { id: 'scale', title: '托盤天平 (三元聯立方程)', icon: 'fa-scale-balanced', desc: '觀察礦物傾斜天平，推導紅綠藍三元一次聯立方程。' },
+                { id: 'rectangles', title: '數長方形 (組合計數)', icon: 'fa-table-cells', desc: '動態規格按鈕高亮預覽，精準計算網格長方形總數。' }
+            ],
+            senior: [
+                { id: 'mathexpr', title: '數學式比大小 (極值與極限)', icon: 'fa-calculator', desc: '利用對數與根號手牌組裝目標算式，全牌挑戰極限。' },
+                { id: 'diceflush', title: '三骰同花 (條件機率)', icon: 'fa-dice', desc: '鎖定骰子並推導正確貝氏條件機率公式方能執行重擲。' },
+                { id: 'treasure', title: '寶藏島 (集合與雙條件)', icon: 'fa-map-location-dot', desc: '豐富多變的多重幾何與代數線索，窮舉推理唯一寶藏。' }
+            ],
+            all: [
+                { id: 'weightstrategy', title: '限重策略戰 (博弈論與剩餘)', icon: 'fa-weight-hanging', desc: '你 vs 3 位電腦玩家對戰，控制承重台不超過 13 爆台。' },
+                { id: 'wallgo', title: '牆壁圍棋 (拓撲與連通區域)', icon: 'fa-chess-board', desc: '智慧防封死 AI 與領地劃分，連通區域完全隔開即結算。' },
+                { id: 'rulerace', title: '規則競賽 (歸納與演繹)', icon: 'fa-route', desc: 'Base 單一規則 / Advance 三重複合隱藏規則推導測試。' }
+            ]
+        };
+
+        // Initialize App
+        window.onload = function() {
+            switchGrade('junior');
+        };
+
+        function switchGrade(grade) {
+            currentGrade = grade;
+            ['junior', 'senior', 'all'].forEach(g => {
+                const btn = document.getElementById(`tab-${g}`);
+                if (g === grade) {
+                    btn.className = "py-3 px-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 bg-amber-500 text-slate-950 shadow-md";
+                } else {
+                    btn.className = "py-3 px-4 rounded-xl font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 text-slate-400 hover:text-white hover:bg-slate-800/60";
+                }
+            });
+
+            renderGameCards();
+            loadGame(gameCatalog[grade][0].id);
+        }
+
+        function renderGameCards() {
+            const container = document.getElementById('game-cards-container');
+            container.innerHTML = '';
+            gameCatalog[currentGrade].forEach(game => {
+                const isSelected = game.id === currentGameId;
+                const card = document.createElement('div');
+                card.className = `p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                    isSelected 
+                    ? 'bg-amber-500/10 border-amber-500 text-white shadow-lg shadow-amber-500/5' 
+                    : 'bg-slate-900/60 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-800/40'
+                }`;
+                card.onclick = () => loadGame(game.id);
+                card.innerHTML = `
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-8 h-8 rounded-lg ${isSelected ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-amber-500'} flex items-center justify-center text-sm font-bold">
+                            <i class="fa-solid ${game.icon}"></i>
+                        </div>
+                        <div class="font-bold text-sm">${game.title}</div>
+                    </div>
+                    <p class="text-xs text-slate-400 leading-relaxed">${game.desc}</p>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function loadGame(gameId) {
+            currentGameId = gameId;
+            renderGameCards();
+            const stage = document.getElementById('game-stage');
+            stage.innerHTML = ''; // Clean previous stage
+
+            switch(gameId) {
+                case 'blocks': initBlocksGame(stage); break;
+                case 'scale': initScaleGame(stage); break;
+                case 'rectangles': initRectanglesGame(stage); break;
+                case 'mathexpr': initMathExprGame(stage); break;
+                case 'diceflush': initDiceFlushGame(stage); break;
+                case 'treasure': initTreasureGame(stage); break;
+                case 'weightstrategy': initWeightStrategyGame(stage); break;
+                case 'wallgo': initWallGoGame(stage); break;
+                case 'rulerace': initRuleRaceGame(stage); break;
+            }
+        }
+
+        /* =========================================================================
+           1. 數方塊 (3D Block Counting) - Preserved Original Three.js Solid Logic
+           ========================================================================= */
+        let blocksScene, blocksCamera, blocksRenderer, blocksGroup;
+        let blocksAngleY = Math.PI / 4;
+        let blocksAngleX = Math.PI / 6;
+        let blocksZoom = 1;
+        let blocksGridData = [];
+        let isBlocksDragging = false;
+        let prevMousePos = { x: 0, y: 0 };
+
+        function initBlocksGame(stage) {
+            blocksZoom = 1;
+            stage.innerHTML = `
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-cube"></i> 數方塊 (3D 空間體積計算)
+                            </h2>
+                            <p class="text-xs text-slate-400">觀察 3D 正立實心方塊堆疊，輸入 3×3 上視圖高度矩陣，計算總體積。</p>
+                        </div>
+                        <button onclick="generateBlocksPuzzle()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> 隨機換題
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow items-center">
+                        <div class="lg:col-span-7 flex flex-col items-center justify-center bg-slate-950/70 rounded-xl p-3 border border-slate-800 relative min-h-[340px] w-full">
+                            <div id="three-canvas-container" class="w-full h-[300px] cursor-grab active:cursor-grabbing rounded-lg overflow-hidden"></div>
+                            
+                            <div class="flex items-center gap-2 mt-3 flex-wrap justify-center">
+                                <span class="text-xs text-slate-400">步進旋轉角度：</span>
+                                <button onclick="rotateBlocks(15)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-amber-400 font-bold">+15°</button>
+                                <button onclick="rotateBlocks(30)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-amber-400 font-bold">+30°</button>
+                                <button onclick="rotateBlocks(45)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-amber-400 font-bold">+45°</button>
+                                <button onclick="rotateBlocks(90)" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-amber-400 font-bold">+90°</button>
+                                <button onclick="resetBlocksCamera()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-slate-300">重置視角</button>
+                            </div>
+
+                            <div class="flex items-center gap-2 mt-2 flex-wrap justify-center">
+                                <span class="text-xs text-slate-400">放大倍率：</span>
+                                <button onclick="setBlocksZoom(1)" id="blocks-zoom-1" class="px-2.5 py-1 bg-amber-500 text-slate-950 text-xs rounded border border-amber-400 font-bold">1x</button>
+                                <button onclick="setBlocksZoom(1.25)" id="blocks-zoom-1.25" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-amber-400 font-bold">1.25x</button>
+                                <button onclick="setBlocksZoom(1.5)" id="blocks-zoom-1.5" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-amber-400 font-bold">1.5x</button>
+                                <button onclick="setBlocksZoom(2)" id="blocks-zoom-2" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-amber-400 font-bold">2x</button>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-5 flex flex-col gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+                                <i class="fa-solid fa-border-all text-amber-400 mr-1"></i> 上視圖高度矩陣輸入 (3×3)
+                            </h3>
+                            <div class="grid grid-cols-3 gap-2 max-w-[240px] mx-auto">
+                                ${Array(9).fill(0).map((_, i) => `
+                                    <input type="number" id="block-input-${i}" min="0" max="4" value="0" 
+                                           class="w-16 h-16 bg-slate-950 border border-slate-700 rounded-lg text-center text-xl font-bold text-amber-400 focus:border-amber-500 focus:outline-none shadow-inner">
+                                `).join('')}
+                            </div>
+                            
+                            <div class="flex flex-col gap-2">
+                                <button onclick="verifyBlocksSolution()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-lg shadow-md transition">
+                                    提交答案並計算體積
+                                </button>
+                                <div id="blocks-feedback" class="text-xs text-center min-h-[20px] font-bold"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            setTimeout(setupThreeJSBlocks, 50);
+        }
+
+        function setupThreeJSBlocks() {
+            const container = document.getElementById('three-canvas-container');
+            if(!container) return;
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            blocksScene = new THREE.Scene();
+            blocksScene.background = new THREE.Color(0x0b0f19);
+
+            blocksCamera = new THREE.OrthographicCamera(
+                width / -72, width / 72, height / 72, height / -72, 0.1, 1000
+            );
+            blocksCamera.zoom = blocksZoom;
+            blocksCamera.updateProjectionMatrix();
+
+            blocksRenderer = new THREE.WebGLRenderer({ antialias: true });
+            blocksRenderer.setSize(width, height);
+            container.innerHTML = '';
+            container.appendChild(blocksRenderer.domElement);
+
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+            blocksScene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(10, 20, 15);
+            blocksScene.add(dirLight);
+
+            blocksGroup = new THREE.Group();
+            blocksScene.add(blocksGroup);
+
+            // Drag Controls
+            const canvas = blocksRenderer.domElement;
+            canvas.addEventListener('mousedown', (e) => {
+                isBlocksDragging = true;
+                prevMousePos = { x: e.clientX, y: e.clientY };
+            });
+            window.addEventListener('mousemove', (e) => {
+                if(!isBlocksDragging) return;
+                const dx = e.clientX - prevMousePos.x;
+                const dy = e.clientY - prevMousePos.y;
+                blocksAngleY += dx * 0.01;
+                blocksAngleX += dy * 0.01;
+                blocksAngleX = Math.max(-Math.PI/3, Math.min(Math.PI/3, blocksAngleX));
+                updateBlocksCameraPosition();
+                prevMousePos = { x: e.clientX, y: e.clientY };
+            });
+            window.addEventListener('mouseup', () => isBlocksDragging = false);
+
+            generateBlocksPuzzle();
+        }
+
+        function generateBlocksPuzzle() {
+            blocksGridData = [];
+            for(let i=0; i<3; i++) {
+                let row = [];
+                for(let j=0; j<3; j++) {
+                    row.push(Math.floor(Math.random() * 4)); // 0 to 3
+                }
+                blocksGridData.push(row);
+            }
+            if(blocksGridData.flat().every(v => v===0)) blocksGridData[1][1] = 2; // ensure not empty
+
+            renderBlocks3D();
+            
+            // Clear inputs
+            for(let i=0; i<9; i++) {
+                const inp = document.getElementById(`block-input-${i}`);
+                if(inp) inp.value = 0;
+            }
+            const fb = document.getElementById('blocks-feedback');
+            if(fb) fb.innerHTML = '';
+        }
+
+        function renderBlocks3D() {
+            if(!blocksGroup) return;
+            while(blocksGroup.children.length > 0){ 
+                const obj = blocksGroup.children[0];
+                blocksGroup.remove(obj); 
+            }
+
+            const geometry = new THREE.BoxGeometry(0.96, 0.96, 0.96);
+            const edgeGeo = new THREE.EdgesGeometry(geometry);
+
+            for(let r=0; r<3; r++) {
+                for(let c=0; c<3; c++) {
+                    const h = blocksGridData[r][c];
+                    for(let y=0; y<h; y++) {
+                        const material = new THREE.MeshLambertMaterial({ color: 0x38bdf8 });
+                        const cube = new THREE.Mesh(geometry, material);
+                        cube.position.set(c - 1, y, r - 1);
+                        blocksGroup.add(cube);
+
+                        const lineMat = new THREE.LineBasicMaterial({ color: 0x0369a1, linewidth: 2 });
+                        const wireframe = new THREE.LineSegments(edgeGeo, lineMat);
+                        wireframe.position.set(c - 1, y, r - 1);
+                        blocksGroup.add(wireframe);
+                    }
+                }
+            }
+
+            updateBlocksCameraPosition();
+        }
+
+        function updateBlocksCameraPosition() {
+            const distance = 12;
+            blocksCamera.position.x = distance * Math.sin(blocksAngleY) * Math.cos(blocksAngleX);
+            blocksCamera.position.y = distance * Math.sin(blocksAngleX) + 3;
+            blocksCamera.position.z = distance * Math.cos(blocksAngleY) * Math.cos(blocksAngleX);
+            blocksCamera.lookAt(0, 1, 0);
+            blocksRenderer.render(blocksScene, blocksCamera);
+        }
+
+        function setBlocksZoom(z) {
+            blocksZoom = z;
+            [1, 1.25, 1.5, 2].forEach(val => {
+                const btn = document.getElementById(`blocks-zoom-${val}`);
+                if(btn) {
+                    btn.className = (val === z)
+                        ? "px-2.5 py-1 bg-amber-500 text-slate-950 text-xs rounded border border-amber-400 font-bold"
+                        : "px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs rounded border border-slate-700 text-amber-400 font-bold";
+                }
+            });
+            if(blocksCamera && blocksRenderer) {
+                blocksCamera.zoom = blocksZoom;
+                blocksCamera.updateProjectionMatrix();
+                blocksRenderer.render(blocksScene, blocksCamera);
+            }
+        }
+
+        function rotateBlocks(deg) {
+            blocksAngleY += (deg * Math.PI) / 180;
+            updateBlocksCameraPosition();
+        }
+
+        function resetBlocksCamera() {
+            blocksAngleY = Math.PI / 4;
+            blocksAngleX = Math.PI / 6;
+            updateBlocksCameraPosition();
+        }
+
+        function verifyBlocksSolution() {
+            let correct = true;
+            let userTotal = 0;
+            let actualTotal = 0;
+
+            for(let r=0; r<3; r++) {
+                for(let c=0; c<3; c++) {
+                    const idx = r * 3 + c;
+                    const val = parseInt(document.getElementById(`block-input-${idx}`).value) || 0;
+                    userTotal += val;
+                    actualTotal += blocksGridData[r][c];
+                    if(val !== blocksGridData[r][c]) correct = false;
+                }
+            }
+
+            const fb = document.getElementById('blocks-feedback');
+            if(correct) {
+                fb.className = "text-xs text-center font-bold text-emerald-400";
+                fb.innerHTML = `🎉 完全正確！高度矩陣完全吻合，總體積為 ${actualTotal} 個單位立方體！`;
+            } else {
+                fb.className = "text-xs text-center font-bold text-rose-400";
+                fb.innerHTML = `❌ 高度矩陣有誤。你填寫的總數量是 ${userTotal}，實際總體積為 ${actualTotal}！請再轉動角度觀察。`;
+            }
+        }
+
+        /* =========================================================================
+           2. 托盤天平 (Balance Scale) - Multiple Randomized Equations Template
+           ========================================================================= */
+        let scalePuzzle = { x: 0, y: 0, z: 0, clues: [], verifyTarget: 20 };
+        let lastScaleTemplateIdx = -1;
+
+        function initScaleGame(stage) {
+            stage.innerHTML = `
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-scale-balanced"></i> 托盤天平 (多元三元一次聯立方程式)
+                            </h2>
+                            <p class="text-xs text-slate-400">根據每次隨機抽取的聯立線索，解出 🔴、🟢、🔵 礦物的各自重量 (1~5 的正整數)。</p>
+                        </div>
+                        <button onclick="generateScalePuzzle()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> 隨機換題
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
+                        <!-- Left: Clues -->
+                        <div class="lg:col-span-5 flex flex-col gap-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+                                <i class="fa-solid fa-list-check text-amber-400 mr-1"></i> 實驗測量線索 (方程式)
+                            </h3>
+                            <div id="scale-clues-list" class="flex flex-col gap-3"></div>
+                        </div>
+
+                        <!-- Right: Interactive Scale Verification -->
+                        <div class="lg:col-span-7 flex flex-col gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div class="flex items-center justify-between flex-wrap gap-2">
+                                <div class="font-bold text-sm text-slate-300">
+                                    ⚖️ 天平實驗驗證區（於左盤放入礦物，使天平達成水平平衡）
+                                </div>
+                                <div id="scale-balance-status" class="text-xs font-bold text-amber-400"></div>
+                            </div>
+
+                            <!-- Visual Scale -->
+                            <div class="relative w-full h-44 bg-slate-900/80 rounded-xl border border-slate-800 flex items-center justify-center p-4">
+                                <div id="scale-beam" class="w-3/4 h-2 bg-amber-500/70 rounded transition-transform duration-500 relative flex justify-between items-center">
+                                    <!-- Left Pan -->
+                                    <div id="scale-left-pan" class="absolute -left-8 -bottom-16 w-24 h-16 border-b-4 border-amber-400 rounded-b-full bg-amber-500/10 flex flex-wrap items-center justify-center p-1 gap-1"></div>
+                                    <!-- Center Fulcrum -->
+                                    <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-b-[24px] border-b-amber-500 absolute left-1/2 -translate-x-1/2 top-2"></div>
+                                    <!-- Right Pan -->
+                                    <div id="scale-right-pan" class="absolute -right-8 -bottom-16 w-24 h-16 border-b-4 border-slate-400 rounded-b-full bg-slate-400/10 flex flex-col items-center justify-center">
+                                        <span id="scale-target-text" class="text-xs font-black text-amber-400 text-center">目標: ? 克</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Controls -->
+                            <div class="flex flex-col gap-3">
+                                <div class="flex items-center justify-center gap-4">
+                                    <div class="flex items-center gap-1">
+                                        <button onclick="changeScaleCount('x', -1)" class="w-7 h-7 bg-slate-800 text-slate-300 font-bold rounded">-</button>
+                                        <span class="text-rose-400 font-extrabold text-sm min-w-[46px] text-center">🔴 <span id="count-x">0</span></span>
+                                        <button onclick="changeScaleCount('x', 1)" class="w-7 h-7 bg-slate-800 text-slate-300 font-bold rounded">+</button>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <button onclick="changeScaleCount('y', -1)" class="w-7 h-7 bg-slate-800 text-slate-300 font-bold rounded">-</button>
+                                        <span class="text-emerald-400 font-extrabold text-sm min-w-[46px] text-center">🟢 <span id="count-y">0</span></span>
+                                        <button onclick="changeScaleCount('y', 1)" class="w-7 h-7 bg-slate-800 text-slate-300 font-bold rounded">+</button>
+                                    </div>
+                                    <div class="flex items-center gap-1">
+                                        <button onclick="changeScaleCount('z', -1)" class="w-7 h-7 bg-slate-800 text-slate-300 font-bold rounded">-</button>
+                                        <span class="text-sky-400 font-extrabold text-sm min-w-[46px] text-center">🔵 <span id="count-z">0</span></span>
+                                        <button onclick="changeScaleCount('z', 1)" class="w-7 h-7 bg-slate-800 text-slate-300 font-bold rounded">+</button>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-3 gap-2">
+                                    <input type="number" id="answer-x" placeholder="🔴 重量" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-center text-sm font-bold text-rose-400">
+                                    <input type="number" id="answer-y" placeholder="🟢 重量" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-center text-sm font-bold text-emerald-400">
+                                    <input type="number" id="answer-z" placeholder="🔵 重量" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-center text-sm font-bold text-sky-400">
+                                </div>
+
+                                <button onclick="verifyScaleAnswer()" class="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-lg shadow transition">
+                                    驗證方程式解
+                                </button>
+                                <div id="scale-feedback" class="text-xs text-center min-h-[18px] font-bold"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            generateScalePuzzle();
+        }
+
+        let currentLeftCounts = { x: 0, y: 0, z: 0 };
+
+        function generateScalePuzzle() {
+            // Randomly select x, y, z integers in [1..5]
+            const x = Math.floor(Math.random() * 5) + 1;
+            const y = Math.floor(Math.random() * 5) + 1;
+            const z = Math.floor(Math.random() * 5) + 1;
+
+            // 10 linearly independent 3x3 equation templates (all det != 0)
+            const templates = [
+                [ [1,1,1], [1,0,2], [0,2,1] ],
+                [ [1,1,0], [0,1,2], [2,0,1] ],
+                [ [2,1,0], [0,3,0], [1,1,1] ],
+                [ [1,2,0], [0,2,1], [1,0,1] ],
+                [ [3,1,0], [1,0,1], [0,2,1] ],
+                [ [1,1,1], [2,0,1], [1,2,0] ],
+                [ [2,2,0], [1,0,3], [0,3,1] ],
+                [ [1,3,0], [2,0,1], [0,1,2] ],
+                [ [2,1,1], [1,2,0], [0,1,1] ],
+                [ [1,1,2], [2,1,0], [1,0,1] ]
+            ];
+
+            // Pick a template different from last time
+            let tIdx = Math.floor(Math.random() * templates.length);
+            if(tIdx === lastScaleTemplateIdx) tIdx = (tIdx + 1) % templates.length;
+            lastScaleTemplateIdx = tIdx;
+
+            // Permute columns (which mineral gets which coefficient) AND shuffle row order
+            const colPerms = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
+            const perm = colPerms[Math.floor(Math.random() * colPerms.length)];
+            const shuffledRows = [...templates[tIdx]].sort(() => Math.random() - 0.5);
+
+            const clues = shuffledRows.map(row => {
+                const cx = row[perm[0]];
+                const cy = row[perm[1]];
+                const cz = row[perm[2]];
+                const total = cx * x + cy * y + cz * z;
+                return { x: cx, y: cy, z: cz, total };
+            });
+
+            // Independent verification target weight on right pan (achievable combination of minerals)
+            const clueTotals = clues.map(c => c.total);
+            let verifyTarget = 0;
+            for(let attempt = 0; attempt < 20; attempt++) {
+                const vx = Math.floor(Math.random() * 3) + 1;
+                const vy = Math.floor(Math.random() * 3) + 1;
+                const vz = Math.floor(Math.random() * 2) + 1;
+                const candidate = vx * x + vy * y + vz * z;
+                verifyTarget = candidate;
+                if(!clueTotals.includes(candidate)) break;
+            }
+
+            scalePuzzle = { x, y, z, clues, verifyTarget };
+            currentLeftCounts = { x: 0, y: 0, z: 0 };
+
+            document.getElementById('count-x').innerText = '0';
+            document.getElementById('count-y').innerText = '0';
+            document.getElementById('count-z').innerText = '0';
+
+            renderScaleClues();
+            updateScaleVisual();
+
+            document.getElementById('answer-x').value = '';
+            document.getElementById('answer-y').value = '';
+            document.getElementById('answer-z').value = '';
+            document.getElementById('scale-feedback').innerHTML = '';
+        }
+
+        function renderScaleClues() {
+            const list = document.getElementById('scale-clues-list');
+            list.innerHTML = scalePuzzle.clues.map((c, idx) => {
+                let expr = [];
+                if(c.x > 0) expr.push(`<span class="text-rose-400 font-bold">${c.x === 1 ? '' : c.x}🔴</span>`);
+                if(c.y > 0) expr.push(`<span class="text-emerald-400 font-bold">${c.y === 1 ? '' : c.y}🟢</span>`);
+                if(c.z > 0) expr.push(`<span class="text-sky-400 font-bold">${c.z === 1 ? '' : c.z}🔵</span>`);
+                return `
+                    <div class="p-3 rounded-lg border bg-slate-900 border-slate-800 text-slate-200 flex justify-between items-center">
+                        <div class="text-sm font-bold">線索 ${idx+1}： ${expr.join(' + ')}</div>
+                        <div class="text-sm font-black text-amber-400">= ${c.total} 克</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function changeScaleCount(type, delta) {
+            currentLeftCounts[type] = Math.max(0, currentLeftCounts[type] + delta);
+            document.getElementById(`count-${type}`).innerText = currentLeftCounts[type];
+            updateScaleVisual();
+        }
+
+        function updateScaleVisual() {
+            const targetWeight = scalePuzzle.verifyTarget;
+            document.getElementById('scale-target-text').innerText = `驗證目標: ${targetWeight} 克`;
+
+            // Calculate weight in left pan
+            const currentWeight = currentLeftCounts.x * scalePuzzle.x + 
+                                 currentLeftCounts.y * scalePuzzle.y + 
+                                 currentLeftCounts.z * scalePuzzle.z;
+
+            // Positive angle = clockwise (right pan goes DOWN when right is heavier)
+            // Negative angle = counter-clockwise (left pan goes DOWN when left is heavier)
+            const diff = targetWeight - currentWeight;
+            
+            const beam = document.getElementById('scale-beam');
+            let rotateDeg = Math.max(-15, Math.min(15, diff * 3));
+            beam.style.transform = `rotate(${rotateDeg}deg)`;
+
+            const statusEl = document.getElementById('scale-balance-status');
+            if(statusEl) {
+                if(diff === 0) {
+                    statusEl.className = "text-xs font-bold text-emerald-400";
+                    statusEl.innerText = "⚖️ 天平已水平平衡！";
+                } else if(diff > 0) {
+                    statusEl.className = "text-xs font-bold text-amber-400";
+                    statusEl.innerText = "右側較重（右盤下沉）";
+                } else {
+                    statusEl.className = "text-xs font-bold text-rose-400";
+                    statusEl.innerText = "左側較重（左盤下沉）";
+                }
+            }
+
+            // Render minerals in left pan
+            const leftPan = document.getElementById('scale-left-pan');
+            leftPan.innerHTML = '';
+            for(let i=0; i<currentLeftCounts.x; i++) leftPan.innerHTML += '<div class="w-3 h-3 rounded-full bg-rose-500 shadow"></div>';
+            for(let i=0; i<currentLeftCounts.y; i++) leftPan.innerHTML += '<div class="w-3 h-3 rounded-full bg-emerald-500 shadow"></div>';
+            for(let i=0; i<currentLeftCounts.z; i++) leftPan.innerHTML += '<div class="w-3 h-3 rounded-full bg-sky-500 shadow"></div>';
+        }
+
+        function verifyScaleAnswer() {
+            const ax = parseInt(document.getElementById('answer-x').value);
+            const ay = parseInt(document.getElementById('answer-y').value);
+            const az = parseInt(document.getElementById('answer-z').value);
+
+            const fb = document.getElementById('scale-feedback');
+            if(ax === scalePuzzle.x && ay === scalePuzzle.y && az === scalePuzzle.z) {
+                fb.className = "text-xs text-center font-bold text-emerald-400";
+                fb.innerHTML = `🎉 恭喜完全解對！(🔴=${ax}克, 🟢=${ay}克, 🔵=${az}克)`;
+            } else {
+                fb.className = "text-xs text-center font-bold text-rose-400";
+                fb.innerHTML = `❌ 代入檢驗不符，請重新觀察線索推導！`;
+            }
+        }
+
+        /* =========================================================================
+           3. 數長方形 (Count Rectangles) - Dynamic Dimension Preview Buttons
+           ========================================================================= */
+        let rectGridSize = { r: 3, c: 3 };
+        let activePreviewRect = null;
+
+        function initRectanglesGame(stage) {
+            stage.innerHTML = `
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-table-cells"></i> 數長方形 (組合計數與乘法原理)
+                            </h2>
+                            <p class="text-xs text-slate-400">點擊動態規格預覽範例位置，運用公式 $N = \\frac{R(R+1)}{2} \\times \\frac{C(C+1)}{2}$ 計算網格中長方形總數。</p>
+                        </div>
+                        <button onclick="generateRectanglesPuzzle()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> 隨機換題 (變更網格)
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow items-center">
+                        <div class="lg:col-span-7 flex flex-col items-center justify-center bg-slate-950/70 rounded-xl p-4 border border-slate-800 min-h-[340px]">
+                            <div class="text-xs text-slate-400 mb-2 font-bold">
+                                當前網格尺寸：<span id="rect-dim-label" class="text-amber-400 text-sm">3 × 3</span>
+                            </div>
+
+                            <!-- Grid Container -->
+                            <div id="rect-grid-board" class="p-3 bg-slate-900 border border-slate-700 rounded-xl shadow-inner flex flex-col gap-1"></div>
+
+                            <!-- Dynamic Preview Buttons (No spoilers) -->
+                            <div class="mt-4 flex flex-wrap gap-1.5 justify-center max-w-full" id="rect-preview-buttons"></div>
+                        </div>
+
+                        <div class="lg:col-span-5 flex flex-col gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div>
+                                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2 mb-3">
+                                    <i class="fa-solid fa-calculator text-amber-400 mr-1"></i> 答題與思考引導
+                                </h3>
+                                <p class="text-xs text-slate-400 leading-relaxed mb-4">
+                                    任選網格中的 2 條橫線與 2 條直線即可圍成 1 個長方形。思考由 $R$ 行與 $C$ 列組成的網格中有多少種可能？
+                                </p>
+
+                                <div class="flex flex-col gap-3">
+                                    <label class="text-xs text-slate-300 font-bold">請輸入計算出來的長方形總數：</label>
+                                    <input type="number" id="rect-user-input" placeholder="例如：36" 
+                                           class="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-center text-xl font-bold text-amber-400 focus:border-amber-500 focus:outline-none shadow-inner">
+                                </div>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <button onclick="verifyRectanglesAnswer()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-lg shadow transition">
+                                    提交驗證答案
+                                </button>
+                                <div id="rect-feedback" class="text-xs text-center min-h-[20px] font-bold"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            generateRectanglesPuzzle();
+        }
+
+        function generateRectanglesPuzzle() {
+            // Random grid size between 2x3 and 4x4
+            const rOpts = [2, 3, 4];
+            const cOpts = [2, 3, 4];
+            rectGridSize = {
+                r: rOpts[Math.floor(Math.random() * rOpts.length)],
+                c: cOpts[Math.floor(Math.random() * cOpts.length)]
+            };
+            activePreviewRect = null;
+
+            document.getElementById('rect-dim-label').innerText = `${rectGridSize.r} × ${rectGridSize.c}`;
+            document.getElementById('rect-user-input').value = '';
+            document.getElementById('rect-feedback').innerHTML = '';
+
+            renderRectGrid();
+            renderDynamicRectPreviewButtons();
+        }
+
+        function renderRectGrid() {
+            const board = document.getElementById('rect-grid-board');
+            board.innerHTML = '';
+
+            for(let r=0; r<rectGridSize.r; r++) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'flex gap-1';
+                for(let c=0; c<rectGridSize.c; c++) {
+                    const cell = document.createElement('div');
+                    let isHighlighted = false;
+                    if(activePreviewRect) {
+                        if(r < activePreviewRect.r && c < activePreviewRect.c) {
+                            isHighlighted = true;
+                        }
+                    }
+
+                    cell.className = `w-14 h-14 rounded-md border flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                        isHighlighted 
+                        ? 'bg-amber-500/30 border-amber-400 text-amber-300 shadow-md scale-95' 
+                        : 'bg-slate-950/60 border-slate-800 text-slate-500'
+                    }`;
+                    cell.innerText = `${r+1},${c+1}`;
+                    rowDiv.appendChild(cell);
+                }
+                board.appendChild(rowDiv);
+            }
+        }
+
+        function renderDynamicRectPreviewButtons() {
+            const container = document.getElementById('rect-preview-buttons');
+            container.innerHTML = '';
+
+            // Generate buttons for all possible r_sub x c_sub without spoilers
+            for(let r=1; r<=rectGridSize.r; r++) {
+                for(let c=1; c<=rectGridSize.c; c++) {
+                    const btn = document.createElement('button');
+                    const isActive = activePreviewRect && activePreviewRect.r === r && activePreviewRect.c === c;
+                    btn.className = `px-2.5 py-1 text-xs rounded border transition font-bold ${
+                        isActive 
+                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow' 
+                        : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                    }`;
+                    btn.innerText = `${r}×${c}`;
+                    btn.onclick = () => {
+                        activePreviewRect = { r, c };
+                        renderRectGrid();
+                        renderDynamicRectPreviewButtons();
+                    };
+                    container.appendChild(btn);
+                }
+            }
+
+            // Clear Preview button
+            const clearBtn = document.createElement('button');
+            clearBtn.className = "px-2.5 py-1 text-xs rounded border border-rose-500/40 text-rose-400 hover:bg-rose-500/20 font-bold ml-1";
+            clearBtn.innerText = "清除預覽";
+            clearBtn.onclick = () => {
+                activePreviewRect = null;
+                renderRectGrid();
+                renderDynamicRectPreviewButtons();
+            };
+            container.appendChild(clearBtn);
+        }
+
+        function verifyRectanglesAnswer() {
+            const ans = parseInt(document.getElementById('rect-user-input').value);
+            const totalR = (rectGridSize.r * (rectGridSize.r + 1)) / 2;
+            const totalC = (rectGridSize.c * (rectGridSize.c + 1)) / 2;
+            const actualTotal = totalR * totalC;
+
+            const fb = document.getElementById('rect-feedback');
+            if(ans === actualTotal) {
+                fb.className = "text-xs text-center font-bold text-emerald-400";
+                fb.innerHTML = `🎉 答對了！計算式：(${rectGridSize.r}×${rectGridSize.r+1}/2) × (${rectGridSize.c}×${rectGridSize.c+1}/2) = ${totalR} × ${totalC} = ${actualTotal}`;
+            } else {
+                fb.className = "text-xs text-center font-bold text-rose-400";
+                fb.innerHTML = `❌ 答案不正確。正確總數應為 ${actualTotal} 個長方形！`;
+            }
+        }
+
+        /* =========================================================================
+           4. 數學式比大小 (Math Expression Comparison) - Mode 2 Full Hand AI Search
+           ========================================================================= */
+        let mathExprData = { target: 20, mode: 2, numCards: [], opCards: [], userExpr: [], aiExpr: "", aiValue: 0, aiError: 999 };
+
+        function initMathExprGame(stage) {
+            stage.innerHTML = `
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-calculator"></i> 數學式比大小 (極值與函數估算)
+                            </h2>
+                            <p class="text-xs text-slate-400">組合數值牌與運算子牌，全牌挑戰模式下電腦 AI 與你皆必須使用全部卡牌。</p>
+                        </div>
+                        <button onclick="generateMathExprPuzzle()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> 重新發牌
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
+                        <!-- Mode & Options -->
+                        <div class="lg:col-span-12 flex flex-wrap gap-3 items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400 font-bold">目標 Target:</span>
+                                <button onclick="setMathExprTarget(20)" id="target-20-btn" class="px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950">接近 20 (比大)</button>
+                                <button onclick="setMathExprTarget(1)" id="target-1-btn" class="px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white">接近 1 (比小)</button>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400 font-bold">挑戰模式 Mode:</span>
+                                <button onclick="setMathExprMode(1)" id="mode-1-btn" class="px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white">模式一：自由(>2張)</button>
+                                <button onclick="setMathExprMode(2)" id="mode-2-btn" class="px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950">模式二：全牌挑戰</button>
+                            </div>
+                        </div>
+
+                        <!-- Left: Card Deck & Assembly -->
+                        <div class="lg:col-span-7 flex flex-col gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div>
+                                <div class="text-xs font-bold text-slate-300 mb-2">手牌發牌區 (點擊加入算式)：</div>
+                                <div id="math-hand-cards" class="flex flex-wrap gap-2 mb-4"></div>
+
+                                <div class="text-xs font-bold text-slate-300 mb-2">玩家組裝算式：</div>
+                                <div id="math-user-expr" class="min-h-[50px] p-2 bg-slate-900 border border-slate-700 rounded-xl flex flex-wrap items-center gap-2"></div>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <button onclick="clearMathExpr()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg">清空</button>
+                                <button onclick="verifyMathExprVsAI()" class="flex-grow py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-lg shadow transition">
+                                    鎖定算式與電腦比大小
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Right: Result & AI Display -->
+                        <div class="lg:col-span-5 flex flex-col gap-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800 justify-between">
+                            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+                                <i class="fa-solid fa-trophy text-amber-400 mr-1"></i> 對決比算結果
+                            </h3>
+
+                            <div id="math-result-box" class="flex flex-col gap-3 flex-grow justify-center">
+                                <div class="text-xs text-slate-500 text-center">請組裝算式後點擊「鎖定算式與電腦比大小」</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            generateMathExprPuzzle();
+        }
+
+        function setMathExprTarget(t) {
+            mathExprData.target = t;
+            document.getElementById('target-20-btn').className = t === 20 ? "px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950" : "px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white";
+            document.getElementById('target-1-btn').className = t === 1 ? "px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950" : "px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white";
+        }
+
+        function setMathExprMode(m) {
+            mathExprData.mode = m;
+            document.getElementById('mode-1-btn').className = m === 1 ? "px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950" : "px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white";
+            document.getElementById('mode-2-btn').className = m === 2 ? "px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950" : "px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white";
+        }
+
+        function generateMathExprPuzzle() {
+            const numPool = ["8", "9", "9", "10", "√2", "√3", "√5", "√10", "√50", "log10(50)"];
+            const opPool = ["+", "-", "×", "÷"];
+
+            // Pick 4 number cards, 3 operator cards
+            let shuffledN = [...numPool].sort(() => Math.random() - 0.5);
+            let shuffledO = [...opPool].sort(() => Math.random() - 0.5);
+
+            mathExprData.numCards = shuffledN.slice(0, 4).map((val, id) => ({ id: `n_${id}`, val, used: false, type: 'num' }));
+            mathExprData.opCards = shuffledO.slice(0, 3).map((val, id) => ({ id: `o_${id}`, val, used: false, type: 'op' }));
+            mathExprData.userExpr = [];
+
+            renderMathExprHand();
+            renderMathExprUser();
+            document.getElementById('math-result-box').innerHTML = `<div class="text-xs text-slate-500 text-center">請組裝算式後點擊「鎖定算式與電腦比大小」</div>`;
+        }
+
+        function renderMathExprHand() {
+            const container = document.getElementById('math-hand-cards');
+            container.innerHTML = '';
+
+            [...mathExprData.numCards, ...mathExprData.opCards].forEach(card => {
+                const btn = document.createElement('button');
+                btn.disabled = card.used;
+                btn.className = `px-3 py-2 rounded-lg font-black text-sm transition ${
+                    card.used 
+                    ? 'bg-slate-900 text-slate-600 border border-slate-800 opacity-40 cursor-not-allowed' 
+                    : card.type==='num' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/40' : 'bg-sky-500/20 text-sky-300 border border-sky-500/40 hover:bg-sky-500/40'
+                }`;
+                btn.innerText = card.val;
+                btn.onclick = () => addCardToUserExpr(card);
+                container.appendChild(btn);
+            });
+        }
+
+        function addCardToUserExpr(card) {
+            card.used = true;
+            mathExprData.userExpr.push(card);
+            renderMathExprHand();
+            renderMathExprUser();
+        }
+
+        function renderMathExprUser() {
+            const container = document.getElementById('math-user-expr');
+            container.innerHTML = '';
+            mathExprData.userExpr.forEach((card, idx) => {
+                const badge = document.createElement('span');
+                badge.className = `px-3 py-1.5 rounded-md font-bold text-sm flex items-center gap-1 cursor-pointer ${
+                    card.type==='num' ? 'bg-amber-500 text-slate-950' : 'bg-sky-500 text-slate-950'
+                }`;
+                badge.innerText = card.val;
+                badge.onclick = () => removeCardFromUserExpr(idx);
+                container.appendChild(badge);
+            });
+        }
+
+        function removeCardFromUserExpr(idx) {
+            const removed = mathExprData.userExpr.splice(idx, 1)[0];
+            removed.used = false;
+            renderMathExprHand();
+            renderMathExprUser();
+        }
+
+        function clearMathExpr() {
+            mathExprData.numCards.forEach(c => c.used = false);
+            mathExprData.opCards.forEach(c => c.used = false);
+            mathExprData.userExpr = [];
+            renderMathExprHand();
+            renderMathExprUser();
+        }
+
+        function evalCardVal(v) {
+            if(v === "√2") return Math.SQRT2;
+            if(v === "√3") return Math.sqrt(3);
+            if(v === "√5") return Math.sqrt(5);
+            if(v === "√10") return Math.sqrt(10);
+            if(v === "√50") return Math.sqrt(50);
+            if(v === "log10(50)") return Math.log10(50);
+            return parseFloat(v);
+        }
+
+        function computeExprValue(exprArray) {
+            // Converts array of tokens to numeric result (left to right for simplicity)
+            if(exprArray.length === 0) return NaN;
+            let current = evalCardVal(exprArray[0].val);
+            for(let i=1; i<exprArray.length; i+=2) {
+                if(i+1 >= exprArray.length) break;
+                const op = exprArray[i].val;
+                const nxt = evalCardVal(exprArray[i+1].val);
+                if(op === '+') current += nxt;
+                else if(op === '-') current -= nxt;
+                else if(op === '×') current *= nxt;
+                else if(op === '÷') {
+                    if(nxt === 0) return NaN;
+                    current /= nxt;
+                }
+            }
+            return current;
+        }
+
+        function verifyMathExprVsAI() {
+            if(mathExprData.mode === 2) {
+                // Must use all cards
+                const totalCards = mathExprData.numCards.length + mathExprData.opCards.length;
+                if(mathExprData.userExpr.length !== totalCards) {
+                    alert(`模式二全牌挑戰：請使用完畢全部 ${totalCards} 張卡牌！`);
+                    return;
+                }
+            }
+
+            const userVal = computeExprValue(mathExprData.userExpr);
+            if(isNaN(userVal)) {
+                alert('算式格式不合法或包含除以0，請重新檢查！');
+                return;
+            }
+
+            // Generate Computer AI Expression (In Mode 2, search ALL cards permutations)
+            let aiExprStr = "";
+            let aiBestVal = 0;
+            let aiMinErr = 999999;
+
+            const nums = mathExprData.numCards.map(c => c.val);
+            const ops = mathExprData.opCards.map(c => c.val);
+
+            if(mathExprData.mode === 2) {
+                // Full permutation search using all 4 numbers and 3 operators
+                function permute(arr) {
+                    if (arr.length <= 1) return [arr];
+                    let res = [];
+                    for(let i=0; i<arr.length; i++) {
+                        let rest = permute(arr.slice(0,i).concat(arr.slice(i+1)));
+                        for(let r of rest) res.push([arr[i]].concat(r));
+                    }
+                    return res;
+                }
+
+                const numPerms = permute(nums);
+                const opPerms = permute(ops);
+
+                numPerms.forEach(np => {
+                    opPerms.forEach(op => {
+                        let candidateTokens = [
+                            {val: np[0]}, {val: op[0]}, {val: np[1]}, {val: op[1]}, {val: np[2]}, {val: op[2]}, {val: np[3]}
+                        ];
+                        let val = computeExprValue(candidateTokens);
+                        if(!isNaN(val)) {
+                            let err = Math.abs(val - mathExprData.target);
+                            if(err < aiMinErr) {
+                                aiMinErr = err;
+                                aiBestVal = val;
+                                aiExprStr = candidateTokens.map(t => t.val).join(' ');
+                            }
+                        }
+                    });
+                });
+            } else {
+                // Mode 1: free subset
+                aiExprStr = `${nums[0]} ${ops[0]} ${nums[1]}`;
+                aiBestVal = computeExprValue([{val: nums[0]}, {val: ops[0]}, {val: nums[1]}]);
+                aiMinErr = Math.abs(aiBestVal - mathExprData.target);
+            }
+
+            const userErr = Math.abs(userVal - mathExprData.target);
+            const userWin = userErr <= aiMinErr;
+
+            const resBox = document.getElementById('math-result-box');
+            resBox.innerHTML = `
+                <div class="p-3 rounded-xl border text-center ${userWin ? 'bg-emerald-500/10 border-emerald-500' : 'bg-rose-500/10 border-rose-500'}">
+                    <div class="text-sm font-black ${userWin ? 'text-emerald-400' : 'text-rose-400'}">
+                        ${userWin ? '🎉 玩家獲勝！算式更接近目標值' : '💥 電腦獲勝！電腦全牌組合較精準'}
+                    </div>
+                </div>
+
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs">
+                    <div class="text-amber-400 font-bold mb-1">玩家算式：</div>
+                    <div class="text-white font-mono mb-1">${mathExprData.userExpr.map(c=>c.val).join(' ')} = ${userVal.toFixed(3)}</div>
+                    <div class="text-slate-400">誤差 (Target=${mathExprData.target}): ${userErr.toFixed(3)}</div>
+                </div>
+
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs">
+                    <div class="text-sky-400 font-bold mb-1">電腦 AI 算式 (使用全牌)：</div>
+                    <div class="text-white font-mono mb-1">${aiExprStr} = ${aiBestVal.toFixed(3)}</div>
+                    <div class="text-slate-400">誤差: ${aiMinErr.toFixed(3)}</div>
+                </div>
+            `;
+        }
+
+        /* =========================================================================
+           5. 三骰同花 (Three Dice Flush) - Strict Lock-Deduction Interactive Linkage
+           ========================================================================= */
+        let diceData = { values: [3, 3, 3], locked: [false, false, false], selectedOption: null, activePuzzle: null };
+
+        function initDiceFlushGame(stage) {
+            stage.innerHTML = `
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-dice"></i> 三骰同花 (貝氏條件機率與鎖定決策)
+                            </h2>
+                            <p class="text-xs text-slate-400">點擊骰子切換鎖定狀態，右側機率推導問題將即時連動，答對正確條件機率後方可執行重擲。</p>
+                        </div>
+                        <button onclick="resetDiceFlushGame()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> 重置骰局
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
+                        <!-- Left: 3 Dice Controls -->
+                        <div class="lg:col-span-5 flex flex-col gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div class="text-center font-bold text-xs text-slate-300">
+                                🎲 點擊骰子可「保留/鎖定」不重擲
+                            </div>
+
+                            <div class="flex justify-center items-center gap-4 py-4" id="dice-container"></div>
+
+                            <div class="flex flex-col gap-2">
+                                <button onclick="executeDiceReroll()" class="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-sm rounded-lg shadow-md transition">
+                                    執行重擲 (Re-roll)
+                                </button>
+                                <div id="dice-reroll-feedback" class="text-xs text-center min-h-[20px] font-bold"></div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Dynamic Conditional Probability Deduction -->
+                        <div class="lg:col-span-7 flex flex-col gap-4 bg-slate-900/50 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div>
+                                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2 mb-3">
+                                    <i class="fa-solid fa-square-root-variable text-amber-400 mr-1"></i> 條件機率公式推導決策 (依左側鎖定即時連動)
+                                </h3>
+                                <div id="dice-prob-question" class="text-xs text-amber-400 font-bold mb-3"></div>
+
+                                <div id="dice-options-list" class="flex flex-col gap-2.5"></div>
+                            </div>
+
+                            <div id="dice-math-explanation" class="p-3 bg-slate-950 rounded-lg border border-slate-800 text-xs text-slate-400 min-h-[50px] flex items-center justify-center">
+                                請在右側選擇符合當前鎖定狀態的條件機率推導選項
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            resetDiceFlushGame();
+        }
+
+        function resetDiceFlushGame() {
+            diceData.values = [
+                Math.floor(Math.random() * 6) + 1,
+                Math.floor(Math.random() * 6) + 1,
+                Math.floor(Math.random() * 6) + 1
+            ];
+            diceData.locked = [false, false, false];
+            diceData.selectedOption = null;
+
+            renderDiceVisuals();
+            updateDiceProbDeduction();
+        }
+
+        function toggleDiceLock(idx) {
+            diceData.locked[idx] = !diceData.locked[idx];
+            diceData.selectedOption = null; // Clear selected answer when locks change
+            renderDiceVisuals();
+            updateDiceProbDeduction();
+        }
+
+        function renderDiceVisuals() {
+            const container = document.getElementById('dice-container');
+            container.innerHTML = diceData.values.map((val, i) => {
+                const isLocked = diceData.locked[i];
+                return `
+                    <div onclick="toggleDiceLock(${i})" class="w-20 h-20 rounded-2xl border-2 cursor-pointer flex flex-col items-center justify-center transition-all duration-200 ${
+                        isLocked 
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-lg shadow-amber-500/20 scale-105' 
+                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-500'
+                    }">
+                        <span class="text-2xl font-black">${val}</span>
+                        <span class="text-[10px] font-bold mt-1 ${isLocked ? 'text-amber-400' : 'text-slate-500'}">
+                            ${isLocked ? '✓ 鎖定' : '可重擲'}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateDiceProbDeduction() {
+            // Analyze locked state
+            const lockedVals = diceData.values.filter((_, i) => diceData.locked[i]);
+            const lockedCount = lockedVals.length;
+
+            let questionText = "";
+            let correctAns = "";
+            let explanation = "";
+            let options = [];
+
+            if(lockedCount === 0) {
+                questionText = "【未鎖定任何骰子】重擲 3 顆骰子獲得「三骰同花 (3顆相同點數)」的機率 P(Flush) 為何？";
+                correctAns = "P(Flush) = (6 × 1 × 1) / 6³ = 1/36";
+                explanation = "解析：第一顆任意點數(6種)，後兩顆必須與第一顆相同(1/6 × 1/6)，故機率為 6/216 = 1/36。";
+                options = [
+                    "P(Flush) = (6 × 1 × 1) / 6³ = 1/36",
+                    "P(Flush) = 1 / 6³ = 1/216",
+                    "P(Flush) = (6 × 5 × 4) / 6³ = 5/9",
+                    "P(Flush) = 1 / 6² = 1/18"
+                ];
+            } else if(lockedCount === 1) {
+                questionText = `【鎖定 1 顆 (點數 ${lockedVals[0]})】重擲其餘 2 顆湊成三骰同花的條件機率為何？`;
+                correctAns = "P(Flush | 1顆固定) = (1/6) × (1/6) = 1/36";
+                explanation = `解析：第一顆已鎖定為 ${lockedVals[0]}，其餘 2 顆均需擲出 ${lockedVals[0]}，獨立機率為 1/6 × 1/6 = 1/36。`;
+                options = [
+                    "P(Flush | 1顆固定) = (1/6) × (1/6) = 1/36",
+                    "P(Flush | 1顆固定) = 1/6",
+                    "P(Flush | 1顆固定) = 2/6 = 1/3",
+                    "P(Flush | 1顆固定) = 1/216"
+                ];
+            } else if(lockedCount === 2) {
+                if(lockedVals[0] === lockedVals[1]) {
+                    questionText = `【鎖定 2 顆相同點數 (${lockedVals[0]}, ${lockedVals[1]})】重擲第 3 顆湊成三骰同花的條件機率為何？`;
+                    correctAns = "P(Flush | 2顆相同) = 1/6";
+                    explanation = `解析：前兩顆已同為 ${lockedVals[0]}，只需第 3 顆擲出 ${lockedVals[0]}，機率為 1/6。`;
+                    options = [
+                        "P(Flush | 2顆相同) = 1/6",
+                        "P(Flush | 2顆相同) = 1/36",
+                        "P(Flush | 2顆相同) = 1/2",
+                        "P(Flush | 2顆相同) = 5/6"
+                    ];
+                } else {
+                    questionText = `【鎖定 2 顆不同點數 (${lockedVals[0]}, ${lockedVals[1]})】重擲第 3 顆湊成三骰同花的條件機率為何？`;
+                    correctAns = "P(Flush | 2顆不同) = 0";
+                    explanation = `解析：鎖定的前兩顆點數不同 (${lockedVals[0]} ≠ ${lockedVals[1]})，無論第 3 顆為何均不可能湊成三骰同花，機率為 0。`;
+                    options = [
+                        "P(Flush | 2顆不同) = 0",
+                        "P(Flush | 2顆不同) = 1/6",
+                        "P(Flush | 2顆不同) = 1/36",
+                        "P(Flush | 2顆不同) = 1/216"
+                    ];
+                }
+            } else { // 3 locked
+                questionText = "【鎖定全部 3 顆骰子】點擊重擲之條件機率與結果：";
+                const isAllSame = diceData.values[0] === diceData.values[1] && diceData.values[1] === diceData.values[2];
+                if(isAllSame) {
+                    correctAns = "P(Maintain Flush | 3顆鎖定) = 1 (100%)";
+                    explanation = "解析：全部鎖定且點數皆相同，重擲維持三骰同花機率為 100%。";
+                    options = [
+                        "P(Maintain Flush | 3顆鎖定) = 1 (100%)",
+                        "P(Maintain Flush | 3顆鎖定) = 1/6",
+                        "P(Maintain Flush | 3顆鎖定) = 1/36",
+                        "P(Maintain Flush | 3顆鎖定) = 0"
+                    ];
+                } else {
+                    correctAns = "P(Flush | 3顆鎖定不同) = 0";
+                    explanation = "解析：鎖定全部但點數不全然相同，無法重擲變更，機率為 0。";
+                    options = [
+                        "P(Flush | 3顆鎖定不同) = 0",
+                        "P(Flush | 3顆鎖定不同) = 1/6",
+                        "P(Flush | 3顆鎖定不同) = 1/36",
+                        "P(Flush | 3顆鎖定不同) = 1"
+                    ];
+                }
+            }
+
+            // Shuffle options
+            let shuffledOpts = [...options].sort(() => Math.random() - 0.5);
+            diceData.activePuzzle = { questionText, correctAns, explanation, options: shuffledOpts };
+
+            document.getElementById('dice-prob-question').innerText = questionText;
+            renderDiceOptions();
+        }
+
+        function renderDiceOptions() {
+            const list = document.getElementById('dice-options-list');
+            list.innerHTML = diceData.activePuzzle.options.map((opt, i) => {
+                const isSelected = diceData.selectedOption === opt;
+                return `
+                    <div onclick="selectDiceOption('${opt.replace(/'/g, "\\'")}')" class="p-3 rounded-lg border cursor-pointer transition flex items-center justify-between ${
+                        isSelected 
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold' 
+                        : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }">
+                        <span class="text-xs font-mono">${String.fromCharCode(65 + i)}. ${opt}</span>
+                        ${isSelected ? '<i class="fa-solid fa-circle-check text-amber-400"></i>' : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectDiceOption(opt) {
+            diceData.selectedOption = opt;
+            renderDiceOptions();
+        }
+
+        function executeDiceReroll() {
+            const fb = document.getElementById('dice-reroll-feedback');
+            const exp = document.getElementById('dice-math-explanation');
+
+            if(!diceData.selectedOption) {
+                fb.className = "text-xs text-center font-bold text-rose-400";
+                fb.innerHTML = "❌ 請先在右側選出正確的條件機率推導公式！";
+                return;
+            }
+
+            if(diceData.selectedOption !== diceData.activePuzzle.correctAns) {
+                fb.className = "text-xs text-center font-bold text-rose-400";
+                fb.innerHTML = "❌ 機率推導錯誤！請重新思考條件機率公式。";
+                exp.className = "p-3 bg-rose-500/10 rounded-lg border border-rose-500/40 text-xs text-rose-300 font-bold";
+                exp.innerHTML = "提示：請根據目前「鎖定的骰子數量與點數異同」重新計算條件機率。";
+                return;
+            }
+
+            // Correct choice -> execute reroll animation & logic
+            fb.className = "text-xs text-center font-bold text-emerald-400";
+            fb.innerHTML = "✅ 條件機率推導正確！執行重擲...";
+            exp.className = "p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/40 text-xs text-emerald-300 leading-relaxed";
+            exp.innerHTML = `<strong>推導成功：</strong> ${diceData.activePuzzle.explanation}`;
+
+            // Execute reroll for unlocked dice
+            for(let i=0; i<3; i++) {
+                if(!diceData.locked[i]) {
+                    diceData.values[i] = Math.floor(Math.random() * 6) + 1;
+                }
+            }
+
+            setTimeout(() => {
+                renderDiceVisuals();
+                updateDiceProbDeduction();
+                const isAllSame = diceData.values[0] === diceData.values[1] && diceData.values[1] === diceData.values[2];
+                if(isAllSame) {
+                    fb.innerHTML = `🎉 恭喜擲出【三骰同花 (${diceData.values.join(', ')})】！`;
+                }
+            }, 300);
+        }
+
+        /* =========================================================================
+           6. 寶藏島 (Treasure Island) - Rich Diverse Predicate Sets & Guarantee Unique
+           ========================================================================= */
+        let treasureTarget = { x: 3, y: 3 };
+        let treasureClues = [];
+        let treasureEliminated = {}; // "x_y": true
+
+        function initTreasureGame(stage) {
+            stage.innerHTML = `
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-map-location-dot"></i> 寶藏島 (集合與雙條件聯立推理)
+                            </h2>
+                            <p class="text-xs text-slate-400">點擊 5×5 地圖格子可劃掉不可能點，根據多元數學線索推導唯一寶藏地點 (X, Y)。</p>
+                        </div>
+                        <button onclick="generateTreasurePuzzle()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> 隨機換題 (更換寶藏)
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
+                        <!-- Left: Clues -->
+                        <div class="lg:col-span-6 flex flex-col gap-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+                                <i class="fa-solid fa-scroll text-amber-400 mr-1"></i> 寶藏線索 (滿足所有條件之 unique 點)
+                            </h3>
+                            <div id="treasure-clues-list" class="flex flex-col gap-2.5"></div>
+                        </div>
+
+                        <!-- Right: Interactive 5x5 Map & Submission -->
+                        <div class="lg:col-span-6 flex flex-col gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div class="flex flex-col items-center">
+                                <div class="text-xs font-bold text-slate-300 mb-2">5×5 座標島嶼 (點擊劃掉排除)：</div>
+                                <div id="treasure-grid-map" class="grid grid-cols-5 gap-1.5 p-2 bg-slate-900 rounded-xl border border-slate-800"></div>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-slate-400 font-bold">提交座標：</span>
+                                    <select id="treasure-select-x" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded p-1.5 text-xs">
+                                        <option value="1">X = 1</option><option value="2">X = 2</option><option value="3">X = 3</option><option value="4">X = 4</option><option value="5">X = 5</option>
+                                    </select>
+                                    <select id="treasure-select-y" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded p-1.5 text-xs">
+                                        <option value="1">Y = 1</option><option value="2">Y = 2</option><option value="3">Y = 3</option><option value="4">Y = 4</option><option value="5">Y = 5</option>
+                                    </select>
+                                    <button onclick="verifyTreasureAnswer()" class="flex-grow py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs rounded shadow transition">
+                                        挖寶挖掘驗證
+                                    </button>
+                                </div>
+                                <div id="treasure-feedback" class="text-xs text-center min-h-[18px] font-bold"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            generateTreasurePuzzle();
+        }
+
+        function generateTreasurePuzzle() {
+            treasureEliminated = {};
+
+            // Predefined rich clue sets that guarantee EXACTLY 1 unique solution on 5x5
+            const richPool = [
+                {
+                    target: { x: 4, y: 2 },
+                    clues: [
+                        "1. 線性組合條件：X + 2Y = 8",
+                        "2. 複合雙條件：(X > Y) 且 (X × Y 為偶數)",
+                        "3. 幾何距離：與 (3, 3) 曼哈頓距離 |X - 3| + |Y - 3| = 2"
+                    ]
+                },
+                {
+                    target: { x: 3, y: 5 },
+                    clues: [
+                        "1. 代數關係：2X + Y = 11",
+                        "2. 複合雙條件：(X 為質數) 且 (Y ≥ 4)",
+                        "3. 區域分佈：位於直線 Y > X 的上方區域"
+                    ]
+                },
+                {
+                    target: { x: 1, y: 4 },
+                    clues: [
+                        "1. 乘積條件：X × Y = 4",
+                        "2. 差值條件：Y - X = 3",
+                        "3. 奇偶特徵：X 為奇數 且 Y 為偶數"
+                    ]
+                },
+                {
+                    target: { x: 5, y: 3 },
+                    clues: [
+                        "1. 平方和條件：X² + Y² = 34",
+                        "2. 範圍雙條件：(X ≥ 4) 且 (Y ≤ 3)",
+                        "3. 差值關係：X - Y = 2"
+                    ]
+                },
+                {
+                    target: { x: 2, y: 3 },
+                    clues: [
+                        "1. 比例關係：3X - 2Y = 0",
+                        "2. 質數條件：X 與 Y 皆為質數 (Prime)",
+                        "3. 範圍限制：X + Y = 5 且 X < Y"
+                    ]
+                }
+            ];
+
+            const selected = richPool[Math.floor(Math.random() * richPool.length)];
+            treasureTarget = selected.target;
+            treasureClues = selected.clues;
+
+            renderTreasureClues();
+            renderTreasureGrid();
+            document.getElementById('treasure-feedback').innerHTML = '';
+        }
+
+        function renderTreasureClues() {
+            const list = document.getElementById('treasure-clues-list');
+            list.innerHTML = treasureClues.map(clue => `
+                <div class="p-3 bg-slate-950 rounded-lg border border-slate-800 text-xs text-slate-300 font-mono leading-relaxed shadow-sm">
+                    ${clue}
+                </div>
+            `).join('');
+        }
+
+        function renderTreasureGrid() {
+            const grid = document.getElementById('treasure-grid-map');
+            grid.innerHTML = '';
+
+            for(let y=5; y>=1; y--) { // Y axis top to bottom
+                for(let x=1; x<=5; x++) {
+                    const key = `${x}_${y}`;
+                    const isEliminated = treasureEliminated[key];
+                    const cell = document.createElement('div');
+                    cell.className = `w-12 h-12 rounded-lg border flex flex-col items-center justify-center cursor-pointer transition-all ${
+                        isEliminated 
+                        ? 'bg-rose-950/40 border-rose-900 text-rose-600 line-through opacity-40 scale-90' 
+                        : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-amber-500/60 hover:text-amber-400'
+                    }`;
+                    cell.innerHTML = `<span class="text-[10px] font-bold">(${x},${y})</span>`;
+                    cell.onclick = () => {
+                        treasureEliminated[key] = !treasureEliminated[key];
+                        renderTreasureGrid();
+                    };
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function verifyTreasureAnswer() {
+            const userX = parseInt(document.getElementById('treasure-select-x').value);
+            const userY = parseInt(document.getElementById('treasure-select-y').value);
+
+            const fb = document.getElementById('treasure-feedback');
+            if(userX === treasureTarget.x && userY === treasureTarget.y) {
+                fb.className = "text-xs text-center font-bold text-emerald-400";
+                fb.innerHTML = `🏴‍☠️ 恭喜找到秘寶！藏寶座標即為 (${userX}, ${userY})！`;
+            } else {
+                fb.className = "text-xs text-center font-bold text-rose-400";
+                fb.innerHTML = `❌ 該位置沒有寶藏！請再根據線索交集排查地點。`;
+            }
+        }
+
+        /* =========================================================================
+           7. 限重策略戰 (Weight Limit Strategy) - You vs 3 Computer AIs (4 Players)
+           ========================================================================= */
+        let weightGameState = {
+            round: 1,
+            playerStones: [ [0,1,2,3,4,5,6], [0,1,2,3,4,5,6], [0,1,2,3,4,5,6], [0,1,2,3,4,5,6] ],
+            scores: [0, 0, 0, 0], // Penalty points
+            platforms: [0, 0, 0], // Red, Green, Blue (Cap 13)
+            selectedStone: null,
+            logs: []
+        };
+
+        function initWeightStrategyGame(stage) {
+            stage.innerHTML = `
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-weight-hanging"></i> 限重策略戰 (博弈論與餘數分配 - 4人對戰)
+                            </h2>
+                            <p class="text-xs text-slate-400">你 vs 電腦A、電腦B、電腦C。每人擁有 0~6 重量的石頭，放入平台若達到或超過 13 則爆台加計罰分！</p>
+                        </div>
+                        <button onclick="resetWeightStrategyGame()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> 新對局
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
+                        <!-- Scoreboard Top -->
+                        <div class="lg:col-span-12 grid grid-cols-4 gap-2 bg-slate-900/60 p-3 rounded-xl border border-slate-800 text-center">
+                            <div class="p-2 rounded-lg bg-slate-950 border border-amber-500/40">
+                                <div class="text-[10px] text-amber-400 font-bold">玩家 (你)</div>
+                                <div id="weight-score-0" class="text-base font-black text-white">罰分: 0</div>
+                            </div>
+                            <div class="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                                <div class="text-[10px] text-sky-400 font-bold">電腦 A</div>
+                                <div id="weight-score-1" class="text-base font-black text-white">罰分: 0</div>
+                            </div>
+                            <div class="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                                <div class="text-[10px] text-emerald-400 font-bold">電腦 B</div>
+                                <div id="weight-score-2" class="text-base font-black text-white">罰分: 0</div>
+                            </div>
+                            <div class="p-2 rounded-lg bg-slate-950 border border-slate-800">
+                                <div class="text-[10px] text-purple-400 font-bold">電腦 C</div>
+                                <div id="weight-score-3" class="text-base font-black text-white">罰分: 0</div>
+                            </div>
+                        </div>
+
+                        <!-- Platforms (Red, Green, Blue) -->
+                        <div class="lg:col-span-7 flex flex-col gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div class="grid grid-cols-3 gap-3">
+                                <div onclick="placePlayerStone(0)" class="p-3 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 cursor-pointer text-center flex flex-col justify-between h-40 transition">
+                                    <div class="text-xs font-bold text-rose-400">🔴 紅色平台 (上限 13)</div>
+                                    <div id="plat-weight-0" class="text-3xl font-black text-rose-300">0 / 13</div>
+                                    <div class="text-[10px] text-slate-400">點擊放入選擇的石頭</div>
+                                </div>
+                                <div onclick="placePlayerStone(1)" class="p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 cursor-pointer text-center flex flex-col justify-between h-40 transition">
+                                    <div class="text-xs font-bold text-emerald-400">🟢 綠色平台 (上限 13)</div>
+                                    <div id="plat-weight-1" class="text-3xl font-black text-emerald-300">0 / 13</div>
+                                    <div class="text-[10px] text-slate-400">點擊放入選擇的石頭</div>
+                                </div>
+                                <div onclick="placePlayerStone(2)" class="p-3 rounded-xl border border-sky-500/40 bg-sky-500/10 hover:bg-sky-500/20 cursor-pointer text-center flex flex-col justify-between h-40 transition">
+                                    <div class="text-xs font-bold text-sky-400">🔵 藍色平台 (上限 13)</div>
+                                    <div id="plat-weight-2" class="text-3xl font-black text-sky-300">0 / 13</div>
+                                    <div class="text-[10px] text-slate-400">點擊放入選擇的石頭</div>
+                                </div>
+                            </div>
+
+                            <!-- Player's remaining stones -->
+                            <div>
+                                <div class="text-xs font-bold text-slate-300 mb-2">請先選擇你的手牌石頭重量：</div>
+                                <div id="weight-player-hand" class="flex flex-wrap gap-2"></div>
+                            </div>
+                        </div>
+
+                        <!-- Logs -->
+                        <div class="lg:col-span-5 flex flex-col gap-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2">
+                                <i class="fa-solid fa-list-ul text-amber-400 mr-1"></i> 對戰日誌
+                            </h3>
+                            <div id="weight-logs-box" class="flex flex-col gap-1.5 overflow-y-auto max-h-56 text-xs text-slate-400 font-mono"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            resetWeightStrategyGame();
+        }
+
+        function resetWeightStrategyGame() {
+            weightGameState = {
+                round: 1,
+                playerStones: [ [0,1,2,3,4,5,6], [0,1,2,3,4,5,6], [0,1,2,3,4,5,6], [0,1,2,3,4,5,6] ],
+                scores: [0, 0, 0, 0],
+                platforms: [0, 0, 0],
+                selectedStone: null,
+                logs: ["對局開始！請玩家選擇第一顆石頭放入平台。"]
+            };
+
+            renderWeightScoreboard();
+            renderWeightPlatforms();
+            renderWeightPlayerHand();
+            renderWeightLogs();
+        }
+
+        function renderWeightScoreboard() {
+            for(let i=0; i<4; i++) {
+                document.getElementById(`weight-score-${i}`).innerText = `罰分: ${weightGameState.scores[i]}`;
+            }
+        }
+
+        function renderWeightPlatforms() {
+            for(let p=0; p<3; p++) {
+                document.getElementById(`plat-weight-${p}`).innerText = `${weightGameState.platforms[p]} / 13`;
+            }
+        }
+
+        function renderWeightPlayerHand() {
+            const container = document.getElementById('weight-player-hand');
+            container.innerHTML = '';
+
+            weightGameState.playerStones[0].forEach(st => {
+                const isSelected = weightGameState.selectedStone === st;
+                const btn = document.createElement('button');
+                btn.className = `w-10 h-10 rounded-lg font-black text-sm transition ${
+                    isSelected 
+                    ? 'bg-amber-500 text-slate-950 shadow-md scale-110' 
+                    : 'bg-slate-800 text-amber-400 border border-slate-700 hover:bg-slate-700'
+                }`;
+                btn.innerText = st;
+                btn.onclick = () => {
+                    weightGameState.selectedStone = st;
+                    renderWeightPlayerHand();
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function renderWeightLogs() {
+            const box = document.getElementById('weight-logs-box');
+            box.innerHTML = weightGameState.logs.map(log => `<div>${log}</div>`).join('');
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function placePlayerStone(platIndex) {
+            if(weightGameState.selectedStone === null) {
+                alert("請先點擊選擇下方手牌中的石頭重量！");
+                return;
+            }
+
+            const st = weightGameState.selectedStone;
+            // Remove stone
+            weightGameState.playerStones[0] = weightGameState.playerStones[0].filter(s => s !== st);
+            weightGameState.selectedStone = null;
+
+            // Update platform
+            weightGameState.platforms[platIndex] += st;
+            let logMsg = `【玩家】將重量 ${st} 放至平台 ${['紅','綠','藍'][platIndex]}`;
+            if(weightGameState.platforms[platIndex] >= 13) {
+                weightGameState.scores[0] += weightGameState.platforms[platIndex];
+                logMsg += ` 💥 爆台！總重 ${weightGameState.platforms[platIndex]} 加罰分！`;
+                weightGameState.platforms[platIndex] = 0;
+            }
+            weightGameState.logs.push(logMsg);
+
+            renderWeightScoreboard();
+            renderWeightPlatforms();
+            renderWeightPlayerHand();
+            renderWeightLogs();
+
+            // AI Sequence: AI A -> AI B -> AI C
+            setTimeout(() => runAITurn(1), 500);
+        }
+
+        function runAITurn(aiIdx) {
+            if(aiIdx > 3) {
+                // Round ends or check game over
+                if(weightGameState.playerStones[0].length === 0) {
+                    // Game Over -> Calculate lowest penalty
+                    let minScore = Math.min(...weightGameState.scores);
+                    let winnerIdx = weightGameState.scores.indexOf(minScore);
+                    let names = ["玩家", "電腦 A", "電腦 B", "電腦 C"];
+                    weightGameState.logs.push(`🏆 遊戲結束！最終獲勝者：${names[winnerIdx]} (罰分最少: ${minScore}分)`);
+                    renderWeightLogs();
+                } else {
+                    weightGameState.round++;
+                    weightGameState.logs.push(`--- 第 ${weightGameState.round} 回合 ---`);
+                    renderWeightLogs();
+                }
+                return;
+            }
+
+            const stones = weightGameState.playerStones[aiIdx];
+            if(stones.length === 0) return;
+
+            // AI Logic: pick a stone & platform that won't bust if possible
+            let chosenStone = stones[Math.floor(Math.random() * stones.length)];
+            let chosenPlat = 0;
+            let safestPlat = -1;
+
+            for(let p=0; p<3; p++) {
+                if(weightGameState.platforms[p] + chosenStone < 13) {
+                    safestPlat = p;
+                    break;
+                }
+            }
+            chosenPlat = safestPlat !== -1 ? safestPlat : Math.floor(Math.random() * 3);
+
+            // Execute AI move
+            weightGameState.playerStones[aiIdx] = stones.filter(s => s !== chosenStone);
+            weightGameState.platforms[chosenPlat] += chosenStone;
+            let aiNames = ["", "電腦 A", "電腦 B", "電腦 C"];
+            let logMsg = `【${aiNames[aiIdx]}】將重量 ${chosenStone} 放至平台 ${['紅','綠','藍'][chosenPlat]}`;
+
+            if(weightGameState.platforms[chosenPlat] >= 13) {
+                weightGameState.scores[aiIdx] += weightGameState.platforms[chosenPlat];
+                logMsg += ` 💥 爆台！總重 ${weightGameState.platforms[chosenPlat]} 加罰分！`;
+                weightGameState.platforms[chosenPlat] = 0;
+            }
+
+            weightGameState.logs.push(logMsg);
+            renderWeightScoreboard();
+            renderWeightPlatforms();
+            renderWeightLogs();
+
+            setTimeout(() => runAITurn(aiIdx + 1), 500);
+        }
+
+        /* =========================================================================
+           8 & 9. 牆壁圍棋 (Wall Go) - Pure Territory Rules & Active Smart AI
+           ========================================================================= */
+        let wallGoAITimer = null;
+        let wallGoState = {
+            mode: 'ai_2p', // ai_2p, ai_4p, friend_2p, friend_4p
+            playerCount: 2,
+            currentPlayer: 0,
+            players: [], // [{ r, c, color, isAI }]
+            wallsH: [], // 7x6 horizontal walls (internal: r=1..5, c=0..5)
+            wallsV: [], // 6x7 vertical walls (internal: r=0..5, c=1..5)
+            movePhase: true, // true: moving piece, false: placing wall
+            validMoves: [],
+            pureTerritories: [], // array of arrays of Set("r_c") per player
+            pureScores: [],
+            maxSingleBlocks: [],
+            gameOver: false,
+            winnerMsg: ""
+        };
+
+        const playerColors = [
+            { name: "P1 (紅)", hex: "#ef4444", bg: "bg-rose-500" },
+            { name: "P2 (藍)", hex: "#3b82f6", bg: "bg-sky-500" },
+            { name: "P3 (綠)", hex: "#10b981", bg: "bg-emerald-500" },
+            { name: "P4 (橘)", hex: "#f97316", bg: "bg-orange-500" }
+        ];
+
+        function initWallGoGame(stage) {
+            if(wallGoAITimer) { clearTimeout(wallGoAITimer); wallGoAITimer = null; }
+            stage.innerHTML = `
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-chess-board"></i> 牆壁圍棋 (拓撲幾何與連通區域劃分)
+                            </h2>
+                            <p class="text-xs text-slate-400">移動 0~2 格後於棋子四週建牆。當所有玩家皆被牆壁完全隔離或無合法步數時，立即結束並計算純淨領土得分！</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <select id="wallgo-mode-select" onchange="changeWallGoMode(this.value)" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold rounded-lg p-2 text-xs">
+                                <option value="ai_2p">單人對 1 個電腦玩家 (2人局)</option>
+                                <option value="ai_4p">單人對 3 個電腦玩家 (4人局)</option>
+                                <option value="friend_2p">雙人對戰 (2人)</option>
+                                <option value="friend_4p">四人對戰 (4人)</option>
+                            </select>
+                            <button onclick="resetWallGoGame()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition">
+                                開局重置
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow items-center">
+                        <div class="lg:col-span-8 flex flex-col items-center justify-center bg-slate-950/70 p-4 rounded-xl border border-slate-800 min-h-[380px]">
+                            <div id="wallgo-status-bar" class="text-xs font-bold text-amber-400 mb-3 text-center"></div>
+
+                            <!-- Board Container -->
+                            <div id="wallgo-board" class="relative bg-slate-900 border-2 border-slate-700 rounded-2xl p-3 shadow-2xl"></div>
+                        </div>
+
+                        <div class="lg:col-span-4 flex flex-col gap-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div>
+                                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2 mb-3">
+                                    <i class="fa-solid fa-chart-pie text-amber-400 mr-1"></i> 純淨領土計分板
+                                </h3>
+                                <div id="wallgo-territory-scores" class="flex flex-col gap-2"></div>
+                            </div>
+                            <div class="text-[11px] text-slate-400 bg-slate-950/70 p-2.5 rounded-lg border border-slate-800 leading-relaxed">
+                                <strong class="text-amber-400">計分規則：</strong>僅有被牆壁完全封閉且內部「只含單一玩家棋子」的區域為純淨領土（1格=1分）；空地或混合區域計 0 分。同分比單塊最大領土。
+                            </div>
+                            <div id="wallgo-result-announcement" class="text-xs font-bold text-center min-h-[24px] text-emerald-400"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            const sel = document.getElementById('wallgo-mode-select');
+            if(sel) sel.value = wallGoState.mode;
+            resetWallGoGame();
+        }
+
+        function changeWallGoMode(m) {
+            wallGoState.mode = m;
+            resetWallGoGame();
+        }
+
+        function resetWallGoGame() {
+            if(wallGoAITimer) { clearTimeout(wallGoAITimer); wallGoAITimer = null; }
+            const m = wallGoState.mode;
+            let pCount = 2;
+            let isAI = true;
+
+            if(m === 'ai_2p') { pCount = 2; isAI = true; }
+            else if(m === 'ai_4p') { pCount = 4; isAI = true; }
+            else if(m === 'friend_2p') { pCount = 2; isAI = false; }
+            else if(m === 'friend_4p') { pCount = 4; isAI = false; }
+
+            wallGoState.playerCount = pCount;
+            wallGoState.currentPlayer = 0;
+            wallGoState.movePhase = true;
+            wallGoState.gameOver = false;
+            wallGoState.winnerMsg = "";
+
+            // Randomize distinct starting positions on 6x6
+            const allCells = [];
+            for(let r=0; r<6; r++) for(let c=0; c<6; c++) allCells.push({r, c});
+            allCells.sort(() => Math.random() - 0.5);
+
+            wallGoState.players = [];
+            for(let i=0; i<pCount; i++) {
+                wallGoState.players.push({
+                    r: allCells[i].r,
+                    c: allCells[i].c,
+                    color: playerColors[i],
+                    isAI: isAI ? (i > 0) : false
+                });
+            }
+
+            // Init walls: 7x6 horiz, 6x7 vert (internal walls only are buildable)
+            wallGoState.wallsH = Array(7).fill(0).map(() => Array(6).fill(false));
+            wallGoState.wallsV = Array(6).fill(0).map(() => Array(7).fill(false));
+
+            wallGoState.validMoves = getWallGoValidMovesForPlayer(wallGoState.currentPlayer);
+            evaluateWallGoState();
+            renderWallGoBoard();
+            updateWallGoUI();
+        }
+
+        function getWallGoNeighbors(r, c) {
+            let res = [];
+            if(r > 0 && !wallGoState.wallsH[r][c]) res.push({r: r-1, c});
+            if(r < 5 && !wallGoState.wallsH[r+1][c]) res.push({r: r+1, c});
+            if(c > 0 && !wallGoState.wallsV[r][c]) res.push({r, c: c-1});
+            if(c < 5 && !wallGoState.wallsV[r][c+1]) res.push({r, c: c+1});
+            return res;
+        }
+
+        function getOpenAdjacentWalls(r, c) {
+            let walls = [];
+            if(r > 0 && !wallGoState.wallsH[r][c]) walls.push({type: 'H', r: r, c: c});
+            if(r < 5 && !wallGoState.wallsH[r+1][c]) walls.push({type: 'H', r: r+1, c: c});
+            if(c > 0 && !wallGoState.wallsV[r][c]) walls.push({type: 'V', r: r, c: c});
+            if(c < 5 && !wallGoState.wallsV[r][c+1]) walls.push({type: 'V', r: r, c: c+1});
+            return walls;
+        }
+
+        function getWallGoValidMovesForPlayer(pIdx) {
+            const p = wallGoState.players[pIdx];
+            let visited = new Set();
+            let valid = [];
+            let queue = [{r: p.r, c: p.c, dist: 0}];
+            visited.add(`${p.r}_${p.c}`);
+
+            while(queue.length > 0) {
+                const curr = queue.shift();
+                // Legal move requires being able to build at least 1 adjacent internal wall after landing
+                if(getOpenAdjacentWalls(curr.r, curr.c).length > 0) {
+                    valid.push({r: curr.r, c: curr.c});
+                }
+
+                if(curr.dist < 2) {
+                    const nbrs = getWallGoNeighbors(curr.r, curr.c);
+                    nbrs.forEach(n => {
+                        const key = `${n.r}_${n.c}`;
+                        const occupied = wallGoState.players.some((pl, idx) => idx !== pIdx && pl.r === n.r && pl.c === n.c);
+                        if(!visited.has(key) && !occupied) {
+                            visited.add(key);
+                            queue.push({r: n.r, c: n.c, dist: curr.dist + 1});
+                        }
+                    });
+                }
+            }
+            return valid;
+        }
+
+        function getAllConnectedComponents() {
+            let globalVisited = new Set();
+            let components = [];
+
+            for(let r=0; r<6; r++) {
+                for(let c=0; c<6; c++) {
+                    const startKey = `${r}_${c}`;
+                    if(globalVisited.has(startKey)) continue;
+
+                    let comp = new Set();
+                    let queue = [{r, c}];
+                    comp.add(startKey);
+                    globalVisited.add(startKey);
+
+                    while(queue.length > 0) {
+                        const curr = queue.shift();
+                        const nbrs = getWallGoNeighbors(curr.r, curr.c);
+                        nbrs.forEach(n => {
+                            const k = `${n.r}_${n.c}`;
+                            if(!globalVisited.has(k)) {
+                                globalVisited.add(k);
+                                comp.add(k);
+                                queue.push(n);
+                            }
+                        });
+                    }
+                    components.push(comp);
+                }
+            }
+            return components;
+        }
+
+        function evaluateWallGoState() {
+            const components = getAllConnectedComponents();
+            const pCount = wallGoState.playerCount;
+
+            let pureTerritories = Array.from({length: pCount}, () => []);
+            let pureScores = Array(pCount).fill(0);
+            let maxSingleBlocks = Array(pCount).fill(0);
+            let allPlayersIsolated = true;
+
+            components.forEach(comp => {
+                let owners = new Set();
+                wallGoState.players.forEach((p, idx) => {
+                    if(comp.has(`${p.r}_${p.c}`)) owners.add(idx);
+                });
+
+                if(owners.size === 1) {
+                    const ownerIdx = [...owners][0];
+                    pureTerritories[ownerIdx].push(comp);
+                    pureScores[ownerIdx] += comp.size;
+                    if(comp.size > maxSingleBlocks[ownerIdx]) {
+                        maxSingleBlocks[ownerIdx] = comp.size;
+                    }
+                } else if(owners.size > 1) {
+                    allPlayersIsolated = false;
+                }
+            });
+
+            wallGoState.pureTerritories = pureTerritories;
+            wallGoState.pureScores = pureScores;
+            wallGoState.maxSingleBlocks = maxSingleBlocks;
+
+            // End Condition 2: No player has any legal "move + build wall" action
+            let anyLegalMove = false;
+            for(let i=0; i<pCount; i++) {
+                if(getWallGoValidMovesForPlayer(i).length > 0) {
+                    anyLegalMove = true;
+                    break;
+                }
+            }
+
+            if((allPlayersIsolated || !anyLegalMove) && !wallGoState.gameOver) {
+                wallGoState.gameOver = true;
+                if(wallGoAITimer) { clearTimeout(wallGoAITimer); wallGoAITimer = null; }
+
+                // Winner determination: 1. Total score, 2. Max single pure territory, 3. Draw
+                let bestScore = Math.max(...pureScores);
+                let topByScore = [];
+                for(let i=0; i<pCount; i++) {
+                    if(pureScores[i] === bestScore) topByScore.push(i);
+                }
+
+                let reason = allPlayersIsolated ? "所有玩家已完全隔離！" : "所有玩家皆無合法移動與建牆動作！";
+                if(topByScore.length === 1) {
+                    const w = topByScore[0];
+                    wallGoState.winnerMsg = `🎉 ${reason}遊戲結束！獲勝者：${playerColors[w].name}（純淨領土 ${pureScores[w]} 分）`;
+                } else {
+                    let bestMaxBlock = Math.max(...topByScore.map(i => maxSingleBlocks[i]));
+                    let topByBlock = topByScore.filter(i => maxSingleBlocks[i] === bestMaxBlock);
+                    if(topByBlock.length === 1) {
+                        const w = topByBlock[0];
+                        wallGoState.winnerMsg = `🎉 ${reason}總分相同，比單塊最大純淨領土！獲勝者：${playerColors[w].name}（總分 ${pureScores[w]} 分，最大塊 ${bestMaxBlock} 格）`;
+                    } else {
+                        const names = topByBlock.map(i => playerColors[i].name).join('、');
+                        wallGoState.winnerMsg = `🤝 ${reason}遊戲結束！${names} 總分（${bestScore} 分）與最大塊皆相同，平手！`;
+                    }
+                }
+            }
+        }
+
+        function renderWallGoBoard() {
+            const board = document.getElementById('wallgo-board');
+            if(!board) return;
+            board.innerHTML = '';
+
+            const cellSize = 44; // px
+            const wallThick = 8;
+
+            // Render Pure Territories background highlight
+            wallGoState.pureTerritories.forEach((compList, pIdx) => {
+                const color = playerColors[pIdx].hex;
+                compList.forEach(tSet => {
+                    tSet.forEach(key => {
+                        const [r, c] = key.split('_').map(Number);
+                        const cellBg = document.createElement('div');
+                        cellBg.className = 'absolute rounded-lg opacity-30 pointer-events-none transition-all';
+                        cellBg.style.width = `${cellSize}px`;
+                        cellBg.style.height = `${cellSize}px`;
+                        cellBg.style.left = `${c * (cellSize + wallThick) + 12}px`;
+                        cellBg.style.top = `${r * (cellSize + wallThick) + 12}px`;
+                        cellBg.style.backgroundColor = color;
+                        board.appendChild(cellBg);
+                    });
+                });
+            });
+
+            // Render 6x6 Cells & Valid Move Dots
+            const cp = wallGoState.players[wallGoState.currentPlayer];
+            for(let r=0; r<6; r++) {
+                for(let c=0; c<6; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'absolute rounded-xl bg-slate-950/75 border border-slate-800/80 flex items-center justify-center';
+                    cell.style.width = `${cellSize}px`;
+                    cell.style.height = `${cellSize}px`;
+                    cell.style.left = `${c * (cellSize + wallThick) + 12}px`;
+                    cell.style.top = `${r * (cellSize + wallThick) + 12}px`;
+
+                    if(wallGoState.movePhase && !cp.isAI && !wallGoState.gameOver) {
+                        const isValid = wallGoState.validMoves.some(m => m.r === r && m.c === c);
+                        if(isValid) {
+                            cell.className += ' cursor-pointer hover:border-amber-400';
+                            cell.innerHTML = '<div class="w-3 h-3 rounded-full bg-amber-400 animate-pulse shadow"></div>';
+                            cell.onclick = () => moveWallGoPlayer(r, c);
+                        }
+                    }
+                    board.appendChild(cell);
+                }
+            }
+
+            // Determine open adjacent wall slots around current player in build-wall phase
+            const adjacentOpen = (!wallGoState.movePhase && !cp.isAI && !wallGoState.gameOver)
+                ? getOpenAdjacentWalls(cp.r, cp.c)
+                : [];
+
+            // Render Internal Horizontal Walls (r=1..5, c=0..5)
+            for(let r=1; r<=5; r++) {
+                for(let c=0; c<6; c++) {
+                    const isPlaced = wallGoState.wallsH[r][c];
+                    const isClickable = !isPlaced && adjacentOpen.some(w => w.type === 'H' && w.r === r && w.c === c);
+                    if(!isPlaced && !isClickable) continue;
+
+                    const wall = document.createElement('div');
+                    wall.style.width = `${cellSize}px`;
+                    wall.style.height = `${wallThick}px`;
+                    wall.style.left = `${c * (cellSize + wallThick) + 12}px`;
+                    wall.style.top = `${r * (cellSize + wallThick) + 12 - wallThick}px`;
+                    wall.className = `absolute rounded-full transition-all z-20 ${
+                        isPlaced ? 'bg-amber-400 shadow-md shadow-amber-500/50' : 'bg-amber-500/20 hover:bg-amber-400/70 cursor-pointer border border-dashed border-amber-400 animate-pulse'
+                    }`;
+                    if(isClickable) {
+                        wall.onclick = () => placeWallGoWall('H', r, c);
+                    }
+                    board.appendChild(wall);
+                }
+            }
+
+            // Render Internal Vertical Walls (r=0..5, c=1..5)
+            for(let r=0; r<6; r++) {
+                for(let c=1; c<=5; c++) {
+                    const isPlaced = wallGoState.wallsV[r][c];
+                    const isClickable = !isPlaced && adjacentOpen.some(w => w.type === 'V' && w.r === r && w.c === c);
+                    if(!isPlaced && !isClickable) continue;
+
+                    const wall = document.createElement('div');
+                    wall.style.width = `${wallThick}px`;
+                    wall.style.height = `${cellSize}px`;
+                    wall.style.left = `${c * (cellSize + wallThick) + 12 - wallThick}px`;
+                    wall.style.top = `${r * (cellSize + wallThick) + 12}px`;
+                    wall.className = `absolute rounded-full transition-all z-20 ${
+                        isPlaced ? 'bg-amber-400 shadow-md shadow-amber-500/50' : 'bg-amber-500/20 hover:bg-amber-400/70 cursor-pointer border border-dashed border-amber-400 animate-pulse'
+                    }`;
+                    if(isClickable) {
+                        wall.onclick = () => placeWallGoWall('V', r, c);
+                    }
+                    board.appendChild(wall);
+                }
+            }
+
+            // Render Player Tokens
+            wallGoState.players.forEach((p, idx) => {
+                const token = document.createElement('div');
+                const isTurn = !wallGoState.gameOver && idx === wallGoState.currentPlayer;
+                token.className = `absolute w-9 h-9 rounded-full flex items-center justify-center font-black text-xs text-white shadow-lg border-2 transition-all duration-300 z-10 pointer-events-none ${
+                    isTurn ? 'border-amber-300 ring-2 ring-amber-400/60 scale-105' : 'border-white/80'
+                }`;
+                token.style.left = `${p.c * (cellSize + wallThick) + 12 + 4}px`;
+                token.style.top = `${p.r * (cellSize + wallThick) + 12 + 4}px`;
+                token.style.backgroundColor = p.color.hex;
+                token.innerText = `P${idx+1}`;
+                board.appendChild(token);
+            });
+
+            board.style.width = `${6 * cellSize + 5 * wallThick + 24}px`;
+            board.style.height = `${6 * cellSize + 5 * wallThick + 24}px`;
+        }
+
+        function updateWallGoUI() {
+            const bar = document.getElementById('wallgo-status-bar');
+            const cp = wallGoState.players[wallGoState.currentPlayer];
+
+            if(wallGoState.gameOver) {
+                bar.innerHTML = `<span class="text-emerald-400 font-extrabold">${wallGoState.winnerMsg}</span>`;
+            } else {
+                bar.innerHTML = `當前回合：<span style="color:${cp.color.hex}">${cp.color.name}</span> (${cp.isAI ? '電腦 AI 思考中...' : '玩家'}) — ${wallGoState.movePhase ? '請點擊發光圓點移動 (0~2格)' : '請點擊棋子四週發光虛線槽建牆'}`;
+            }
+
+            const scores = document.getElementById('wallgo-territory-scores');
+            scores.innerHTML = wallGoState.players.map((p, idx) => {
+                const pureScore = wallGoState.pureScores[idx] || 0;
+                const maxBlock = wallGoState.maxSingleBlocks[idx] || 0;
+                return `
+                    <div class="p-2.5 rounded-lg border bg-slate-950 flex justify-between items-center" style="border-color:${p.color.hex}">
+                        <span class="text-xs font-bold" style="color:${p.color.hex}">${p.color.name} ${p.isAI ? '(AI)' : ''}</span>
+                        <span class="text-xs font-black text-white">純淨領土: <span class="text-amber-400 text-sm">${pureScore}</span> 分${maxBlock > 0 ? ` (最大 ${maxBlock})` : ''}</span>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('wallgo-result-announcement').innerText = wallGoState.winnerMsg;
+        }
+
+        function moveWallGoPlayer(r, c) {
+            if(wallGoState.gameOver) return;
+            wallGoState.players[wallGoState.currentPlayer].r = r;
+            wallGoState.players[wallGoState.currentPlayer].c = c;
+            wallGoState.movePhase = false;
+
+            renderWallGoBoard();
+            updateWallGoUI();
+        }
+
+        function placeWallGoWall(type, r, c) {
+            if(wallGoState.gameOver) return;
+            if(type === 'H') wallGoState.wallsH[r][c] = true;
+            else wallGoState.wallsV[r][c] = true;
+
+            evaluateWallGoState();
+
+            if(!wallGoState.gameOver) {
+                // Advance to next player who has at least one legal move
+                let nextIdx = wallGoState.currentPlayer;
+                for(let step = 0; step < wallGoState.playerCount; step++) {
+                    nextIdx = (nextIdx + 1) % wallGoState.playerCount;
+                    if(getWallGoValidMovesForPlayer(nextIdx).length > 0) {
+                        wallGoState.currentPlayer = nextIdx;
+                        break;
+                    }
+                }
+                wallGoState.movePhase = true;
+                wallGoState.validMoves = getWallGoValidMovesForPlayer(wallGoState.currentPlayer);
+            }
+
+            renderWallGoBoard();
+            updateWallGoUI();
+
+            const cp = wallGoState.players[wallGoState.currentPlayer];
+            if(cp.isAI && !wallGoState.gameOver) {
+                wallGoAITimer = setTimeout(runWallGoAITurn, 450);
+            }
+        }
+
+        function runWallGoAITurn() {
+            if(wallGoState.gameOver) return;
+
+            const aiIdx = wallGoState.currentPlayer;
+            const ai = wallGoState.players[aiIdx];
+            const validMoves = getWallGoValidMovesForPlayer(aiIdx);
+            if(validMoves.length === 0) {
+                evaluateWallGoState();
+                renderWallGoBoard();
+                updateWallGoUI();
+                return;
+            }
+
+            // Evaluate all legal (move, adjacentWall) pairs
+            let bestAction = null;
+            let bestScore = -1e9;
+            const origR = ai.r, origC = ai.c;
+
+            // Measure AI's current component size before acting
+            const beforeComps = getAllConnectedComponents();
+            const myBeforeComp = beforeComps.find(c => c.has(`${origR}_${origC}`));
+            const myAreaBefore = myBeforeComp ? myBeforeComp.size : 1;
+
+            validMoves.forEach(m => {
+                ai.r = m.r;
+                ai.c = m.c;
+                const openWalls = getOpenAdjacentWalls(m.r, m.c);
+
+                openWalls.forEach(w => {
+                    if(w.type === 'H') wallGoState.wallsH[w.r][w.c] = true;
+                    else wallGoState.wallsV[w.r][w.c] = true;
+
+                    const comps = getAllConnectedComponents();
+                    const myComp = comps.find(c => c.has(`${m.r}_${m.c}`));
+                    const myArea = myComp ? myComp.size : 1;
+
+                    let sharesWithEnemy = false;
+                    let minEnemyDist = 99;
+                    let totalEnemyArea = 0;
+
+                    wallGoState.players.forEach((other, idx) => {
+                        if(idx === aiIdx) return;
+                        if(myComp && myComp.has(`${other.r}_${other.c}`)) sharesWithEnemy = true;
+                        const d = Math.abs(other.r - m.r) + Math.abs(other.c - m.c);
+                        if(d < minEnemyDist) minEnemyDist = d;
+                        const oComp = comps.find(c => c.has(`${other.r}_${other.c}`));
+                        if(oComp && (!myComp || !myComp.has(`${other.r}_${other.c}`))) {
+                            totalEnemyArea += oComp.size;
+                        }
+                    });
+
+                    let score = 0;
+                    if(!sharesWithEnemy) {
+                        // AI would be isolated in a pure territory
+                        if(myArea <= 3 && myAreaBefore > 4) {
+                            score -= 800; // Strongly avoid trapping self in tiny box
+                        } else {
+                            score += myArea * 20 - totalEnemyArea * 5;
+                        }
+                    } else {
+                        // Still contesting shared region: actively move & engage
+                        if(m.r !== origR || m.c !== origC) score += 12;
+                        score += (10 - minEnemyDist) * 3;
+                        // Prefer central positions (2.5, 2.5)
+                        const centerDist = Math.abs(m.r - 2.5) + Math.abs(m.c - 2.5);
+                        score += (5 - centerDist) * 2;
+                        // Prefer keeping own open mobility
+                        score += getOpenAdjacentWalls(m.r, m.c).length * 2;
+                    }
+
+                    score += Math.random() * 2.5;
+
+                    if(score > bestScore) {
+                        bestScore = score;
+                        bestAction = { move: m, wall: w };
+                    }
+
+                    if(w.type === 'H') wallGoState.wallsH[w.r][w.c] = false;
+                    else wallGoState.wallsV[w.r][w.c] = false;
+                });
+            });
+
+            ai.r = origR;
+            ai.c = origC;
+
+            if(!bestAction) return;
+
+            // Step 1: Move AI piece visibly
+            moveWallGoPlayer(bestAction.move.r, bestAction.move.c);
+
+            // Step 2: Build AI wall after short delay
+            wallGoAITimer = setTimeout(() => {
+                if(!wallGoState.gameOver && wallGoState.currentPlayer === aiIdx) {
+                    placeWallGoWall(bestAction.wall.type, bestAction.wall.r, bestAction.wall.c);
+                }
+            }, 450);
+        }
+
+        /* =========================================================================
+           10. 規則競賽 (Rule Race) - Split Base (1 Rule) & Advance (3 Rules Combo)
+           ========================================================================= */
+        let ruleRaceState = {
+            mode: 'base', // 'base' (guess 1) or 'advance' (guess 3)
+            level: 'junior', // 'junior' or 'senior'
+            candidates: [], // 5 candidate rules
+            activeIndices: [], // [0] for base, [0,1,2] for advance
+            userSelections: [],
+            history: [],
+            pos: 1
+        };
+
+        const rulePools = {
+            junior: [
+                { id: 'r1', name: '遇到「質數」向前跳 3 格', test: (pos) => isPrime(pos) ? 3 : 0 },
+                { id: 'r2', name: '遇到「偶數」額外走 1 格', test: (pos) => pos % 2 === 0 ? 1 : 0 },
+                { id: 'r3', name: '遇到「3 的倍數」倒退 2 格', test: (pos) => pos % 3 === 0 ? -2 : 0 },
+                { id: 'r4', name: '遇到「完全平方數」倍增步數 (+4格)', test: (pos) => isSquare(pos) ? 4 : 0 },
+                { id: 'r5', name: '遇到「個位數為 5」前進 2 格', test: (pos) => pos % 10 === 5 ? 2 : 0 },
+                { id: 'r6', name: '遇到「數字和為奇數」前進 1 格', test: (pos) => digitSum(pos) % 2 === 1 ? 1 : 0 },
+                { id: 'r7', name: '遇到「5 的倍數」向前跳 3 格', test: (pos) => pos % 5 === 0 ? 3 : 0 },
+                { id: 'r8', name: '遇到「6 的倍數」倒退 1 格', test: (pos) => pos % 6 === 0 ? -1 : 0 }
+            ],
+            senior: [
+                { id: 'sr1', name: '餘數同餘 x ≡ 2 (mod 4) 前進 3 格', test: (pos) => pos % 4 === 2 ? 3 : 0 },
+                { id: 'sr2', name: '複合條件 (X > 20 且 為奇數) 倒退 2 格', test: (pos) => (pos > 20 && pos % 2 === 1) ? -2 : 0 },
+                { id: 'sr3', name: '雙重質因數特徵 (能被 2 與 3 整除) 前進 2 格', test: (pos) => (pos % 6 === 0) ? 2 : 0 },
+                { id: 'sr4', name: '區間交集 (15 ≤ X ≤ 35) 前進 1 格', test: (pos) => (pos >= 15 && pos <= 35) ? 1 : 0 },
+                { id: 'sr5', name: '非質數且非偶數 (奇合數) 倒退 3 格', test: (pos) => (!isPrime(pos) && pos % 2 !== 0) ? -3 : 0 }
+            ]
+        };
+
+        function isPrime(n) {
+            if(n <= 1) return false;
+            for(let i=2; i*i<=n; i++) if(n % i === 0) return false;
+            return true;
+        }
+        function isSquare(n) { return Math.sqrt(n) % 1 === 0; }
+        function digitSum(n) { return String(n).split('').reduce((a,b)=>a+parseInt(b), 0); }
+
+        function initRuleRaceGame(stage) {
+            stage.innerHTML = `
+                <div class="flex flex-col h-full gap-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-slate-800 pb-3 gap-2">
+                        <div>
+                            <h2 class="text-lg font-bold text-amber-400 flex items-center gap-2">
+                                <i class="fa-solid fa-route"></i> 規則競賽 (歸納法與隱藏黑盒驗證)
+                            </h2>
+                            <p class="text-xs text-slate-400">執行實驗測試步數，推理 5 條候選規則中究竟是哪條 (Base) 或哪 3 條 (Advance) 在生效。</p>
+                        </div>
+                        <button onclick="generateRuleRacePuzzle()" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 border border-amber-500/40 rounded-lg text-xs font-bold transition">
+                            <i class="fa-solid fa-arrows-rotate mr-1"></i> 隨機換題 (更新規則池)
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow">
+                        <!-- Mode & Level Toggles -->
+                        <div class="lg:col-span-12 flex flex-wrap gap-3 items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400 font-bold">推理難度 Mode:</span>
+                                <button onclick="setRuleRaceMode('base')" id="rulerace-base-btn" class="px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950">Base 版 (猜 1 條規則)</button>
+                                <button onclick="setRuleRaceMode('advance')" id="rulerace-adv-btn" class="px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white">Advance 版 (猜 3 條複合規則)</button>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-400 font-bold">學程 Level:</span>
+                                <button onclick="setRuleRaceLevel('junior')" id="rulerace-jr-btn" class="px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950">國中數論</button>
+                                <button onclick="setRuleRaceLevel('senior')" id="rulerace-sr-btn" class="px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white">高中複合邏輯</button>
+                            </div>
+                        </div>
+
+                        <!-- Left: Candidates & Selection -->
+                        <div class="lg:col-span-6 flex flex-col gap-4 bg-slate-950/70 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div>
+                                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2 mb-3">
+                                    <i class="fa-solid fa-filter text-amber-400 mr-1"></i> 本次 5 條候選規則 (請勾選猜測)
+                                </h3>
+                                <div id="rulerace-candidates-list" class="flex flex-col gap-2"></div>
+                            </div>
+
+                            <div class="flex flex-col gap-2">
+                                <button onclick="verifyRuleRaceGuess()" class="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-sm rounded-lg shadow transition">
+                                    提交驗證隱藏規則
+                                </button>
+                                <div id="rulerace-feedback" class="text-xs text-center min-h-[18px] font-bold"></div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Experiment Testing -->
+                        <div class="lg:col-span-6 flex flex-col gap-3 bg-slate-900/50 p-4 rounded-xl border border-slate-800 justify-between">
+                            <div>
+                                <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider border-b border-slate-800 pb-2 mb-3">
+                                    <i class="fa-solid fa-flask text-amber-400 mr-1"></i> 黑盒實驗測試區
+                                </h3>
+                                <div class="flex items-center gap-2 mb-3">
+                                    <span class="text-xs text-slate-400">目前棋子位在：<strong id="rulerace-curr-pos" class="text-amber-400 text-sm">1</strong> 格</span>
+                                    <select id="rulerace-step-select" class="bg-slate-950 border border-slate-700 text-amber-400 font-bold rounded p-1 text-xs">
+                                        <option value="1">擲出 1 步</option><option value="2">擲出 2 步</option><option value="3">擲出 3 步</option><option value="4">擲出 4 步</option>
+                                    </select>
+                                    <button onclick="runRuleRaceStep()" class="px-3 py-1 bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-bold rounded shadow">
+                                        執行測試向前走
+                                    </button>
+                                </div>
+
+                                <div class="text-xs text-slate-400 font-bold mb-1">實驗觀察日誌 (不洩漏規則名稱)：</div>
+                                <div id="rulerace-history-box" class="p-3 bg-slate-950 rounded-lg border border-slate-800 text-xs text-slate-400 font-mono flex flex-col gap-1 max-h-48 overflow-y-auto"></div>
+                            </div>
+
+                            <button onclick="resetRuleRacePosition()" class="w-full py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded">
+                                重置棋子回第 1 格
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            generateRuleRacePuzzle();
+        }
+
+        function setRuleRaceMode(m) {
+            ruleRaceState.mode = m;
+            document.getElementById('rulerace-base-btn').className = m==='base' ? "px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950" : "px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white";
+            document.getElementById('rulerace-adv-btn').className = m==='advance' ? "px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950" : "px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white";
+            generateRuleRacePuzzle();
+        }
+
+        function setRuleRaceLevel(lvl) {
+            ruleRaceState.level = lvl;
+            document.getElementById('rulerace-jr-btn').className = lvl==='junior' ? "px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950" : "px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white";
+            document.getElementById('rulerace-sr-btn').className = lvl==='senior' ? "px-3 py-1 text-xs rounded-lg font-bold bg-amber-500 text-slate-950" : "px-3 py-1 text-xs rounded-lg font-bold bg-slate-800 text-slate-400 hover:text-white";
+            generateRuleRacePuzzle();
+        }
+
+        function generateRuleRacePuzzle() {
+            const pool = rulePools[ruleRaceState.level];
+            const shuffled = [...pool].sort(() => Math.random() - 0.5);
+
+            ruleRaceState.candidates = shuffled.slice(0, 5);
+            ruleRaceState.userSelections = [];
+            ruleRaceState.history = [];
+            ruleRaceState.pos = 1;
+
+            if(ruleRaceState.mode === 'base') {
+                ruleRaceState.activeIndices = [Math.floor(Math.random() * 5)];
+            } else {
+                let idxs = [0, 1, 2, 3, 4].sort(() => Math.random() - 0.5);
+                ruleRaceState.activeIndices = idxs.slice(0, 3);
+            }
+
+            renderRuleRaceCandidates();
+            updateRuleRacePosUI();
+            document.getElementById('rulerace-feedback').innerHTML = '';
+            document.getElementById('rulerace-history-box').innerHTML = '<div class="text-slate-600">尚無實驗記錄</div>';
+        }
+
+        function renderRuleRaceCandidates() {
+            const list = document.getElementById('rulerace-candidates-list');
+            list.innerHTML = ruleRaceState.candidates.map((c, i) => {
+                const isSelected = ruleRaceState.userSelections.includes(i);
+                return `
+                    <div onclick="toggleRuleRaceSelection(${i})" class="p-3 rounded-lg border cursor-pointer transition flex items-center justify-between ${
+                        isSelected 
+                        ? 'bg-amber-500/20 border-amber-400 text-amber-300 font-bold' 
+                        : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700'
+                    }">
+                        <span class="text-xs font-mono">規則 ${i+1}: ${c.name}</span>
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} class="w-4 h-4 accent-amber-500">
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleRuleRaceSelection(idx) {
+            if(ruleRaceState.userSelections.includes(idx)) {
+                ruleRaceState.userSelections = ruleRaceState.userSelections.filter(i => i !== idx);
+            } else {
+                if(ruleRaceState.mode === 'base') {
+                    ruleRaceState.userSelections = [idx]; // Single selection for base
+                } else {
+                    if(ruleRaceState.userSelections.length < 3) {
+                        ruleRaceState.userSelections.push(idx);
+                    }
+                }
+            }
+            renderRuleRaceCandidates();
+        }
+
+        function updateRuleRacePosUI() {
+            document.getElementById('rulerace-curr-pos').innerText = ruleRaceState.pos;
+        }
+
+        function resetRuleRacePosition() {
+            ruleRaceState.pos = 1;
+            updateRuleRacePosUI();
+        }
+
+        function runRuleRaceStep() {
+            const step = parseInt(document.getElementById('rulerace-step-select').value);
+            const startPos = ruleRaceState.pos;
+            let nextPos = startPos + step;
+
+            // Check if active rules trigger on nextPos
+            let extraDelta = 0;
+            ruleRaceState.activeIndices.forEach(idx => {
+                const rule = ruleRaceState.candidates[idx];
+                extraDelta += rule.test(nextPos);
+            });
+
+            const finalPos = Math.max(1, Math.min(50, nextPos + extraDelta));
+            const triggered = extraDelta !== 0;
+
+            ruleRaceState.pos = finalPos;
+            updateRuleRacePosUI();
+
+            const log = `[測試] 起點:${startPos} -> 移動:${step}步 -> 格:${nextPos} -> ${triggered ? '⚡觸發未知異變 ('+(extraDelta>0?'+':'')+extraDelta+'格)' : '無異變'} -> 停點:${finalPos}`;
+            ruleRaceState.history.push(log);
+
+            const box = document.getElementById('rulerace-history-box');
+            box.innerHTML = ruleRaceState.history.map(h => `<div>${h}</div>`).join('');
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function verifyRuleRaceGuess() {
+            const reqCount = ruleRaceState.mode === 'base' ? 1 : 3;
+            if(ruleRaceState.userSelections.length !== reqCount) {
+                alert(`請正好勾選 ${reqCount} 條規則進行驗證！`);
+                return;
+            }
+
+            let correct = true;
+            if(ruleRaceState.mode === 'base') {
+                correct = ruleRaceState.userSelections[0] === ruleRaceState.activeIndices[0];
+            } else {
+                correct = ruleRaceState.userSelections.sort().join(',') === ruleRaceState.activeIndices.sort().join(',');
+            }
+
+            const fb = document.getElementById('rulerace-feedback');
+            if(correct) {
+                fb.className = "text-xs text-center font-bold text-emerald-400";
+                fb.innerHTML = `🎉 完全正確！你成功透過黑盒實驗歸納出隱藏生效規則！`;
+            } else {
+                fb.className = "text-xs text-center font-bold text-rose-400";
+                fb.innerHTML = `❌ 推理不符合實測。請再多幾組起點與步數進行測試觀察！`;
+            }
+        }
+    </script>
+</body>
+</html>
