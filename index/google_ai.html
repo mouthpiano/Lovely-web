@@ -1,0 +1,2032 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google AI 認證講師專屬教學平台</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts: Inter & Noto Sans TC -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- html2pdf.js for Client-side PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        /* Gemini-inspired subtle gradient */
+        .gemini-gradient {
+            background: linear-gradient(135deg, #2563eb 0%, #6366f1 50%, #9333ea 100%);
+        }
+        .gemini-text-gradient {
+            background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        /* Smooth fade-in animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.25s ease-out forwards;
+        }
+        /* Transparency checkerboard for background removal preview */
+        .checkerboard-bg {
+            background-image: conic-gradient(#e2e8f0 90deg, #ffffff 90deg 180deg, #e2e8f0 180deg 270deg, #ffffff 270deg);
+            background-size: 12px 12px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
+            <!-- Left: Instructor IP Photo & Platform Brand -->
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.switchTab('profile')">
+                <div class="relative">
+                    <div id="header-avatar-box" class="w-12 h-12 rounded-full border-2 border-indigo-500 shadow-sm bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden flex items-center justify-center p-0.5">
+                        <img id="header-avatar" src="" alt="講師個人 IP 照片" class="hidden w-full h-full object-contain">
+                        <div id="header-avatar-svg" class="w-full h-full flex items-center justify-center"></div>
+                    </div>
+                    <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" title="即時同步中"></span>
+                </div>
+                <div>
+                    <h1 id="header-name" class="text-base sm:text-lg font-bold text-slate-800 leading-tight">Google AI 認證講師</h1>
+                    <p id="header-subtitle" class="text-xs text-slate-500 font-medium">教學應用分享平台</p>
+                </div>
+            </div>
+
+            <!-- Right: Role Mode Toggle -->
+            <div class="flex items-center gap-2">
+                <span id="role-badge" class="hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                    <i class="fa-solid fa-user-graduate"></i> 學員介面
+                </span>
+                <button id="role-toggle-btn" onclick="window.handleRoleToggle()" 
+                        class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700">
+                    <i class="fa-solid fa-chalkboard-user"></i>
+                    <span>切換講師介面</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 flex gap-1 sm:gap-2 overflow-x-auto border-t border-slate-100">
+            <button id="tab-btn-resources" onclick="window.switchTab('resources')" 
+                    class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-indigo-600 text-indigo-600 whitespace-nowrap flex items-center gap-2 transition-colors">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> 研習講義與同步資源
+            </button>
+            <button id="tab-btn-feedback" onclick="window.switchTab('feedback')" 
+                    class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap flex items-center gap-2 transition-colors">
+                <i class="fa-solid fa-comments"></i> 研習心得與講師省思
+            </button>
+            <button id="tab-btn-profile" onclick="window.switchTab('profile')" 
+                    class="tab-btn px-4 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap flex items-center gap-2 transition-colors">
+                <i class="fa-solid fa-id-card"></i> 講師基本資料
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+
+        <!-- Loading Indicator -->
+        <div id="global-loading" class="flex flex-col items-center justify-center py-20 text-slate-500">
+            <i class="fa-solid fa-circle-notch fa-spin text-3xl text-indigo-600 mb-3"></i>
+            <p class="text-sm font-medium">正在連線至雲端即時同步平台...</p>
+        </div>
+
+        <!-- ==================== TAB 1: RESOURCES (研習講義與同步資源) ==================== -->
+        <section id="section-resources" class="hidden animate-fade-in space-y-6">
+            <!-- Top Action Banner -->
+            <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-700">即時同步</span>
+                        <h2 class="text-xl font-bold text-slate-800">本場研習資源與提示詞庫</h2>
+                    </div>
+                    <p class="text-sm text-slate-500">講師張貼的提示詞、教學網址與電子檔皆會即時同步於此，歡迎隨時複製或打包下載。</p>
+                </div>
+
+                <!-- Export & Instructor Add Controls -->
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button onclick="window.exportPrompts('word')" 
+                            class="px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-sm transition-colors flex items-center gap-2 border border-blue-200">
+                        <i class="fa-solid fa-file-word text-base"></i> 一鍵下載 Word
+                    </button>
+                    <button onclick="window.exportPrompts('pdf')" 
+                            class="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-sm transition-colors flex items-center gap-2 border border-rose-200">
+                        <i class="fa-solid fa-file-pdf text-base"></i> 一鍵下載 PDF
+                    </button>
+                    <button id="btn-add-resource" onclick="window.openResourceModal()" 
+                            class="hidden px-4 py-2.5 rounded-xl gemini-gradient hover:opacity-95 text-white font-semibold text-sm shadow-md transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-plus"></i> 新增資源欄位
+                    </button>
+                </div>
+            </div>
+
+            <!-- Instructor Mode Notice -->
+            <div id="instructor-resource-hint" class="hidden bg-amber-50 border border-amber-200 rounded-xl p-3.5 text-sm text-amber-800 flex items-center gap-2.5">
+                <i class="fa-solid fa-eye-slash text-amber-600"></i>
+                <span>您目前位於<strong>講師介面</strong>：您可以隨時新增、編輯、刪除資料，或點擊「隱藏/顯示」控制學員端是否可見（灰色虛線卡片代表目前對學員隱藏）。</span>
+            </div>
+
+            <!-- Resources List Container -->
+            <div id="resources-list" class="space-y-5">
+                <!-- Dynamically populated -->
+            </div>
+        </section>
+
+        <!-- ==================== TAB 2: FEEDBACK & REFLECTIONS (研習心得與講師省思) ==================== -->
+        <section id="section-feedback" class="hidden animate-fade-in space-y-6">
+            <!-- Header & Year/Month Filter Bar -->
+            <div class="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200 shadow-sm space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">研習學員心得回饋與講師省思</h2>
+                        <p class="text-sm text-slate-500">紀錄每場校園分享的學員寶貴回饋與教學省思，系統將自動依年度與月份歸類整理。</p>
+                    </div>
+                    <button id="btn-add-session" onclick="window.openSessionModal()" 
+                            class="hidden px-4 py-2.5 rounded-xl gemini-gradient hover:opacity-95 text-white font-semibold text-sm shadow-md transition-all flex items-center gap-2 self-start md:self-auto">
+                        <i class="fa-solid fa-calendar-plus"></i> 建立新研習場次
+                    </button>
+                </div>
+
+                <!-- Auto-Categorized Year & Month Filters -->
+                <div class="pt-3 border-t border-slate-100 flex flex-wrap items-center gap-3">
+                    <div class="flex items-center gap-2 text-sm font-semibold text-slate-600">
+                        <i class="fa-solid fa-filter text-indigo-500"></i> 依年月篩選：
+                    </div>
+                    <select id="filter-year" onchange="window.onYearFilterChange()" 
+                            class="px-3 py-1.5 rounded-xl border border-slate-300 text-sm font-medium bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">全部年度</option>
+                    </select>
+                    <select id="filter-month" onchange="window.renderSessions()" 
+                            class="px-3 py-1.5 rounded-xl border border-slate-300 text-sm font-medium bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="all">全部月份</option>
+                    </select>
+                    <span id="session-count-badge" class="ml-auto text-xs font-semibold text-slate-500 bg-slate-100 px-3 py-1 rounded-full">
+                        共 0 場研習
+                    </span>
+                </div>
+            </div>
+
+            <!-- Sessions & Feedback List Container -->
+            <div id="sessions-list" class="space-y-6">
+                <!-- Dynamically populated -->
+            </div>
+        </section>
+
+        <!-- ==================== TAB 3: INSTRUCTOR PROFILE (講師基本資料) ==================== -->
+        <section id="section-profile" class="hidden animate-fade-in space-y-6">
+            <!-- Profile Hero Card -->
+            <div class="bg-white rounded-3xl overflow-hidden border border-slate-200 shadow-sm">
+                <div class="h-32 sm:h-40 gemini-gradient relative">
+                    <button id="btn-edit-profile" onclick="window.openProfileModal()" 
+                            class="hidden absolute top-4 right-4 px-4 py-2 rounded-xl bg-white/95 hover:bg-white text-indigo-700 font-semibold text-sm shadow-md transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square"></i> 編輯講師資料與 IP 照片
+                    </button>
+                </div>
+                <div class="px-6 sm:px-8 pb-8">
+                    <div class="flex flex-col sm:flex-row sm:items-end gap-5 -mt-14 sm:-mt-16 mb-5">
+                        <div id="profile-avatar-box" class="w-28 h-28 sm:w-36 sm:h-36 rounded-2xl border-4 border-white shadow-lg bg-gradient-to-br from-indigo-50 via-white to-purple-50 overflow-hidden flex items-center justify-center p-1.5 shrink-0">
+                            <img id="profile-avatar" src="" alt="講師個人 IP 照片" class="hidden w-full h-full object-contain">
+                            <div id="profile-avatar-svg" class="w-full h-full flex items-center justify-center"></div>
+                        </div>
+                        <div class="pb-1">
+                            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-2">
+                                <i class="fa-brands fa-google"></i> <span id="profile-title-badge">Google AI 認證講師</span>
+                            </div>
+                            <h2 id="profile-name" class="text-2xl sm:text-3xl font-bold text-slate-900">陳老師 (AI 教學領航員)</h2>
+                        </div>
+                    </div>
+                    <!-- Super Simple Self-Introduction -->
+                    <div class="bg-slate-50 rounded-2xl p-5 border border-slate-100">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">超簡單自我介紹</h3>
+                        <p id="profile-intro" class="text-slate-700 leading-relaxed whitespace-pre-wrap text-sm sm:text-base"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Certificates & Experience Two-Column Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Certificates Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-award text-amber-500"></i> 專業認證與證書
+                        </h3>
+                        <button id="btn-add-cert" onclick="window.openCertModal()" 
+                                class="hidden px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition-colors">
+                            <i class="fa-solid fa-plus"></i> 新增證書
+                        </button>
+                    </div>
+                    <div id="profile-certs-list" class="space-y-3">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Experience Card -->
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-briefcase text-blue-600"></i> 教學與演講經歷
+                        </h3>
+                        <button id="btn-add-exp" onclick="window.openExpModal()" 
+                                class="hidden px-3 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition-colors">
+                            <i class="fa-solid fa-plus"></i> 新增經歷
+                        </button>
+                    </div>
+                    <div id="profile-exps-list" class="space-y-4">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-5 mt-12">
+        <div class="max-w-6xl mx-auto px-4 text-center text-xs text-slate-400">
+            <p>Google AI 認證講師專屬教學平台 • Gemini & NotebookLM 校園推廣即時同步系統</p>
+        </div>
+    </footer>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- 1. Instructor Login Modal -->
+    <div id="modal-login" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-lock text-indigo-600"></i> 進入講師介面
+                </h3>
+                <button onclick="window.closeModal('modal-login')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p class="text-sm text-slate-500 mb-4">請輸入講師專屬密碼以開啟編輯與管理權限。<br><span class="text-xs text-indigo-600 font-medium">（預設密碼為 8888，進入後可在個人資料修改）</span></p>
+            <input id="input-pin" type="password" placeholder="請輸入密碼" 
+                   onkeydown="if(event.key==='Enter') window.verifyInstructorPin()"
+                   class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-4 text-center text-lg tracking-widest">
+            <div class="flex justify-end gap-2">
+                <button onclick="window.closeModal('modal-login')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+                <button onclick="window.verifyInstructorPin()" class="px-5 py-2 rounded-xl text-sm font-semibold text-white gemini-gradient shadow-sm">確認登入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Add / Edit Resource Modal -->
+    <div id="modal-resource" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl animate-fade-in my-8">
+            <div class="flex items-center justify-between mb-5 border-b border-slate-100 pb-3">
+                <h3 id="modal-resource-title" class="text-lg font-bold text-slate-800">新增研習資源欄位</h3>
+                <button onclick="window.closeModal('modal-resource')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="form-resource" onsubmit="window.saveResource(event)" class="space-y-4">
+                <input type="hidden" id="res-id">
+                
+                <!-- Title -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">資料名稱欄位 <span class="text-rose-500">*</span></label>
+                    <input id="res-title" type="text" required placeholder="例如：【固定講義】Gemini 備課核心提示詞"
+                           class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <!-- Prompt Area -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">
+                        <i class="fa-solid fa-terminal text-indigo-500 mr-1"></i> 提示詞區塊 (選填)
+                    </label>
+                    <textarea id="res-prompt" rows="4" placeholder="請貼上要讓學員複製與下載的提示詞內容..."
+                              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"></textarea>
+                </div>
+
+                <!-- URL Area -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <div class="sm:col-span-1">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">網址顯示名稱 (選填)</label>
+                        <input id="res-url-label" type="text" placeholder="例如：NotebookLM 官網"
+                               class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">
+                            <i class="fa-solid fa-link text-blue-500 mr-1"></i> 網址連結 (選填)
+                        </label>
+                        <input id="res-url" type="url" placeholder="https://notebooklm.google.com/"
+                               class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <!-- File Upload Area -->
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2">
+                    <label class="block text-xs font-semibold text-slate-600">
+                        <i class="fa-solid fa-file-arrow-up text-emerald-600 mr-1"></i> 上傳電子檔 (選填，單檔建議 700KB 以內，大檔案建議改貼雲端網址)
+                    </label>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <input id="res-file-input" type="file" onchange="window.handleResourceFileChange(event)"
+                               class="text-xs text-slate-600 file:mr-3 file:py-2 file:px-3.5 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer">
+                        <button type="button" id="btn-clear-file" onclick="window.clearResourceFile()" class="hidden text-xs text-rose-600 hover:underline font-medium">
+                            <i class="fa-solid fa-trash-can"></i> 移除目前檔案
+                        </button>
+                    </div>
+                    <p id="res-file-status" class="text-xs text-slate-500"></p>
+                </div>
+
+                <!-- Visibility Toggle -->
+                <div class="flex items-center gap-2 pt-1">
+                    <input id="res-visible" type="checkbox" checked class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                    <label for="res-visible" class="text-sm font-medium text-slate-700">立即呈現於學員介面</label>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="window.closeModal('modal-resource')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold text-white gemini-gradient shadow-sm">儲存並同步</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. Add / Edit Workshop Session Modal -->
+    <div id="modal-session" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-fade-in my-8">
+            <div class="flex items-center justify-between mb-5 border-b border-slate-100 pb-3">
+                <h3 id="modal-session-title" class="text-lg font-bold text-slate-800">建立研習場次</h3>
+                <button onclick="window.closeModal('modal-session')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="form-session" onsubmit="window.saveSession(event)" class="space-y-4">
+                <input type="hidden" id="sess-id">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">研習日期 <span class="text-rose-500">*</span></label>
+                        <input id="sess-date" type="date" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">研習時間 <span class="text-rose-500">*</span></label>
+                        <input id="sess-time" type="text" required placeholder="例如：13:30-16:30" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">研習地點 / 學校 <span class="text-rose-500">*</span></label>
+                    <input id="sess-location" type="text" required placeholder="例如：臺南市○○國民中學" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">研習領域 / 主題 <span class="text-rose-500">*</span></label>
+                        <input id="sess-domain" type="text" required placeholder="例如：自然領域 / 全校教師" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-slate-700 mb-1">參與人數 <span class="text-rose-500">*</span></label>
+                        <input id="sess-count" type="number" min="1" required placeholder="例如：45" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">講師本次研習省思 (選填)</label>
+                    <textarea id="sess-reflection" rows="3" placeholder="記錄本次分享的亮點、學員反應或下次可優化之處..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div class="flex flex-col gap-2 pt-1">
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input id="sess-visible" type="checkbox" checked class="w-4 h-4 text-indigo-600 rounded">
+                        在學員介面顯示此研習場次（開放學員填寫心得）
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-slate-700">
+                        <input id="sess-reflection-visible" type="checkbox" checked class="w-4 h-4 text-indigo-600 rounded">
+                        公開「講師省思」讓學員閱讀（取消勾選則僅講師可見）
+                    </label>
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="window.closeModal('modal-session')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold text-white gemini-gradient shadow-sm">儲存場次</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 4. Participant Submit Feedback Modal -->
+    <div id="modal-feedback" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-pen-nib text-indigo-600"></i> 填寫研習心得回饋
+                </h3>
+                <button onclick="window.closeModal('modal-feedback')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <p id="fb-session-label" class="text-xs font-semibold text-indigo-700 bg-indigo-50 px-3 py-2 rounded-xl mb-4"></p>
+            <form id="form-feedback" onsubmit="window.saveFeedback(event)" class="space-y-4">
+                <input type="hidden" id="fb-session-id">
+                
+                <!-- Named vs Anonymous Toggle -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2">署名方式</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-700 text-sm font-medium">
+                            <input type="radio" name="fb-anon" value="false" checked onchange="window.toggleAuthorInput(false)" class="hidden">
+                            <i class="fa-solid fa-user"></i> 記名分享
+                        </label>
+                        <label class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-indigo-500 has-[:checked]:bg-indigo-50 has-[:checked]:text-indigo-700 text-sm font-medium">
+                            <input type="radio" name="fb-anon" value="true" onchange="window.toggleAuthorInput(true)" class="hidden">
+                            <i class="fa-solid fa-user-secret"></i> 不記名（匿名）
+                        </label>
+                    </div>
+                </div>
+
+                <div id="fb-author-container">
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">您的姓名或稱呼</label>
+                    <input id="fb-author" type="text" placeholder="例如：林老師" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+
+                <!-- Rating -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">本次研習收穫滿意度</label>
+                    <select id="fb-rating" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="5">⭐⭐⭐⭐⭐ (5分 - 收穫滿滿，非常實用！)</option>
+                        <option value="4">⭐⭐⭐⭐ (4分 - 很棒的分享)</option>
+                        <option value="3">⭐⭐⭐ (3分 - 普通)</option>
+                        <option value="2">⭐⭐ (2分 - 尚可)</option>
+                        <option value="1">⭐ (1分 - 有待加強)</option>
+                    </select>
+                </div>
+
+                <!-- Content -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">研習心得與建議 <span class="text-rose-500">*</span></label>
+                    <textarea id="fb-content" rows="4" required placeholder="歡迎寫下您今天最喜歡的 Gemini / NotebookLM 應用，或任何給講師的回饋..."
+                              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="window.closeModal('modal-feedback')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold text-white gemini-gradient shadow-sm">送出心得</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 5. Edit Instructor Profile Modal -->
+    <div id="modal-profile" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl animate-fade-in my-8">
+            <div class="flex items-center justify-between mb-4 border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-bold text-slate-800">編輯講師基本資料與 IP 照片</h3>
+                <button onclick="window.closeModal('modal-profile')" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <form id="form-profile" onsubmit="window.saveProfile(event)" class="space-y-4">
+                <!-- IP Photo Upload with Built-in Auto Background Removal -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+                    <div class="flex items-center gap-4">
+                        <div class="w-20 h-20 rounded-2xl border-2 border-indigo-400 checkerboard-bg overflow-hidden flex items-center justify-center p-1 shrink-0">
+                            <img id="edit-avatar-preview" src="" alt="IP 預覽" class="hidden w-full h-full object-contain">
+                            <div id="edit-avatar-svg" class="w-full h-full flex items-center justify-center"></div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <label class="block text-xs font-bold text-slate-700 mb-1">上傳個人 IP 照片（例如：講師心.png）</label>
+                            <input id="edit-avatar-file" type="file" accept="image/*" onchange="window.handleAvatarUpload(event)"
+                                   class="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer">
+                            <p class="text-[11px] text-slate-500 mt-1">支援自動去除白底／紙質背景，並保留透明圖層同步至標頭。</p>
+                        </div>
+                    </div>
+                    <!-- Auto Remove Background Controls -->
+                    <div class="pt-2 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <label class="flex items-center gap-2 text-xs font-semibold text-indigo-700 cursor-pointer">
+                            <input id="edit-avatar-remove-bg" type="checkbox" checked onchange="window.reprocessAvatarPreview()" class="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500">
+                            <span>啟用自動智慧去背（保留白襯衫與細節）</span>
+                        </label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] text-slate-500 whitespace-nowrap">去背強度</span>
+                            <input id="edit-avatar-tolerance" type="range" min="18" max="85" value="46" oninput="window.reprocessAvatarPreview()" class="w-24 accent-indigo-600">
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">講師姓名 / 品牌名稱</label>
+                    <input id="edit-prof-name" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">認證頭銜</label>
+                    <input id="edit-prof-title" type="text" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">超簡單自我介紹</label>
+                    <textarea id="edit-prof-intro" rows="3" required class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">講師介面登入密碼 (PIN)</label>
+                    <input id="edit-prof-pin" type="text" required placeholder="預設 8888" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="window.closeModal('modal-profile')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold text-white gemini-gradient shadow-sm">儲存設定</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. Add Certificate Modal -->
+    <div id="modal-cert" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-800">新增專業證書</h3>
+                <button onclick="window.closeModal('modal-cert')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="window.addCertificate(event)" class="space-y-3.5">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">證書名稱 *</label>
+                    <input id="cert-name" type="text" required placeholder="例如：Google Certified Trainer" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">發證單位 *</label>
+                    <input id="cert-issuer" type="text" required placeholder="例如：Google for Education" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">取得年份</label>
+                    <input id="cert-year" type="text" placeholder="例如：2025" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="window.closeModal('modal-cert')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold text-white gemini-gradient">新增</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 7. Add Experience Modal -->
+    <div id="modal-exp" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl animate-fade-in">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold text-slate-800">新增教學與演講經歷</h3>
+                <button onclick="window.closeModal('modal-exp')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="window.addExperience(event)" class="space-y-3.5">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">職稱 / 講師角色 *</label>
+                    <input id="exp-role" type="text" required placeholder="例如：AI 融入教學特聘講師" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">學校 / 機構名稱 *</label>
+                    <input id="exp-org" type="text" required placeholder="例如：全國各級國中小教師研習" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-1">期間</label>
+                    <input id="exp-period" type="text" placeholder="例如：2024 - 至今" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-sm">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="window.closeModal('modal-exp')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+                    <button type="submit" class="px-5 py-2 rounded-xl text-sm font-semibold text-white gemini-gradient">新增</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 8. Custom Confirmation Modal (Replaces window.confirm) -->
+    <div id="modal-confirm" class="fixed inset-0 z-50 hidden bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl animate-fade-in">
+            <h3 class="text-lg font-bold text-slate-800 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-triangle-exclamation text-amber-500"></i> 確認操作
+            </h3>
+            <p id="confirm-message" class="text-sm text-slate-600 mb-5"></p>
+            <div class="flex justify-end gap-2">
+                <button onclick="window.closeModal('modal-confirm')" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100">取消</button>
+                <button id="confirm-ok-btn" class="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-rose-600 hover:bg-rose-700">確定刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 9. Certificate Detail Preview Modal -->
+    <div id="modal-cert-preview" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onclick="if(event.target===this) window.closeModal('modal-cert-preview')">
+        <div class="bg-white rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl animate-fade-in my-6 border border-slate-200">
+            <div id="cert-preview-body"></div>
+            <div class="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onclick="window.closeModal('modal-cert-preview')" class="px-5 py-2 rounded-xl text-sm font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition-colors">
+                    關閉預覽
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-medium flex items-center gap-2.5 transition-all">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-msg">操作成功</span>
+    </div>
+
+    <!-- ==================== FIREBASE & APP LOGIC ==================== -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Environment Config
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'google-ai-instructor-platform';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        let app, auth, db;
+        let currentUser = null;
+
+        // App State
+        const DEFAULT_CERTIFICATES = [
+            {
+                id: 'cert_gce_l2',
+                name: 'Google Certified Educator Level 2',
+                issuer: 'Google for Education',
+                year: '2026/02/20（效期至 2029/02/20）',
+                recipient: 'Yu Hsin Huang（黃鈺心）',
+                issuedDate: '02/20/2026',
+                validThrough: '02/20/2029',
+                desc: '展示導入與應用 Google for Education 工具所需的進階知識、技能與能力。',
+                theme: 'gce2'
+            },
+            {
+                id: 'cert_gce_l1',
+                name: 'Google Certified Educator Level 1',
+                issuer: 'Google for Education',
+                year: '2026/01/24（效期至 2029/01/24）',
+                recipient: 'Yu Hsin Huang（黃鈺心）',
+                issuedDate: '01/24/2026',
+                validThrough: '01/24/2029',
+                desc: '展示使用 Google for Education 工具所需的知識、技能與基礎能力。',
+                theme: 'gce1'
+            },
+            {
+                id: 'cert_gemini_edu',
+                name: 'Gemini AI 教育家',
+                issuer: 'Google for Education',
+                year: '2026/01/12',
+                recipient: '黃鈺心',
+                issuedDate: '2026年1月12日',
+                validThrough: '',
+                desc: '展示整合與應用 Gemini AI 工具於教育現場所需的知識、技能和態度。',
+                theme: 'gemini'
+            }
+        ];
+
+        const state = {
+            isInstructor: false,
+            activeTab: 'resources',
+            resources: [],
+            sessions: [],
+            feedbacks: [],
+            profile: {
+                name: '黃鈺心 老師',
+                title: 'Google AI 認證講師 / 教育科技推廣者',
+                intro: '專注於將 Gemini、NotebookLM 與生成式 AI 融入各領域課堂教學，協助老師減輕備課負擔、激發學生自主學習潛能！歡迎一起探索 AI 教育的無限可能。',
+                avatarUrl: '',
+                pin: '8888',
+                certificates: [...DEFAULT_CERTIFICATES],
+                experiences: [
+                    { id: 'e1', role: 'Gemini & NotebookLM 校園研習講師', org: '全國各縣市國中小、高中職教師研習（累計超過 50 場）', period: '2024 - 至今' },
+                    { id: 'e2', role: '數位學習與 AI 備課工作坊帶領人', org: '各領域輔導團與社群', period: '2023 - 至今' }
+                ]
+            },
+            tempResourceFile: null, // { name, data, type, size }
+            tempAvatarData: null,
+            rawAvatarImageObj: null
+        };
+
+        // Default transparent-background chibi instructor IP SVG (matches ponytail, glasses, grey suit, laptop)
+        const DEFAULT_IP_SVG = `
+            <svg viewBox="0 0 180 200" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
+                <!-- Ponytail -->
+                <path d="M122 44 C150 38, 160 72, 146 100 C138 112, 122 106, 124 90 C128 74, 128 58, 118 52 Z" fill="#6b5e55" stroke="#3f3630" stroke-width="3.5" stroke-linejoin="round"/>
+                <!-- Legs & Shoes -->
+                <path d="M76 156 L73 182" stroke="#f7d5be" stroke-width="11" stroke-linecap="round"/>
+                <path d="M106 156 L110 182" stroke="#f7d5be" stroke-width="11" stroke-linecap="round"/>
+                <ellipse cx="70" cy="186" rx="10" ry="5.5" fill="#52525b" stroke="#3f3630" stroke-width="2.5"/>
+                <ellipse cx="112" cy="186" rx="10" ry="5.5" fill="#52525b" stroke="#3f3630" stroke-width="2.5"/>
+                <!-- Dark Grey Skirt -->
+                <path d="M68 128 L114 128 L118 160 C102 164, 80 164, 65 160 Z" fill="#52555c" stroke="#3f3630" stroke-width="3.2" stroke-linejoin="round"/>
+                <!-- Pointing Right Arm -->
+                <path d="M114 102 L138 106 L146 98" fill="none" stroke="#8c9099" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M142 98 C147 93, 159 94, 160 97 C160 100, 151 102, 148 104 C146 108, 139 107, 138 103 Z" fill="#fce1cf" stroke="#3f3630" stroke-width="2.5"/>
+                <!-- Grey Suit Jacket & White Shirt -->
+                <path d="M66 96 L116 96 L120 132 L62 132 Z" fill="#8c9099" stroke="#3f3630" stroke-width="3.2" stroke-linejoin="round"/>
+                <polygon points="82,95 100,95 91,116" fill="#ffffff" stroke="#3f3630" stroke-width="2.2"/>
+                <path d="M78 96 L91 118 L80 116 Z" fill="#737780" stroke="#3f3630" stroke-width="2.2" stroke-linejoin="round"/>
+                <path d="M104 96 L91 118 L102 116 Z" fill="#737780" stroke="#3f3630" stroke-width="2.2" stroke-linejoin="round"/>
+                <!-- Laptop -->
+                <g transform="translate(16, 94) rotate(-6)">
+                    <rect x="2" y="2" width="48" height="32" rx="4" fill="#9ca3af" stroke="#3f3630" stroke-width="3"/>
+                    <circle cx="26" cy="18" r="5" fill="#e0e7ff" stroke="#4f46e5" stroke-width="1.8"/>
+                    <rect x="6" y="34" width="52" height="5" rx="2" fill="#cbd5e1" stroke="#3f3630" stroke-width="2.5"/>
+                </g>
+                <!-- Left Hand Holding Laptop -->
+                <ellipse cx="48" cy="129" rx="7" ry="4.5" fill="#fce1cf" stroke="#3f3630" stroke-width="2.5"/>
+                <!-- Head & Face -->
+                <ellipse cx="92" cy="60" rx="34" ry="32" fill="#fce1cf" stroke="#3f3630" stroke-width="3.2"/>
+                <!-- Hair Bangs -->
+                <path d="M57 58 C56 28, 76 18, 95 19 C116 20, 129 34, 127 60 C122 46, 114 38, 106 44 C100 34, 88 32, 82 44 C74 36, 65 44, 57 58 Z" fill="#6b5e55" stroke="#3f3630" stroke-width="3.2" stroke-linejoin="round"/>
+                <!-- Blush -->
+                <ellipse cx="70" cy="70" rx="6" ry="3.5" fill="#fda4af" opacity="0.65"/>
+                <ellipse cx="112" cy="70" rx="6" ry="3.5" fill="#fda4af" opacity="0.65"/>
+                <!-- Eyes & Glasses -->
+                <circle cx="77" cy="60" r="4.8" fill="#3f3630"/>
+                <circle cx="78.5" cy="58.5" r="1.6" fill="#ffffff"/>
+                <circle cx="105" cy="60" r="4.8" fill="#3f3630"/>
+                <circle cx="106.5" cy="58.5" r="1.6" fill="#ffffff"/>
+                <rect x="65" y="51" width="23" height="17" rx="5" fill="rgba(255,255,255,0.22)" stroke="#3f3630" stroke-width="2.8"/>
+                <rect x="94" y="51" width="23" height="17" rx="5" fill="rgba(255,255,255,0.22)" stroke="#3f3630" stroke-width="2.8"/>
+                <line x1="88" y1="59" x2="94" y2="59" stroke="#3f3630" stroke-width="2.8"/>
+                <!-- Happy Smile -->
+                <path d="M84 74 Q92 85 100 74 Z" fill="#fb7185" stroke="#3f3630" stroke-width="2.2" stroke-linejoin="round"/>
+            </svg>
+        `;
+
+        // ==================== INITIALIZATION ====================
+        async function initApp() {
+            try {
+                if (!firebaseConfig) {
+                    showToast('未偵測到雲端設定，將以本機示範模式運行', 'warning');
+                    loadDemoFallback();
+                    return;
+                }
+
+                app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // RULE 3: Authenticate BEFORE any Firestore queries
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    const cred = await signInWithCustomToken(auth, __initial_auth_token);
+                    currentUser = cred.user;
+                } else {
+                    const cred = await signInAnonymously(auth);
+                    currentUser = cred.user;
+                }
+
+                setupRealtimeListeners();
+            } catch (err) {
+                console.error("Initialization error:", err);
+                showToast('連線初始化發生錯誤，請重新整理頁面', 'error');
+            }
+        }
+
+        // Helper for Strict Public Paths (RULE 1)
+        function getPublicCol(colName) {
+            return collection(db, 'artifacts', appId, 'public', 'data', colName);
+        }
+        function getPublicDoc(colName, docId) {
+            return doc(db, 'artifacts', appId, 'public', 'data', colName, docId);
+        }
+
+        // ==================== REAL-TIME LISTENERS ====================
+        let hasCheckedDefaultSeed = false;
+
+        function setupRealtimeListeners() {
+            if (!currentUser) return;
+
+            // 1. Profile Listener
+            onSnapshot(getPublicDoc('profile', 'main'), (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    // Auto-upgrade old placeholder certificates to the instructor's real Google certificates
+                    const isOldPlaceholderCerts = Array.isArray(data.certificates) &&
+                        data.certificates.length === 2 &&
+                        data.certificates.some(c => c.id === 'c1') &&
+                        data.certificates.some(c => c.id === 'c2');
+                    if (isOldPlaceholderCerts) {
+                        data.certificates = [...DEFAULT_CERTIFICATES];
+                    }
+                    state.profile = { ...state.profile, ...data };
+                }
+                renderProfile();
+            }, (err) => console.error("Profile listener error:", err));
+
+            // 2. Resources Listener (RULE 2: No orderBy in query; sort in JS)
+            onSnapshot(getPublicCol('resources'), async (snap) => {
+                const list = [];
+                snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+                list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+                state.resources = list;
+
+                // Seed a default fixed handout if completely empty on first load
+                if (list.length === 0 && !hasCheckedDefaultSeed) {
+                    hasCheckedDefaultSeed = true;
+                    try {
+                        await setDoc(getPublicDoc('resources', 'default_handout_main'), {
+                            title: '【固定講義】Gemini & NotebookLM 教學應用核心提示詞',
+                            promptText: '你現在是一位擁有 15 年經驗的臺灣國中/國小教師。請針對「【輸入單元主題】」，設計一份 45 分鐘的差異化教學活動：\n1. 引起動機（5分鐘）：結合學生生活經驗的提問\n2. 核心探究（25分鐘）：設計 3 個由淺入深的思考問題\n3. 評量與總結（15分鐘）：產出 3 題素養導向選擇題並附詳解。',
+                            urlLabel: '前往 NotebookLM 打造個人化教學知識庫',
+                            url: 'https://notebooklm.google.com/',
+                            fileName: '',
+                            fileData: '',
+                            fileType: '',
+                            isVisible: true,
+                            createdAt: Date.now()
+                        });
+                    } catch (e) {
+                        console.warn("Auto-seed skipped:", e);
+                    }
+                }
+
+                document.getElementById('global-loading').classList.add('hidden');
+                window.switchTab(state.activeTab);
+                renderResources();
+            }, (err) => {
+                console.error("Resources listener error:", err);
+                showToast('讀取研習資源失敗', 'error');
+            });
+
+            // 3. Sessions Listener
+            onSnapshot(getPublicCol('sessions'), (snap) => {
+                const list = [];
+                snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+                // Sort newest date first in JS
+                list.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
+                state.sessions = list;
+                updateYearMonthFilters();
+                renderSessions();
+            }, (err) => console.error("Sessions listener error:", err));
+
+            // 4. Feedbacks Listener
+            onSnapshot(getPublicCol('feedbacks'), (snap) => {
+                const list = [];
+                snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+                list.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                state.feedbacks = list;
+                renderSessions();
+            }, (err) => console.error("Feedbacks listener error:", err));
+        }
+
+        function loadDemoFallback() {
+            document.getElementById('global-loading').classList.add('hidden');
+            state.resources = [{
+                id: 'demo1',
+                title: '【固定講義】Gemini 備課核心提示詞',
+                promptText: '請幫我設計一份適合國小五年級的「太陽系」互動教案，包含分組討論問題與評量單。',
+                urlLabel: '開啟 Google Gemini',
+                url: 'https://gemini.google.com/',
+                isVisible: true,
+                createdAt: Date.now()
+            }];
+            window.switchTab('resources');
+            renderProfile();
+            renderResources();
+            renderSessions();
+        }
+
+        // ==================== UI NAVIGATION & ROLE TOGGLE ====================
+        window.switchTab = function(tabName) {
+            state.activeTab = tabName;
+            ['resources', 'feedback', 'profile'].forEach(t => {
+                const sec = document.getElementById(`section-${t}`);
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (t === tabName) {
+                    sec.classList.remove('hidden');
+                    btn.classList.add('border-indigo-600', 'text-indigo-600');
+                    btn.classList.remove('border-transparent', 'text-slate-500');
+                } else {
+                    sec.classList.add('hidden');
+                    btn.classList.remove('border-indigo-600', 'text-indigo-600');
+                    btn.classList.add('border-transparent', 'text-slate-500');
+                }
+            });
+        };
+
+        window.handleRoleToggle = function() {
+            if (state.isInstructor) {
+                state.isInstructor = false;
+                updateRoleUI();
+                showToast('已切換回「學員介面」');
+            } else {
+                document.getElementById('input-pin').value = '';
+                openModal('modal-login');
+                setTimeout(() => document.getElementById('input-pin').focus(), 100);
+            }
+        };
+
+        window.verifyInstructorPin = function() {
+            const entered = document.getElementById('input-pin').value.trim();
+            const correctPin = state.profile.pin || '8888';
+            if (entered === correctPin) {
+                state.isInstructor = true;
+                closeModal('modal-login');
+                updateRoleUI();
+                showToast('歡迎回來！已進入「講師介面」');
+            } else {
+                showToast('密碼錯誤，請再試一次（預設 8888）', 'error');
+            }
+        };
+
+        function updateRoleUI() {
+            const badge = document.getElementById('role-badge');
+            const toggleBtn = document.getElementById('role-toggle-btn');
+
+            if (state.isInstructor) {
+                badge.className = 'hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-300';
+                badge.innerHTML = '<i class="fa-solid fa-crown"></i> 講師管理模式';
+                toggleBtn.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm flex items-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white';
+                toggleBtn.innerHTML = '<i class="fa-solid fa-eye"></i><span>切換學員視角</span>';
+            } else {
+                badge.className = 'hidden sm:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200';
+                badge.innerHTML = '<i class="fa-solid fa-user-graduate"></i> 學員介面';
+                toggleBtn.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all shadow-sm flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700';
+                toggleBtn.innerHTML = '<i class="fa-solid fa-chalkboard-user"></i><span>切換講師介面</span>';
+            }
+
+            // Show/Hide Instructor-only controls
+            const instructorOnlyIds = [
+                'btn-add-resource', 'instructor-resource-hint',
+                'btn-add-session', 'btn-edit-profile', 'btn-add-cert', 'btn-add-exp'
+            ];
+            instructorOnlyIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('hidden', !state.isInstructor);
+            });
+
+            renderResources();
+            renderSessions();
+            renderProfile();
+        }
+
+        // ==================== TAB 1: RESOURCES RENDER & CRUD ====================
+        function renderResources() {
+            const container = document.getElementById('resources-list');
+            const visibleList = state.isInstructor 
+                ? state.resources 
+                : state.resources.filter(r => r.isVisible !== false);
+
+            if (visibleList.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 text-slate-400">
+                        <i class="fa-solid fa-folder-open text-4xl mb-3 text-slate-300"></i>
+                        <p class="font-medium text-slate-500">目前尚無公開的研習資源</p>
+                        <p class="text-xs mt-1">${state.isInstructor ? '點擊右上方「新增資源欄位」立即開始分享！' : '請稍候，講師張貼資料後將即時同步顯示於此。'}</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = visibleList.map(item => {
+                const isHidden = item.isVisible === false;
+                const cardStyle = isHidden 
+                    ? 'bg-slate-50 border-2 border-dashed border-slate-300 opacity-80' 
+                    : 'bg-white border border-slate-200 shadow-sm hover:shadow-md transition-shadow';
+
+                return `
+                <article class="rounded-2xl overflow-hidden ${cardStyle}">
+                    <!-- Resource Title Bar -->
+                    <div class="px-5 py-4 bg-slate-50/70 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-2.5 h-2.5 rounded-full ${isHidden ? 'bg-slate-400' : 'bg-indigo-500'}"></span>
+                            <h3 class="text-base sm:text-lg font-bold text-slate-800">${escapeHtml(item.title)}</h3>
+                            ${isHidden ? '<span class="px-2 py-0.5 rounded-md text-xs font-bold bg-slate-200 text-slate-600"><i class="fa-solid fa-eye-slash mr-1"></i>已隱藏</span>' : ''}
+                        </div>
+                        ${state.isInstructor ? `
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="window.toggleResourceVisibility('${item.id}', ${isHidden})" 
+                                    class="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${isHidden ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}">
+                                <i class="fa-solid ${isHidden ? 'fa-eye' : 'fa-eye-slash'} mr-1"></i>${isHidden ? '顯示給學員' : '隱藏'}
+                            </button>
+                            <button onclick="window.openResourceModal('${item.id}')" 
+                                    class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+                                <i class="fa-solid fa-pen"></i> 編輯
+                            </button>
+                            <button onclick="window.confirmDelete('resource', '${item.id}', '${escapeJs(item.title)}')" 
+                                    class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>` : ''}
+                    </div>
+
+                    <!-- Content Blocks (Prompt, URL, File) -->
+                    <div class="p-5 space-y-4">
+                        ${item.promptText ? `
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> 提示詞 (Prompt)
+                                </span>
+                                <button onclick="window.copyTextById('prompt-${item.id}', '提示詞已複製！')" 
+                                        class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shadow-sm">
+                                    <i class="fa-regular fa-copy"></i> 複製提示詞
+                                </button>
+                            </div>
+                            <div id="prompt-${item.id}" class="bg-slate-900 text-slate-100 rounded-xl p-4 text-sm leading-relaxed whitespace-pre-wrap font-mono overflow-x-auto">${escapeHtml(item.promptText)}</div>
+                        </div>` : ''}
+
+                        ${item.url ? `
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-blue-50/70 border border-blue-100 rounded-xl p-3.5">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-link"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(item.urlLabel || '相關教學網址連結')}</p>
+                                    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-600 hover:underline truncate block">${escapeHtml(item.url)}</a>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" 
+                                   class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors flex items-center gap-1.5">
+                                    <i class="fa-solid fa-arrow-up-right-from-square"></i> 開啟網址
+                                </a>
+                                <button onclick="window.copyRawText('${escapeJs(item.url)}', '網址已複製！')" 
+                                        class="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold transition-colors flex items-center gap-1.5">
+                                    <i class="fa-regular fa-copy"></i> 複製
+                                </button>
+                            </div>
+                        </div>` : ''}
+
+                        ${item.fileName && item.fileData ? `
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/70 border border-emerald-100 rounded-xl p-3.5">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-9 h-9 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                                    <i class="fa-solid fa-file-arrow-down"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-bold text-slate-800 truncate">${escapeHtml(item.fileName)}</p>
+                                    <p class="text-xs text-emerald-700">講師提供之研習電子檔</p>
+                                </div>
+                            </div>
+                            <button onclick="window.downloadResourceFile('${item.id}')" 
+                                    class="px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition-colors flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
+                                <i class="fa-solid fa-download"></i> 下載電子檔
+                            </button>
+                        </div>` : ''}
+                    </div>
+                </article>`;
+            }).join('');
+        }
+
+        window.openResourceModal = function(id = null) {
+            state.tempResourceFile = null;
+            document.getElementById('form-resource').reset();
+            document.getElementById('res-file-status').textContent = '';
+            document.getElementById('btn-clear-file').classList.add('hidden');
+
+            if (id) {
+                const item = state.resources.find(r => r.id === id);
+                if (!item) return;
+                document.getElementById('modal-resource-title').textContent = '編輯研習資源欄位';
+                document.getElementById('res-id').value = item.id;
+                document.getElementById('res-title').value = item.title || '';
+                document.getElementById('res-prompt').value = item.promptText || '';
+                document.getElementById('res-url-label').value = item.urlLabel || '';
+                document.getElementById('res-url').value = item.url || '';
+                document.getElementById('res-visible').checked = item.isVisible !== false;
+                if (item.fileName && item.fileData) {
+                    state.tempResourceFile = { name: item.fileName, data: item.fileData, type: item.fileType || '' };
+                    document.getElementById('res-file-status').textContent = `目前附件：${item.fileName}`;
+                    document.getElementById('btn-clear-file').classList.remove('hidden');
+                }
+            } else {
+                document.getElementById('modal-resource-title').textContent = '新增研習資源欄位';
+                document.getElementById('res-id').value = '';
+                document.getElementById('res-visible').checked = true;
+            }
+            openModal('modal-resource');
+        };
+
+        window.handleResourceFileChange = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.size > 700 * 1024) {
+                showToast('檔案超過 700KB，建議先上傳至 Google 雲端硬碟再貼上網址連結！', 'error');
+                event.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                state.tempResourceFile = {
+                    name: file.name,
+                    data: e.target.result,
+                    type: file.type
+                };
+                document.getElementById('res-file-status').textContent = `已選擇：${file.name} (${Math.round(file.size/1024)} KB)`;
+                document.getElementById('btn-clear-file').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.clearResourceFile = function() {
+            state.tempResourceFile = null;
+            document.getElementById('res-file-input').value = '';
+            document.getElementById('res-file-status').textContent = '已移除附件';
+            document.getElementById('btn-clear-file').classList.add('hidden');
+        };
+
+        window.saveResource = async function(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+
+            const id = document.getElementById('res-id').value;
+            const payload = {
+                title: document.getElementById('res-title').value.trim(),
+                promptText: document.getElementById('res-prompt').value.trim(),
+                urlLabel: document.getElementById('res-url-label').value.trim(),
+                url: document.getElementById('res-url').value.trim(),
+                fileName: state.tempResourceFile ? state.tempResourceFile.name : '',
+                fileData: state.tempResourceFile ? state.tempResourceFile.data : '',
+                fileType: state.tempResourceFile ? state.tempResourceFile.type : '',
+                isVisible: document.getElementById('res-visible').checked
+            };
+
+            try {
+                if (id) {
+                    await updateDoc(getPublicDoc('resources', id), payload);
+                    showToast('已更新研習資源並同步給學員！');
+                } else {
+                    payload.createdAt = Date.now();
+                    await addDoc(getPublicCol('resources'), payload);
+                    showToast('已新增研習資源並同步給學員！');
+                }
+                closeModal('modal-resource');
+            } catch (err) {
+                console.error("Save resource error:", err);
+                showToast('儲存失敗，請檢查檔案大小或網路連線', 'error');
+            }
+        };
+
+        window.toggleResourceVisibility = async function(id, currentlyHidden) {
+            if (!currentUser) return;
+            try {
+                await updateDoc(getPublicDoc('resources', id), { isVisible: currentlyHidden });
+                showToast(currentlyHidden ? '已設為學員可見' : '已對學員隱藏此資料');
+            } catch (err) {
+                showToast('更新狀態失敗', 'error');
+            }
+        };
+
+        window.downloadResourceFile = function(id) {
+            const item = state.resources.find(r => r.id === id);
+            if (!item || !item.fileData) return;
+            const link = document.createElement('a');
+            link.href = item.fileData;
+            link.download = item.fileName || 'download';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            showToast(`正在下載：${item.fileName}`);
+        };
+
+        // ==================== EXPORT PROMPTS TO WORD & PDF ====================
+        window.exportPrompts = function(format) {
+            const visibleWithPrompts = state.resources.filter(r => r.isVisible !== false && r.promptText && r.promptText.trim() !== '');
+            if (visibleWithPrompts.length === 0) {
+                showToast('目前沒有可下載的公開提示詞', 'error');
+                return;
+            }
+
+            const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+            const instructorName = state.profile.name || 'Google AI 認證講師';
+
+            const contentHtml = `
+                <div style="font-family: 'Microsoft JhengHei', 'Noto Sans TC', sans-serif; color: #1e293b; padding: 20px; line-height: 1.6;">
+                    <div style="border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 20px;">
+                        <h1 style="font-size: 22px; color: #312e81; margin: 0 0 6px 0;">研習提示詞 (Prompts) 精華彙整</h1>
+                        <p style="font-size: 12px; color: #64748b; margin: 0;">講師：${escapeHtml(instructorName)} ｜ 匯出日期：${new Date().toLocaleDateString('zh-TW')}</p>
+                    </div>
+                    ${visibleWithPrompts.map((item, idx) => `
+                        <div style="margin-bottom: 22px; page-break-inside: avoid;">
+                            <h2 style="font-size: 16px; color: #1e40af; margin: 0 0 8px 0;">${idx + 1}. ${escapeHtml(item.title)}</h2>
+                            <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-left: 4px solid #4f46e5; padding: 12px 14px; border-radius: 6px; white-space: pre-wrap; font-size: 13px; color: #0f172a;">${escapeHtml(item.promptText)}</div>
+                            ${item.url ? `<p style="font-size: 12px; color: #2563eb; margin-top: 6px;">相關連結：${escapeHtml(item.url)}</p>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            if (format === 'word') {
+                const wordDoc = `
+                    <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+                    <head><meta charset="utf-8"><title>研習提示詞彙整</title></head>
+                    <body>${contentHtml}</body>
+                    </html>`;
+                const blob = new Blob(['\ufeff', wordDoc], { type: 'application/msword;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `研習提示詞彙整_${todayStr}.doc`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                showToast('已成功下載 Word 檔 (.doc)！');
+            } else if (format === 'pdf') {
+                showToast('正在產生 PDF 檔案，請稍候...');
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = contentHtml;
+                const opt = {
+                    margin: 12,
+                    filename: `研習提示詞彙整_${todayStr}.pdf`,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                if (typeof html2pdf !== 'undefined') {
+                    html2pdf().set(opt).from(wrapper).save().then(() => {
+                        showToast('已成功下載 PDF 檔！');
+                    }).catch(() => {
+                        showToast('PDF 產生失敗，請改用 Word 下載', 'error');
+                    });
+                } else {
+                    showToast('PDF 元件載入中，請稍後再試', 'error');
+                }
+            }
+        };
+
+        // ==================== TAB 2: SESSIONS, FEEDBACK & REFLECTION ====================
+        function updateYearMonthFilters() {
+            const yearSelect = document.getElementById('filter-year');
+            const currentYear = yearSelect.value;
+
+            const years = new Set();
+            state.sessions.forEach(s => {
+                if (s.date && s.date.length >= 4) years.add(s.date.slice(0, 4));
+            });
+            const sortedYears = Array.from(years).sort((a, b) => b.localeCompare(a));
+
+            yearSelect.innerHTML = '<option value="all">全部年度</option>' + 
+                sortedYears.map(y => `<option value="${y}">${y} 年</option>`).join('');
+            
+            if (sortedYears.includes(currentYear)) yearSelect.value = currentYear;
+            updateMonthOptions();
+        }
+
+        window.onYearFilterChange = function() {
+            updateMonthOptions();
+            renderSessions();
+        };
+
+        function updateMonthOptions() {
+            const selectedYear = document.getElementById('filter-year').value;
+            const monthSelect = document.getElementById('filter-month');
+            const currentMonth = monthSelect.value;
+
+            const months = new Set();
+            state.sessions.forEach(s => {
+                if (s.date && s.date.length >= 7) {
+                    const y = s.date.slice(0, 4);
+                    const m = s.date.slice(5, 7);
+                    if (selectedYear === 'all' || y === selectedYear) {
+                        months.add(m);
+                    }
+                }
+            });
+            const sortedMonths = Array.from(months).sort((a, b) => b.localeCompare(a));
+
+            monthSelect.innerHTML = '<option value="all">全部月份</option>' + 
+                sortedMonths.map(m => `<option value="${m}">${parseInt(m, 10)} 月</option>`).join('');
+
+            if (sortedMonths.includes(currentMonth)) monthSelect.value = currentMonth;
+        }
+
+        window.renderSessions = function() {
+            const container = document.getElementById('sessions-list');
+            const selYear = document.getElementById('filter-year').value;
+            const selMonth = document.getElementById('filter-month').value;
+
+            let filtered = state.isInstructor 
+                ? state.sessions 
+                : state.sessions.filter(s => s.isVisible !== false);
+
+            filtered = filtered.filter(s => {
+                if (!s.date) return true;
+                const y = s.date.slice(0, 4);
+                const m = s.date.slice(5, 7);
+                const matchY = selYear === 'all' || y === selYear;
+                const matchM = selMonth === 'all' || m === selMonth;
+                return matchY && matchM;
+            });
+
+            document.getElementById('session-count-badge').textContent = `共 ${filtered.length} 場研習`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-12 text-center border border-dashed border-slate-300 text-slate-400">
+                        <i class="fa-solid fa-calendar-xmark text-4xl mb-3 text-slate-300"></i>
+                        <p class="font-medium text-slate-500">此篩選條件下尚無研習場次紀錄</p>
+                        <p class="text-xs mt-1">${state.isInstructor ? '請點擊上方「建立新研習場次」新增場次供學員填寫心得。' : '請切換其他年份月份，或等待講師建立場次。'}</p>
+                    </div>`;
+                return;
+            }
+
+            // Group by Year-Month for clear chronological organization
+            const groups = {};
+            filtered.forEach(s => {
+                const key = (s.date && s.date.length >= 7) ? `${s.date.slice(0, 4)} 年 ${parseInt(s.date.slice(5, 7), 10)} 月` : '未指定日期';
+                if (!groups[key]) groups[key] = [];
+                groups[key].push(s);
+            });
+
+            container.innerHTML = Object.entries(groups).map(([ymLabel, sessions]) => `
+                <div class="space-y-4">
+                    <div class="flex items-center gap-2">
+                        <span class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white shadow-sm">
+                            <i class="fa-regular fa-calendar mr-1"></i> ${ymLabel}
+                        </span>
+                        <div class="h-px flex-1 bg-slate-200"></div>
+                    </div>
+
+                    ${sessions.map(sess => renderSingleSessionCard(sess)).join('')}
+                </div>
+            `).join('');
+        };
+
+        function renderSingleSessionCard(sess) {
+            const sessHidden = sess.isVisible === false;
+            const reflHidden = sess.reflectionVisible === false;
+            const sessFeedbacks = state.feedbacks.filter(f => f.sessionId === sess.id && (state.isInstructor || f.isVisible !== false));
+
+            const titleSummary = `${sess.date} (${sess.time}) ｜ ${sess.location} ｜ ${sess.domain} ｜ 參與人數：${sess.count}人`;
+
+            return `
+            <div class="rounded-2xl overflow-hidden ${sessHidden ? 'bg-slate-50 border-2 border-dashed border-slate-300' : 'bg-white border border-slate-200 shadow-sm'}">
+                <!-- Session Metadata Header -->
+                <div class="p-5 bg-gradient-to-r from-slate-50 to-indigo-50/40 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div class="space-y-1.5">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-lg bg-indigo-100 text-indigo-800 text-xs font-bold">${escapeHtml(sess.date)}</span>
+                            <span class="px-2.5 py-0.5 rounded-lg bg-slate-200 text-slate-700 text-xs font-semibold"><i class="fa-regular fa-clock mr-1"></i>${escapeHtml(sess.time)}</span>
+                            <span class="px-2.5 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 text-xs font-semibold"><i class="fa-solid fa-users mr-1"></i>${escapeHtml(String(sess.count))} 人</span>
+                            ${sessHidden ? '<span class="px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold">場次已隱藏</span>' : ''}
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800">
+                            <i class="fa-solid fa-school text-indigo-500 mr-1.5"></i>${escapeHtml(sess.location)}
+                            <span class="text-sm font-semibold text-slate-500 ml-1">（${escapeHtml(sess.domain)}）</span>
+                        </h3>
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button onclick="window.openFeedbackModal('${sess.id}', '${escapeJs(titleSummary)}')" 
+                                class="px-4 py-2 rounded-xl gemini-gradient text-white text-xs sm:text-sm font-semibold shadow-sm hover:opacity-95 transition-all flex items-center gap-1.5">
+                            <i class="fa-solid fa-pen-to-square"></i> 填寫本場心得
+                        </button>
+                        ${state.isInstructor ? `
+                        <button onclick="window.toggleSessionVisibility('${sess.id}', ${sessHidden})" 
+                                class="px-2.5 py-2 rounded-xl text-xs font-semibold bg-slate-200 hover:bg-slate-300 text-slate-700">
+                            <i class="fa-solid ${sessHidden ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                        </button>
+                        <button onclick="window.openSessionModal('${sess.id}')" 
+                                class="px-2.5 py-2 rounded-xl text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button onclick="window.confirmDelete('session', '${sess.id}', '${escapeJs(sess.location)}')" 
+                                class="px-2.5 py-2 rounded-xl text-xs font-semibold bg-rose-50 hover:bg-rose-100 text-rose-600">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>` : ''}
+                    </div>
+                </div>
+
+                <div class="p-5 space-y-5">
+                    <!-- Instructor Reflection Block -->
+                    ${(sess.reflection || state.isInstructor) && (state.isInstructor || !reflHidden) ? `
+                    <div class="rounded-xl p-4 ${reflHidden ? 'bg-slate-100 border border-dashed border-slate-300' : 'bg-amber-50/70 border border-amber-200'}">
+                        <div class="flex items-center justify-between mb-2">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                                <i class="fa-solid fa-lightbulb text-amber-500"></i> 講師本次研習省思
+                                ${reflHidden ? '<span class="ml-1 px-2 py-0.5 rounded bg-slate-200 text-slate-600 normal-case">僅講師可見（已隱藏）</span>' : ''}
+                            </h4>
+                            ${state.isInstructor ? `
+                            <div class="flex items-center gap-2">
+                                <button onclick="window.toggleReflectionVisibility('${sess.id}', ${reflHidden})" 
+                                        class="text-xs font-semibold text-amber-700 hover:underline">
+                                    <i class="fa-solid ${reflHidden ? 'fa-eye' : 'fa-eye-slash'} mr-1"></i>${reflHidden ? '公開給學員' : '隱藏省思'}
+                                </button>
+                                <button onclick="window.openSessionModal('${sess.id}')" class="text-xs font-semibold text-indigo-600 hover:underline">編輯省思</button>
+                            </div>` : ''}
+                        </div>
+                        <p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">${sess.reflection ? escapeHtml(sess.reflection) : '<span class="text-slate-400 italic">講師尚未撰寫本次省思...</span>'}</p>
+                    </div>` : ''}
+
+                    <!-- Participant Feedbacks List -->
+                    <div>
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-comment-dots text-indigo-500"></i> 學員心得回饋 (${sessFeedbacks.length} 則)
+                        </h4>
+                        ${sessFeedbacks.length === 0 ? `
+                            <p class="text-sm text-slate-400 bg-slate-50 rounded-xl p-4 text-center">目前還沒有學員回饋，歡迎成為第一位分享心得的夥伴！</p>
+                        ` : `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                ${sessFeedbacks.map(fb => {
+                                    const fbHidden = fb.isVisible === false;
+                                    return `
+                                    <div class="rounded-xl p-4 ${fbHidden ? 'bg-slate-100 border border-dashed border-slate-300 opacity-75' : 'bg-slate-50 border border-slate-200/80'}">
+                                        <div class="flex items-center justify-between gap-2 mb-2">
+                                            <div class="flex items-center gap-2">
+                                                <span class="w-7 h-7 rounded-full ${fb.isAnonymous ? 'bg-slate-200 text-slate-600' : 'bg-indigo-100 text-indigo-700'} flex items-center justify-center text-xs font-bold">
+                                                    <i class="fa-solid ${fb.isAnonymous ? 'fa-user-secret' : 'fa-user'}"></i>
+                                                </span>
+                                                <div>
+                                                    <span class="text-sm font-bold text-slate-800">${fb.isAnonymous ? '匿名學員' : escapeHtml(fb.authorName || '熱心學員')}</span>
+                                                    <span class="text-xs text-amber-500 ml-1.5">${'★'.repeat(Number(fb.rating) || 5)}</span>
+                                                </div>
+                                            </div>
+                                            ${state.isInstructor ? `
+                                            <div class="flex items-center gap-1.5">
+                                                <button onclick="window.toggleFeedbackVisibility('${fb.id}', ${fbHidden})" 
+                                                        title="${fbHidden ? '顯示給學員' : '對學員隱藏'}"
+                                                        class="px-2 py-1 rounded-md text-xs font-semibold ${fbHidden ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600 hover:bg-slate-300'}">
+                                                    <i class="fa-solid ${fbHidden ? 'fa-eye' : 'fa-eye-slash'}"></i> ${fbHidden ? '顯示' : '隱藏'}
+                                                </button>
+                                                <button onclick="window.confirmDelete('feedback', '${fb.id}', '這則學員回饋')" 
+                                                        class="px-2 py-1 rounded-md text-xs text-rose-600 hover:bg-rose-100">
+                                                    <i class="fa-solid fa-trash-can"></i>
+                                                </button>
+                                            </div>` : ''}
+                                        </div>
+                                        <p class="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">${escapeHtml(fb.content)}</p>
+                                    </div>`;
+                                }).join('')}
+                            </div>
+                        `}
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        window.openSessionModal = function(id = null) {
+            document.getElementById('form-session').reset();
+            if (id) {
+                const s = state.sessions.find(x => x.id === id);
+                if (!s) return;
+                document.getElementById('modal-session-title').textContent = '編輯研習場次與省思';
+                document.getElementById('sess-id').value = s.id;
+                document.getElementById('sess-date').value = s.date || '';
+                document.getElementById('sess-time').value = s.time || '';
+                document.getElementById('sess-location').value = s.location || '';
+                document.getElementById('sess-domain').value = s.domain || '';
+                document.getElementById('sess-count').value = s.count || '';
+                document.getElementById('sess-reflection').value = s.reflection || '';
+                document.getElementById('sess-visible').checked = s.isVisible !== false;
+                document.getElementById('sess-reflection-visible').checked = s.reflectionVisible !== false;
+            } else {
+                document.getElementById('modal-session-title').textContent = '建立新研習場次';
+                document.getElementById('sess-id').value = '';
+                document.getElementById('sess-date').value = new Date().toISOString().slice(0, 10);
+                document.getElementById('sess-visible').checked = true;
+                document.getElementById('sess-reflection-visible').checked = true;
+            }
+            openModal('modal-session');
+        };
+
+        window.saveSession = async function(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+            const id = document.getElementById('sess-id').value;
+            const payload = {
+                date: document.getElementById('sess-date').value,
+                time: document.getElementById('sess-time').value.trim(),
+                location: document.getElementById('sess-location').value.trim(),
+                domain: document.getElementById('sess-domain').value.trim(),
+                count: Number(document.getElementById('sess-count').value) || 0,
+                reflection: document.getElementById('sess-reflection').value.trim(),
+                isVisible: document.getElementById('sess-visible').checked,
+                reflectionVisible: document.getElementById('sess-reflection-visible').checked
+            };
+            try {
+                if (id) {
+                    await updateDoc(getPublicDoc('sessions', id), payload);
+                    showToast('已更新研習場次！');
+                } else {
+                    payload.createdAt = Date.now();
+                    await addDoc(getPublicCol('sessions'), payload);
+                    showToast('已建立新研習場次！');
+                }
+                closeModal('modal-session');
+            } catch (err) {
+                showToast('儲存場次失敗', 'error');
+            }
+        };
+
+        window.toggleSessionVisibility = async function(id, currentlyHidden) {
+            if (!currentUser) return;
+            await updateDoc(getPublicDoc('sessions', id), { isVisible: currentlyHidden });
+            showToast(currentlyHidden ? '場次已公開' : '場次已對學員隱藏');
+        };
+
+        window.toggleReflectionVisibility = async function(id, currentlyHidden) {
+            if (!currentUser) return;
+            await updateDoc(getPublicDoc('sessions', id), { reflectionVisible: currentlyHidden });
+            showToast(currentlyHidden ? '講師省思已公開' : '講師省思已隱藏');
+        };
+
+        window.openFeedbackModal = function(sessionId, label) {
+            document.getElementById('form-feedback').reset();
+            document.getElementById('fb-session-id').value = sessionId;
+            document.getElementById('fb-session-label').textContent = label;
+            window.toggleAuthorInput(false);
+            openModal('modal-feedback');
+        };
+
+        window.toggleAuthorInput = function(isAnon) {
+            const box = document.getElementById('fb-author-container');
+            box.classList.toggle('hidden', isAnon);
+        };
+
+        window.saveFeedback = async function(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+            const isAnon = document.querySelector('input[name="fb-anon"]:checked').value === 'true';
+            const authorName = document.getElementById('fb-author').value.trim();
+            if (!isAnon && !authorName) {
+                showToast('選擇記名分享時，請輸入您的姓名或稱呼', 'error');
+                return;
+            }
+            const payload = {
+                sessionId: document.getElementById('fb-session-id').value,
+                isAnonymous: isAnon,
+                authorName: isAnon ? '匿名學員' : authorName,
+                rating: Number(document.getElementById('fb-rating').value) || 5,
+                content: document.getElementById('fb-content').value.trim(),
+                isVisible: true,
+                createdAt: Date.now()
+            };
+            try {
+                await addDoc(getPublicCol('feedbacks'), payload);
+                closeModal('modal-feedback');
+                showToast('感謝您的回饋！心得已成功送出。');
+            } catch (err) {
+                showToast('送出回饋失敗，請稍後再試', 'error');
+            }
+        };
+
+        window.toggleFeedbackVisibility = async function(id, currentlyHidden) {
+            if (!currentUser) return;
+            await updateDoc(getPublicDoc('feedbacks', id), { isVisible: currentlyHidden });
+            showToast(currentlyHidden ? '回饋已公開顯示' : '回饋已對學員隱藏');
+        };
+
+        // ==================== TAB 3: INSTRUCTOR PROFILE ====================
+        function applyAvatarToSlot(imgId, svgId, avatarUrl) {
+            const imgEl = document.getElementById(imgId);
+            const svgEl = document.getElementById(svgId);
+            if (!imgEl || !svgEl) return;
+
+            const hasCustomImage = avatarUrl && !avatarUrl.includes('placehold.co');
+            if (hasCustomImage) {
+                imgEl.src = avatarUrl;
+                imgEl.classList.remove('hidden');
+                svgEl.classList.add('hidden');
+            } else {
+                imgEl.classList.add('hidden');
+                svgEl.innerHTML = DEFAULT_IP_SVG;
+                svgEl.classList.remove('hidden');
+            }
+        }
+
+        function renderProfile() {
+            const p = state.profile;
+            applyAvatarToSlot('header-avatar', 'header-avatar-svg', p.avatarUrl);
+            applyAvatarToSlot('profile-avatar', 'profile-avatar-svg', p.avatarUrl);
+            document.getElementById('header-name').textContent = p.name || '黃鈺心 老師';
+            document.getElementById('profile-name').textContent = p.name || '黃鈺心 老師';
+            document.getElementById('profile-title-badge').textContent = p.title || 'Google AI 認證講師';
+            document.getElementById('profile-intro').textContent = p.intro || '';
+
+            // Render Certificates
+            const certsEl = document.getElementById('profile-certs-list');
+            const certs = p.certificates || [];
+            if (certs.length === 0) {
+                certsEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">尚未新增專業證書</p>';
+            } else {
+                certsEl.innerHTML = certs.map(c => {
+                    const badgeStyle = c.theme === 'gemini'
+                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white'
+                        : c.theme === 'gce2'
+                            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
+                            : 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white';
+                    const iconClass = c.theme === 'gemini' ? 'fa-solid fa-wand-magic-sparkles' : 'fa-solid fa-certificate';
+                    return `
+                    <div class="flex items-start justify-between gap-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 hover:border-indigo-200 transition-colors">
+                        <div class="flex items-start gap-3 min-w-0">
+                            <div class="w-10 h-10 rounded-xl ${badgeStyle} flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                                <i class="${iconClass} text-base"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h4 class="text-sm font-bold text-slate-800 leading-snug">${escapeHtml(c.name)}</h4>
+                                <p class="text-xs text-slate-500 mt-0.5">${escapeHtml(c.issuer || '')}</p>
+                                ${c.year ? `<p class="text-[11px] font-medium text-indigo-600 mt-1"><i class="fa-regular fa-calendar-check mr-1"></i>${escapeHtml(c.year)}</p>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button onclick="window.openCertPreview('${escapeJs(c.id)}')" 
+                                    class="px-2.5 py-1.5 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 border border-slate-200 text-xs font-semibold transition-colors flex items-center gap-1">
+                                <i class="fa-regular fa-id-badge"></i> 證書
+                            </button>
+                            ${state.isInstructor ? `
+                            <button onclick="window.deleteCert('${escapeJs(c.id)}')" title="刪除證書"
+                                    class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>` : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+
+            // Render Experiences
+            const expsEl = document.getElementById('profile-exps-list');
+            const exps = p.experiences || [];
+            if (exps.length === 0) {
+                expsEl.innerHTML = '<p class="text-sm text-slate-400 text-center py-6">尚未新增教學與演講經歷</p>';
+            } else {
+                expsEl.innerHTML = exps.map(e => `
+                    <div class="relative pl-5 border-l-2 border-indigo-200 pb-1">
+                        <span class="absolute -left-[7px] top-1 w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-white"></span>
+                        <div class="flex items-start justify-between gap-2">
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800">${escapeHtml(e.role)}</h4>
+                                <p class="text-xs text-slate-600 mt-0.5">${escapeHtml(e.org)}</p>
+                                ${e.period ? `<span class="inline-block mt-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-500 text-[11px] font-semibold">${escapeHtml(e.period)}</span>` : ''}
+                            </div>
+                            ${state.isInstructor ? `
+                            <button onclick="window.deleteExp('${escapeJs(e.id)}')" title="刪除經歷"
+                                    class="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors shrink-0">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        window.openCertPreview = function(certId) {
+            const c = (state.profile.certificates || []).find(item => item.id === certId);
+            if (!c) return;
+
+            const isGemini = c.theme === 'gemini';
+            const isL2 = c.theme === 'gce2';
+            const topBarClass = isGemini
+                ? 'bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600'
+                : isL2
+                    ? 'bg-gradient-to-r from-blue-600 via-amber-500 to-red-500'
+                    : 'bg-gradient-to-r from-blue-600 via-emerald-500 to-amber-400';
+            const recipient = c.recipient || state.profile.name || '黃鈺心';
+            const desc = c.desc || '完成官方認證考核，具備將 Google 教育科技與 AI 工具融入教學現場之專業能力。';
+
+            document.getElementById('cert-preview-body').innerHTML = `
+                <div class="h-2.5 w-full ${topBarClass}"></div>
+                <div class="p-7 sm:p-9 text-center space-y-5 bg-gradient-to-b from-white to-slate-50/70">
+                    <div class="flex items-center justify-center gap-2 text-sm font-bold text-slate-500 tracking-wide">
+                        <i class="fa-brands fa-google text-blue-600 text-lg"></i>
+                        <span>${escapeHtml(c.issuer || 'Google for Education')}</span>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-bold ${isGemini ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-amber-50 text-amber-800 border border-amber-200'}">
+                            <i class="${isGemini ? 'fa-solid fa-wand-magic-sparkles' : 'fa-solid fa-award'}"></i>
+                            官方認證證書
+                        </div>
+                        <h3 class="text-2xl sm:text-3xl font-extrabold text-slate-900 pt-1">${escapeHtml(c.name)}</h3>
+                    </div>
+
+                    <div class="py-3 border-y border-slate-200/80 max-w-md mx-auto">
+                        <p class="text-xs text-slate-400 uppercase tracking-widest mb-1">Awarded To / 授予</p>
+                        <p class="text-xl sm:text-2xl font-bold gemini-text-gradient">${escapeHtml(recipient)}</p>
+                    </div>
+
+                    <p class="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">${escapeHtml(desc)}</p>
+
+                    <div class="flex flex-wrap items-center justify-center gap-6 pt-2 text-xs text-slate-500">
+                        ${c.issuedDate ? `
+                        <div class="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                            <span class="block text-[10px] text-slate-400 uppercase">發證日期 Issued On</span>
+                            <span class="font-bold text-slate-700">${escapeHtml(c.issuedDate)}</span>
+                        </div>` : (c.year ? `
+                        <div class="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                            <span class="block text-[10px] text-slate-400 uppercase">取得時間</span>
+                            <span class="font-bold text-slate-700">${escapeHtml(c.year)}</span>
+                        </div>` : '')}
+                        ${c.validThrough ? `
+                        <div class="bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                            <span class="block text-[10px] text-slate-400 uppercase">有效期限 Valid Through</span>
+                            <span class="font-bold text-emerald-700">${escapeHtml(c.validThrough)}</span>
+                        </div>` : ''}
+                    </div>
+                </div>
+            `;
+            openModal('modal-cert-preview');
+        };
+
+        window.openProfileModal = function() {
+            state.tempAvatarData = state.profile.avatarUrl || '';
+            state.rawAvatarImageObj = null;
+            const fileInput = document.getElementById('edit-avatar-file');
+            if (fileInput) fileInput.value = '';
+            applyAvatarToSlot('edit-avatar-preview', 'edit-avatar-svg', state.tempAvatarData);
+            document.getElementById('edit-prof-name').value = state.profile.name || '';
+            document.getElementById('edit-prof-title').value = state.profile.title || '';
+            document.getElementById('edit-prof-intro').value = state.profile.intro || '';
+            document.getElementById('edit-prof-pin').value = state.profile.pin || '8888';
+            openModal('modal-profile');
+        };
+
+        // Edge-aware BFS flood-fill background removal (removes paper/white bg while preserving white shirt & eyes)
+        function processAvatarCanvas(img, removeBg, tolerance) {
+            const maxDim = 360;
+            let w = img.width, h = img.height;
+            if (w > h) { if (w > maxDim) { h = Math.round(h * maxDim / w); w = maxDim; } }
+            else { if (h > maxDim) { w = Math.round(w * maxDim / h); h = maxDim; } }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0, w, h);
+
+            if (!removeBg) {
+                return canvas.toDataURL('image/png');
+            }
+
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const data = imgData.data;
+
+            // Sample average light background color from border corners
+            let bgR = 250, bgG = 250, bgB = 247, samples = 0, sumR = 0, sumG = 0, sumB = 0;
+            const corners = [[2, 2], [w - 3, 2], [2, h - 3], [w - 3, h - 3], [Math.floor(w / 2), 2]];
+            corners.forEach(([cx, cy]) => {
+                if (cx >= 0 && cx < w && cy >= 0 && cy < h) {
+                    const idx = (cy * w + cx) * 4;
+                    if (data[idx + 3] > 200 && data[idx] > 180 && data[idx + 1] > 180 && data[idx + 2] > 180) {
+                        sumR += data[idx]; sumG += data[idx + 1]; sumB += data[idx + 2]; samples++;
+                    }
+                }
+            });
+            if (samples > 0) {
+                bgR = sumR / samples; bgG = sumG / samples; bgB = sumB / samples;
+            }
+
+            const visited = new Uint8Array(w * h);
+            const isBg = new Uint8Array(w * h);
+            const queue = new Int32Array(w * h);
+            let qHead = 0, qTail = 0;
+
+            const colorDistLimit = tolerance * 1.55;
+            const minLuminance = Math.max(120, 255 - tolerance * 1.65);
+
+            function matchesBackground(pos) {
+                const idx = pos * 4;
+                const a = data[idx + 3];
+                if (a < 20) return true;
+                const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+                const lum = (r + g + b) / 3;
+                const sat = Math.max(r, g, b) - Math.min(r, g, b);
+                const dist = Math.hypot(r - bgR, g - bgG, b - bgB);
+                return dist <= colorDistLimit && lum >= minLuminance && sat <= 46;
+            }
+
+            function tryEnqueue(x, y) {
+                if (x < 0 || x >= w || y < 0 || y >= h) return;
+                const pos = y * w + x;
+                if (visited[pos]) return;
+                visited[pos] = 1;
+                if (matchesBackground(pos)) {
+                    isBg[pos] = 1;
+                    queue[qTail++] = pos;
+                }
+            }
+
+            // Seed BFS from all 4 edges
+            for (let x = 0; x < w; x++) { tryEnqueue(x, 0); tryEnqueue(x, h - 1); }
+            for (let y = 0; y < h; y++) { tryEnqueue(0, y); tryEnqueue(w - 1, y); }
+
+            while (qHead < qTail) {
+                const pos = queue[qHead++];
+                const x = pos % w;
+                const y = (pos - x) / w;
+                tryEnqueue(x + 1, y);
+                tryEnqueue(x - 1, y);
+                tryEnqueue(x, y + 1);
+                tryEnqueue(x, y - 1);
+            }
+
+            // Clear background pixels and track non-transparent bounding box for clean auto-crop
+            let minX = w, minY = h, maxX = 0, maxY = 0;
+            for (let y = 0; y < h; y++) {
+                for (let x = 0; x < w; x++) {
+                    const pos = y * w + x;
+                    const idx = pos * 4;
+                    if (isBg[pos]) {
+                        data[idx + 3] = 0;
+                    } else {
+                        // Soft anti-alias feathering on pixels directly touching removed background
+                        const touchesBg = (x > 0 && isBg[pos - 1]) || (x < w - 1 && isBg[pos + 1]) ||
+                                          (y > 0 && isBg[pos - w]) || (y < h - 1 && isBg[pos + w]);
+                        if (touchesBg) {
+                            const lum = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                            if (lum > 195) {
+                                data[idx + 3] = Math.round(data[idx + 3] * 0.35);
+                            }
+                        }
+                        if (data[idx + 3] > 20) {
+                            if (x < minX) minX = x;
+                            if (x > maxX) maxX = x;
+                            if (y < minY) minY = y;
+                            if (y > maxY) maxY = y;
+                        }
+                    }
+                }
+            }
+            ctx.putImageData(imgData, 0, 0);
+
+            // Auto-crop tightly around the character with a small balanced margin
+            if (maxX > minX && maxY > minY) {
+                const pad = 8;
+                const cx = Math.max(0, minX - pad);
+                const cy = Math.max(0, minY - pad);
+                const cw = Math.min(w - cx, (maxX - minX) + pad * 2);
+                const ch = Math.min(h - cy, (maxY - minY) + pad * 2);
+                const cropCanvas = document.createElement('canvas');
+                cropCanvas.width = cw;
+                cropCanvas.height = ch;
+                cropCanvas.getContext('2d').drawImage(canvas, cx, cy, cw, ch, 0, 0, cw, ch);
+                return cropCanvas.toDataURL('image/png');
+            }
+            return canvas.toDataURL('image/png');
+        }
+
+        window.reprocessAvatarPreview = function() {
+            if (!state.rawAvatarImageObj) return;
+            const removeBg = document.getElementById('edit-avatar-remove-bg').checked;
+            const tolerance = Number(document.getElementById('edit-avatar-tolerance').value) || 46;
+            const processed = processAvatarCanvas(state.rawAvatarImageObj, removeBg, tolerance);
+            state.tempAvatarData = processed;
+            applyAvatarToSlot('edit-avatar-preview', 'edit-avatar-svg', processed);
+        };
+
+        // Upload IP photo and apply smart background removal automatically
+        window.handleAvatarUpload = function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    state.rawAvatarImageObj = img;
+                    window.reprocessAvatarPreview();
+                    showToast('已自動完成智慧去背，請確認預覽後按下儲存！');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.saveProfile = async function(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+            const updated = {
+                ...state.profile,
+                name: document.getElementById('edit-prof-name').value.trim(),
+                title: document.getElementById('edit-prof-title').value.trim(),
+                intro: document.getElementById('edit-prof-intro').value.trim(),
+                pin: document.getElementById('edit-prof-pin').value.trim() || '8888',
+                avatarUrl: state.tempAvatarData !== null ? state.tempAvatarData : state.profile.avatarUrl
+            };
+            try {
+                await setDoc(getPublicDoc('profile', 'main'), updated);
+                closeModal('modal-profile');
+                showToast('講師個人資料與去背 IP 照片已更新！');
+            } catch (err) {
+                showToast('儲存個人資料失敗', 'error');
+            }
+        };
+
+        window.openCertModal = () => { document.getElementById('cert-name').value = ''; document.getElementById('cert-issuer').value = ''; document.getElementById('cert-year').value = ''; openModal('modal-cert'); };
+        window.openExpModal = () => { document.getElementById('exp-role').value = ''; document.getElementById('exp-org').value = ''; document.getElementById('exp-period').value = ''; openModal('modal-exp'); };
+
+        window.addCertificate = async function(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+            const newCert = {
+                id: 'c_' + Date.now(),
+                name: document.getElementById('cert-name').value.trim(),
+                issuer: document.getElementById('cert-issuer').value.trim(),
+                year: document.getElementById('cert-year').value.trim()
+            };
+            const certs = [...(state.profile.certificates || []), newCert];
+            await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, certificates: certs });
+            closeModal('modal-cert');
+            showToast('已新增專業證書！');
+        };
+
+        window.deleteCert = async function(id) {
+            if (!currentUser) return;
+            const certs = (state.profile.certificates || []).filter(c => c.id !== id);
+            await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, certificates: certs });
+            showToast('已刪除證書');
+        };
+
+        window.addExperience = async function(event) {
+            event.preventDefault();
+            if (!currentUser) return;
+            const newExp = {
+                id: 'e_' + Date.now(),
+                role: document.getElementById('exp-role').value.trim(),
+                org: document.getElementById('exp-org').value.trim(),
+                period: document.getElementById('exp-period').value.trim()
+            };
+            const exps = [newExp, ...(state.profile.experiences || [])];
+            await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, experiences: exps });
+            closeModal('modal-exp');
+            showToast('已新增教學經歷！');
+        };
+
+        window.deleteExp = async function(id) {
+            if (!currentUser) return;
+            const exps = (state.profile.experiences || []).filter(e => e.id !== id);
+            await setDoc(getPublicDoc('profile', 'main'), { ...state.profile, experiences: exps });
+            showToast('已刪除經歷');
+        };
+
+        // ==================== DELETE CONFIRMATION ====================
+        window.confirmDelete = function(type, id, label) {
+            document.getElementById('confirm-message').textContent = `確定要永久刪除「${label}」嗎？此動作無法復原。`;
+            const okBtn = document.getElementById('confirm-ok-btn');
+            okBtn.onclick = async () => {
+                if (!currentUser) return;
+                try {
+                    const colMap = { resource: 'resources', session: 'sessions', feedback: 'feedbacks' };
+                    await deleteDoc(getPublicDoc(colMap[type], id));
+                    closeModal('modal-confirm');
+                    showToast('已刪除該筆資料');
+                } catch (err) {
+                    showToast('刪除失敗', 'error');
+                }
+            };
+            openModal('modal-confirm');
+        };
+
+        // ==================== UTILITIES ====================
+        window.copyTextById = function(elId, msg) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            window.copyRawText(el.textContent, msg);
+        };
+
+        window.copyRawText = function(text, msg = '已複製到剪貼簿！') {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast(msg);
+            } catch (err) {
+                showToast('複製失敗，請手動選取複製', 'error');
+            }
+            document.body.removeChild(ta);
+        };
+
+        window.openModal = (id) => document.getElementById(id).classList.remove('hidden');
+        window.closeModal = (id) => document.getElementById(id).classList.add('hidden');
+
+        let toastTimer;
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-msg').textContent = msg;
+            if (type === 'error') {
+                icon.className = 'fa-solid fa-circle-exclamation text-rose-400';
+            } else if (type === 'warning') {
+                icon.className = 'fa-solid fa-triangle-exclamation text-amber-400';
+            } else {
+                icon.className = 'fa-solid fa-circle-check text-emerald-400';
+            }
+            toast.classList.remove('hidden');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.add('hidden'), 2800);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function escapeJs(str) {
+            if (!str) return '';
+            return String(str).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, ' ');
+        }
+
+        // Start App
+        initApp();
+    </script>
+</body>
+</html>
